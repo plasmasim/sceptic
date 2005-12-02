@@ -1,0 +1,10 @@
+The files in this directory are tools for analyzing the output of SCEPTIC
+
+Doing "make" will build them on a linux system.
+
+They generally give some rudimentary help if you run them without any
+command line switches.
+
+Beyond that, you're on your own.
+
+Ian Hutchinson.

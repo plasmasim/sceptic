@@ -1,0 +1,44 @@
+SCEPTIC: Specialized Coordinate Electrostatic Particle and Thermals In Cell
+___________________________________________________________________________
+
+ This code is copyright (c) Ian H Hutchinson (2003) hutch@psfc.mit.edu.
+
+  It may be used freely with the stipulation that any scientific or
+ scholarly publication concerning work that uses the code must give an
+ acknowledgement referring to the papers I.H.Hutchinson, Plasma Physics
+ and Controlled Fusion, vol 44, p 1953 (2002), vol 45, p 1477 (2003).
+  The code may not be redistributed except in its original package.
+
+ No waranty, explicit or implied, is given. If you choose to build or run
+ the code, you do so at your own risk.
+___________________________________________________________________________
+ Version 2.5
+___________________________________________________________________________
+
+This package contains the CIC version of SCEPTIC. On a linux system the
+code is built by giving the command
+
+make
+
+Running ./sceptic will then give a usage message.
+________________________________________________________________________
+
+ACCIS
+_____
+
+The subdirectory accis contains a graphics library used by SCEPTIC
+(also copyright Ian Hutchinson).
+
+It will compile automatically, but both codes depend on having the X11
+libraries in the usual places.
+
+A guide for the accis routines is in accis/accissum.tex.
+
+In general, when the graphics plotting completes, and the program pauses,
+left click the mouse in the graphics window to continue.
+
+Tools
+_____
+
+A few codes for plotting and analysing the output of SCEPTIC are in
+the tools directory.
