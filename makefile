@@ -69,6 +69,7 @@ clean :
 	rm -f *.dat
 	rm -f *.frc
 	rm -f *.html
+	rm -f sihh snew
 
 ftnchek :
 	ftnchek -nocheck -nof77 -calltree=text,no-sort -mkhtml -quiet -brief sceptic.F *.f

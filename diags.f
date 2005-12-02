@@ -477,7 +477,7 @@ c     call polyline(rccleft,rholeft,NRUSED)
          call polyline(rcc(1),phip1,NRUSED)
          call dashset(0)
          call winset(.false.)
-         write(charin,'(f4.0)')thang(j)*180./3.14159
+         write(charin,'(f4.0)')thang(j)*180./3.1415927
          call legendline(0.7,0.08*(j-1)/jstepth+.1,
      $        0,charin(1:4)//char(0))
       enddo
