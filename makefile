@@ -18,7 +18,7 @@ COMPILE-SWITCHES = -Wall -O2  -I.
 #REINJECT=reinject.o
 #REINJECT=orbitinject.o extint.o
 # Current: To allow both collisional and collision free:
-REINJECT=fvinject.o orbitinject.o extint.o
+REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o
 
 # MPI version needs the beowulf libraries. Edit the MPILIBS to point to your
 # Local versions. 
@@ -70,6 +70,7 @@ clean :
 	rm -f *.frc
 	rm -f *.html
 	rm -f sihh snew Orbits.txt
+
 
 ftnchek :
 	ftnchek -nocheck -nof77 -calltree=text,no-sort -mkhtml -quiet -brief sceptic.F *.f
