@@ -15,6 +15,7 @@ c Version 2.5: Jan 2005
 
 C Main program for pic code
       program sceptic
+
       integer maxsteps,ipstep
       logical success,finaldiags
       real rmax
@@ -28,7 +29,10 @@ c Common storage:
       data rmax/5./
       data dtf/0.025/bdt/1./
       data success/.false./
-      data readpart/.false./writepart/.false./
+      data readpart/.false./
+      data writepart/.false./
+
+
 
 c Parallel processing MPI options.
 #ifdef MPI
@@ -85,8 +89,10 @@ c Common defaults. Avoid block data.
       lfixedn=.true.
       ipstep=1
       vneutral=0.
-
+      nbc=.false.
+      dsub=.false.
       Bz=0.
+
 
 c Deal with arguments
       if(iargc().eq.0) goto 51
@@ -100,7 +106,7 @@ c Deal with arguments
             read(string(9:),*)rhoinf
             lfixedn=.false.
          endif
-         if(string(1:2) .eq. '-r')readpart=.true.
+         if(string(1:2) .eq. '-r') readpart=.true.
          if(string(1:2) .eq. '-w') writepart=.true.
          if(string(1:3) .eq. '-gc') then
             lcolcont=.false.
@@ -129,6 +135,7 @@ c restore defaults on read error.
  262        continue
          endif
          if(string(1:4) .eq. '--bz') read(string(5:),*)Bz
+         if(string(1:4) .eq. '--ds') dsub=.true.
          if(string(1:2) .eq. '-s') read(string(3:),*)maxsteps
          if(string(1:2) .eq. '-b') read(string(3:),*)bdyfc
          if(string(1:2) .eq. '-t') read(string(3:),*)Ti
@@ -167,6 +174,7 @@ c restore defaults on read error.
  251        ipfsw=0
  252        continue
          endif
+         if(string(1:4) .eq. '-nbc') nbc=.true.
          if(string(1:2) .eq. '-o') read(string(3:),*)norbits
          if(string(1:3) .eq. '-kt')then
             read(string(4:),*)icolntype
@@ -184,7 +192,6 @@ c            call exit(0)
          endif
  1    continue
  3    continue
-
 c      write(*,*)linsulate,diags
 
 c Set Array sizes, allowed variable.
@@ -215,6 +222,10 @@ c Set Array sizes, allowed variable.
          NRFULL=nr
          NTHFULL=nth
       endif
+
+c Inner domain parameter
+      rsplit=nint(NRUSED/2.)
+
       if(myid.eq.0)then
 c         write(*,*)'Command line and defaults:'
          write(*,505)nr,nth,npart,Bz
@@ -262,7 +273,7 @@ c Checks when using an external file for potential
  521     format(10g8.2)
       endif
 c Initialize the random functions for reinjection.
-      call injinit(icolntype)
+      call injinit(icolntype,nbc)
 c Initialize velocity diagnostics
       vrange=8.*sqrt(Ti)+1.4*abs(vd)+1.4*sqrt(abs(vprobe))
       do kk=1,nvmax
@@ -294,7 +305,6 @@ c Assign charge to mesh
 c Collect the partial sums of moments of distribution.
       call sumreduce()
       call rhocalc(lsmooth)
-
 c Print out diagnostics for tiny meshes.
       if(nr.eq.10) then
          write(*,*)'rho,phi,psum'
@@ -316,8 +326,12 @@ c Save the permanent plot switch.
       maccel=maxsteps/3
       nsamax=min(39,maxsteps/10)+1
       if(success)nstepsave=nsamax
+
+
+
 c Main Stepping loop.
       do i=1,maxsteps
+
 c Plot at some subset of steps.
 c         write(*,*)mod(i-1,ipstep),i,ipstep
          lplot=lpstore.and.(mod(i-1,ipstep).eq.0)
@@ -337,9 +351,16 @@ c Assign charge to mesh
 c Collect the partial sums of moments of distribution.
          call sumreduce()
          call aveupstep()
-
 c myid.eq.0 for the master node.
          if(myid.eq.0)then
+
+c Refresh precalculated fuctions
+
+            if ((mod(i,20).eq.0)) then
+               call injinit(icolntype,nbc)
+            endif
+
+            
 c Plot density contours.
             if(lplot)then
                if(lcolcont)then
@@ -356,6 +377,7 @@ c Plot the slices through the probe.
 c Document charge accumulated; calculate diagrho.
 c This is where rhoinf and finthave get calculated.
             call chargediag(dt,i)
+
 c Write step information.
             if(mod(i,5).eq.1) then
                if(i.gt.1)then
@@ -396,6 +418,7 @@ c Calculate the potential field, unless it is fixed.
                else
                   call fcalc(dt)
                endif
+               
 c Damping on ion motion by artificial potential modification.
                if(damplen.gt.0.) call damp(dt,damplen)
             endif
@@ -410,6 +433,7 @@ c Evaluate total charge and z-forces. Not yet implemented for NGP.
                zmom(i,fieldz,2)=fz
                zmom(i,epressz,2)=epz
             endif
+
          endif
 #ifdef MPI
 c Broadcast back to the slaves.
@@ -420,6 +444,7 @@ c Broadcast back to the slaves.
          call MPI_BCAST(adeficit,1,
      $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
 #endif
+ 
 c Plot radial average velocity and temperatures.
          if(lplot)then
             call vrdiag()
@@ -429,7 +454,9 @@ c Plot radial average velocity and temperatures.
             endif
          endif
 c Main particle advance.
-         call padvnc(dt,icolntype)
+
+         call padvnc(dt,icolntype,i)
+
 c Collide the particles. See routine in advancing.f.
          if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
 c Reduce back the flux and distribution data from the particle advance.
@@ -547,7 +574,8 @@ c Help section
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
       write(*,*)' --rhoinf.ff specify constant injection rate, rather',
      $     ' than particle number.'
-      write(*,*)' --bz.ff Bz (0)'
+      write(*,*)' --bz.ff Bz (0), -nbc New BC (false), --ds subdivide',
+     $     ' the domain'
       end
       
 c***********************************************************************
@@ -555,11 +583,13 @@ c End of Main Program.
 c***********************************************************************
 c Calculate rho from the psum.
       subroutine rhocalc(lsmooth)
+
 c If lsmooth, then symmetrize the density, by averaging.
       logical lsmooth
+c Corretion factor to calculate the density in the inner domain
+      real corr
 c Common data:
       include 'piccom.f'
-
  501  format(10f8.1)
 c Now we have added up fractional charges assigned to each mesh point. 
 c We need to divide by the volume corresponding to each.
@@ -569,51 +599,64 @@ c Initialize rhoinf approximately:
          rhoinf=numprocs*npart/(4.*pi*r(NRFULL)**3/3.)
          write(*,*)'Rhoinf in rhocalc approximated as',rhoinf
       endif
+
       do ir=1,NRUSED
-c Volumes are now calculated in meshinit.
+         corr=1.
+         if(dsub) then
+            if (ir.lt.rsplit) then 
+               corr=1.*nrealin/(nrealin+npartadd)
+            elseif (ir.eq.rsplit) then
+               corr=1.*nrealin/(nrealin+npartadd*0.5)
+            endif
+         endif
+         
+c     Volumes are now calculated in meshinit.
          do ith=1,NTHUSED
             if(psum(ir,ith).eq.0. .and. debyelen.eq.0.)then
                write(*,*)'Rhocalc fixup: zero particles in cell',ir,ith
                rho(ir,ith)=0.01*volinv(ir)*(nth-1.)*np/rhoinf
             else
-               rho(ir,ith)=psum(ir,ith)*volinv(ir)*(nth-1.)*np/rhoinf
+               rho(ir,ith)=
+     $              psum(ir,ith)*volinv(ir)*(nth-1.)*np*corr/rhoinf
             endif
          enddo
+      
          if(LCIC)then
 c Fix the theta boundaries. The extra small quantity prevents zeros, I hope.
             rho(ir,1)=2.*rho(ir,1)+1.e-4
             rho(ir,nth)=2.*rho(ir,nth)+1.e-4
          endif
-c Smoothing in angle
-c Total symmetry case:
-         if(lsmooth) then
-            rhotot=0.
-            do ith=1,NTHUSED
-               rhotot=rhotot+rho(ir,ith)
-            enddo
-            rhotot=rhotot/nth
-            do ith=1,NTHUSED
-               rho(ir,ith)=rhotot
-            enddo
-         endif
-c End of smoothing
-         if(.not.LCIC)then
-c Fix theta ends for plotting.
-            rho(ir,0)=rho(ir,1)
-            rho(ir,nth)=rho(ir,nth-1)
-         endif
       enddo
+      
+c     Smoothing in angle
+c     Total symmetry case:
+      if(lsmooth) then
+         rhotot=0.
+         do ith=1,NTHUSED
+            rhotot=rhotot+rho(ir,ith)
+         enddo
+         rhotot=rhotot/nth
+         do ith=1,NTHUSED
+            rho(ir,ith)=rhotot
+         enddo
+      endif
+c     End of smoothing
+      if(.not.LCIC)then
+c     Fix theta ends for plotting.
+         rho(ir,0)=rho(ir,1)
+         rho(ir,nth)=rho(ir,nth-1)
+      endif
       if(LCIC.and.debyelen.eq.0)then
-c Section to fix probe boundary bias arising from use of half a cell
-c in a region where there is strong gradient.
-c Not correct for large lambda. Because the
-c density can be increasing, not decreasing. 30 Aug 2003.
+c     Section to fix probe boundary bias arising from use of half a cell
+c     in a region where there is strong gradient.
+c     Not correct for large lambda. Because the
+c     density can be increasing, not decreasing. 30 Aug 2003.
          do ith=1,nth
 c     rho(1,ith)=rho(1,ith)/(1.+(2./3.)*sqrt(r(2)-r(1)))
             rho(1,ith)=rho(1,ith)/(1.+0.75*sqrt(r(2)-r(1)))
          enddo
       endif
-
+      
       end
 c*********************************************************************
       subroutine sumreduce()
@@ -793,13 +836,15 @@ c     normalize to rhoinf and the probe area to give normalized flux density
          write(*,*)(zmom(nstepmax,j,1),j=1,4),total1
          write(*,*)(zmom(nstepmax,j,2),j=1,4),total2
 
+         phiout=0
+
          do j=1,NTHUSED
             phiout=phi(NRUSED,j)+phiout
          enddo
          phiout=phiout/NTHUSED
+ 
+         write(*,*) 'rhoinf', rhoinf
          write(*,*) 'Outer potential',phiout
-
-
 
 
 c tests

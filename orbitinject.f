@@ -16,19 +16,29 @@ c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c***********************************************************************
 c General version allows choice of reinjection scheme.
 c***********************************************************************
-      subroutine reinject(i,dt,icolntype)
-      if(icolntype.eq.1) then
+      subroutine reinject(i,dt,icolntype,nbc)
+
+      logical nbc 
+
+      if(nbc) then
+         call maxreinject(i,dt)
+      elseif(icolntype.eq.1) then
          call fvreinject(i,dt)
       elseif(icolntype.eq.2)then
-c Here one should put other options but for now         
+c     Here one should put other options but for now         
          call oreinject(i,dt)
       else
          call oreinject(i,dt)
       endif
       end
 c***********************************************************************
-      subroutine injinit(icolntype)
-      if(icolntype.eq.1) then
+      subroutine injinit(icolntype,nbc)
+
+      logical nbc
+
+      if(nbc) then
+         call maxinjinit()
+      elseif(icolntype.eq.1) then
          call fvinjinit(icolntype)
       elseif(icolntype.eq.2)then
 c Here one should put other options but for now         
@@ -201,7 +211,7 @@ c      xinc=0.
       endif
       rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
 c Reject particles that are already outside the mesh.
-      if(.not.rp.le.r(nr)*r(nr))then
+      if(.not.rp.lt.r(nr)*r(nr))then
 c      if(.not.rp.le.r(nr)*r(nr))then
 c         write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
          goto 1

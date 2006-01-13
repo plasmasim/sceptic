@@ -17,8 +17,6 @@ c***********************************************************************
 c Version 2.6 outputs two files. T...frc traces the force evolution.
 
 
-
-
 c     Writes a txt file with the orbits of the traced particules
       subroutine orbitoutput()
 
@@ -43,7 +41,7 @@ c     Common data
       end
 
 
-c     Wrties the main output file
+c     Writes the main output file
       subroutine output(dt,damplen,i,fave)
 c Common data:
       include 'piccom.f'
@@ -62,12 +60,14 @@ c Construct a filename that contains many parameters
          filename(3:3)='e'
       endif
       write(filename(4:4),'(i1.1)')iti
+
       filename(5:5)='v'
       write(filename(6:8),'(i3.3)')nint(100*vd)
       filename(9:9)='r'
       write(filename(10:11),'(i2.2)')ifix(r(nr))
       filename(12:12)='P'
       write(filename(13:14),'(i2.2)')ifix(abs(Vprobe))
+
       filename(15:15)='L'
       if(debyelen.gt.1.e-10)then
          iti=nint(alog10(debyelen)-0.49)
@@ -84,10 +84,26 @@ c Construct a filename that contains many parameters
          filename(17:17)='e'
       endif
       write(filename(18:18),'(i1.1)')iti
+
       filename(19:19)='B'
-      write(filename(20:23),'(i4.4)')nint(100*Bz)
+      if(Bz.gt.1.e-10)then
+         iti=nint(alog10(Bz)-0.49)-1
+         it2=nint(Bz/10.**iti)
+      else
+         it2=0
+         iti=0
+      endif
+      write(filename(20:21),'(i2.2)')it2
+      if(iti.lt.0) then
+         filename(22:22)='m'
+         iti=-iti
+      else
+         filename(22:22)='e'
+      endif
+      write(filename(23:23),'(i1.1)')iti
 
       filename(24:27)='.dat'
+
 c Write out averaged results.
       open(10,file=filename)
       write(10,'(a,a)')'  dt       vd       Ti  steps    rhoinf  

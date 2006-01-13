@@ -28,46 +28,68 @@ c Common data:
 
 c This allows us to restart with nstepsave .ne. 1 if rhoinf is set.
       if(riave.eq.0)riave=rhoinf
+
 c Calculate rhoplot,diagphi,diagrho,rho1theta,rhomidtheta
       do i=1,nr
- 510      format(10f8.1)
-          rhoplot(i)=0.
-          phiave(i)=0.
-          nrp=0
-          do j=NTHUSED/2,NTHUSED
-             nrp=nrp+1
+ 510     format(10f8.1)
+         rhoplot(i)=0.
+         phiave(i)=0.
+         nrp=0
+         do j=1,NTHUSED
+            nrp=nrp+1
 c     rhoplot is unnormalized. All others are normalized.
-             rhoplot(i)=rhoplot(i)+rho(i,j)*rhoinf
-             phiave(i)=phiave(i)+phi(i,j)
-          enddo
-          rhoplot(i)=rhoplot(i)/nrp
-          phiave(i)=phiave(i)/nrp
+            rhoplot(i)=rhoplot(i)+rho(i,j)*rhoinf
+            phiave(i)=phiave(i)+phi(i,j)
+         enddo
+         rhoplot(i)=rhoplot(i)/nrp
+         phiave(i)=phiave(i)/nrp
 c This needs to be fixed for Debye code.
-          diagphi(i)=(diagphi(i)*(nstepsave-1) +
-     $         phiave(i))/nstepsave
+         diagphi(i)=(diagphi(i)*(nstepsave-1)+phiave(i))/nstepsave
 c old quasineutral way:
-c     $         log(rhoplot(i)/rhoinf))/nstepsave
-          diagrho(i)=(diagrho(i)*(nstepsave-1) + (rhoplot(i)))/nstepsave
+c         log(rhoplot(i)/rhoinf))/nstepsave
+         diagrho(i)=(diagrho(i)*(nstepsave-1) + (rhoplot(i)))/nstepsave
       enddo
+
+c Calculate diagchi (outer potential as a function of nth normalized
+c to the ion thermal velocity) Necessay for the reinjection (Not here)
+      do j=1,NTHUSED
+        diagchi(j)=(diagchi(j)*(nstepsave-1)+phi(NRUSED,j)/Ti)/nstepsave
+      enddo
+      
+
 c*******
 c New rhoinf calculation.
       if(nrein .gt. 0) then
 c estimate of the rhoinf based on flux from this step.
-c Accounting for drifts:
-         averein=spotrein/float(nrein)
+
 c Trial of different scheme. Combination equivalent to phihere usage.
          averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
+
          if(averein.gt.0.5*Ti)then
 c This is necessary to prevent smaxflux errors. smaxflux is not correct
 c for repulsive potentials.
 c            write(*,*)'Excessive averein',averein,' capped'
             averein=0.5*Ti
          endif
-         riest=(nrein/dt) /
-     $        (sqrt(Ti)*
-     $        smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-     $        *r(NRFULL)**2 )
-c         write(*,*)'nrein=',nrein,'  spotrein=',spotrein,
+
+c     if nbc, we use the linearized distribution out of the boundary
+c     (valid for vd<<vTi and -averein<<Ti)
+         if (.not.nbc) then
+            riest=(nrein/dt) /
+     $           (sqrt(2*Ti)*
+     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
+     $           *r(NRFULL)**2 )
+            
+         else
+            riest=(nrein/dt) /
+     $           (sqrt(2*Ti)*
+     $           smaxflux2(-averein/Ti)
+     $           *r(NRFULL)**2 )
+         endif
+
+
+  
+c         write(*,*)'nrein=',nrein,'  psum=',psu,
 c     $        '  averein=',averein,' riest=',riest
       else
 c If no valid estimate, just keep it the same.
@@ -498,11 +520,12 @@ c     Return the total flux to a unit radius sphere from a unit density
 c     maxwellian distribution shifted by velocity
       real uc
 c     normalized to sqrt(2T/m), in a spherically symmetric potential
-c     having a value on the sphere normalized to T of minus
+c     having a value on the sphere normalized to Ti of minus
       real chi
-c 
+
       real eps,pi
       data eps/1.e-3/pi/3.1415927/
+
 
       erf=1.-erfcc(uc)
       sqpi=sqrt(pi)
@@ -511,10 +534,31 @@ c
       else
          erfbyu=erf/uc
       endif
-      smaxflux=pi*sqrt(2.)*
-     $     (uc*erf + (0.5+chi)*erfbyu + exp(-uc**2)/sqpi)
+
+      smaxflux=pi*(uc*erf + (0.5+chi)*erfbyu + exp(-uc**2)/sqpi)
       end
 c*******************************************************************
+      real function smaxflux2(chi)
+c     Return the total flux to a unit radius sphere from a unit density
+c     slightly shifted maxwellian,
+c     normalized to sqrt(2T/m)=vtion, in a low potential non necessary
+c     symmetric, with whatever B field, having a value on the sphere
+c     normalized to Ti of minus
+      real chi
+      real pi
+      data pi/3.1415927/
+      sqpi=sqrt(pi)
+
+      smaxflux2=sqpi*2*(1+chi)
+
+      end
+
+
+
+
+
+c*******************************************************************
+
 c Overplot orbits on existing plot.
       subroutine plotorbits
       include 'piccom.f'

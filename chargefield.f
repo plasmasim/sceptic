@@ -31,6 +31,7 @@ c      ninner=0
       enddo
 c Perhaps this needs to be larger than npart for .not.lfixed.
 c      write(*,*)'Starting chargetomesh',npart
+
       do i=1,iocprev
          if(ipf(i).gt.0)then
 c         if(i.lt.10000)write(*,'(i6,$)')i
@@ -221,6 +222,7 @@ c Evaluate the cartesian acceleration into accel. Using half-mesh
 c parameters.
 c accel is minus the gradient of phi for the ith particle.
 c Be careful with variables in this routine.
+
       implicit none
       integer i
       real accel(3)
@@ -342,7 +344,9 @@ c      ap=0.
       accel(2)=(ar*st+ at*ct)*sp
       accel(1)=(ar*st+ at*ct)*cp
 c Trap errors.
+
       if(.not.accel(1).lt.1.e5)then
+         write(*,*) 'i: ',i,' x: ',xp(1,i),' y: ',xp(2,i),' z: ',xp(3,i)
          write(*,*)'Accel Excessive: ar,at,st,ct,ih,hf,rf,ith,tf'
          write(*,*) ar,at,st,ct,ih,hf,rf,ith,tf
          write(*,*) 'phi at ith and ithp1:'

@@ -14,10 +14,26 @@ c
 c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c Version 2.5; Aug 2004   
-      integer npartmax,npart,nr,nth,ndim,np
+      integer npartmax,npart,nr,nth,ndim,np,npartadd,addhist
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
       parameter (npartmax=200000,np=1,ndim=6)
+
+c Number of additional particules in the inner domain
+      parameter (npartadd=50000)
+c History size for the additional part inejection
+      parameter (addhist=50)
+c nr where the domain is split
+      integer rsplit
+c Storage of incoming particules in the inner domain
+      real xpstorage(ndim,10000,addhist)
+c Number of stored particules at a certain time step
+      real xpstonum(addhist)
+c Number of real particles in the inner domain
+      integer nrealin
+c Do we really subdivide the domain ?
+      logical dsub
+
 c CIC definitions
       logical LCIC
       integer NRUSED,NTHUSED,NRFULL,NTHFULL
@@ -25,13 +41,11 @@ c CIC definitions
       integer nrsize,nthsize
 c These correspond to nrfull and nthfull.
       parameter (nrsize=100,nthsize=101)
-c Obsolete:
-c      parameter (nr=100,nth=30)
-c      parameter (NRUSED=nr,NTHUSED=nth,NRFULL=nr,NTHFULL=nth+1)
 c Positions and velocities of particles (6-d phase-space).
-      real xp(ndim,npartmax)
+      real xp(ndim,npartmax+npartadd)
+
 c Flag of particle slot status (e.g. in use or not)
-      integer ipf(npartmax)
+      integer ipf(npartmax+npartadd)
 c The particle number
       real psum(0:nrsize,0:nthsize)
 c The sum of particle radial velocities
@@ -54,6 +68,8 @@ c Injection complement. How many particles to reinject each step
       integer ninjcomp
 c Highest occupied particle slot.
       integer iocprev
+c New BC
+      logical nbc
 
       real pi
       parameter (pi=3.1415927)
@@ -62,11 +78,12 @@ c Highest occupied particle slot.
       logical lfixedn
       integer myid,numprocs
       real rmtoz
-      common /piccom/xp,npart,
-     $     psum,vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
+      common /piccom/xp,npart,psum,
+     $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
-     $     myid,numprocs,rmtoz,ipf,iocprev,Bz
+     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,nbc,xpstorage,
+     $     xpstonum,nrealin,rsplit,dsub
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)
@@ -107,7 +124,7 @@ c diagnostic data
       real nvdiag(nvmax),nvdiagave(nvmax),vdiag(nvmax)
       real vrdiagin(nvmax),vtdiagin(nvmax)
       real vrange
-      real diagrho(nrsize),diagphi(nrsize)
+      real diagrho(nrsize),diagphi(nrsize),diagchi(nthsize)
       real diagvr(nrsize,nthsize)
       integer partz,fieldz,epressz,enccharge
       parameter(enccharge=1,fieldz=2,epressz=3,partz=4)
@@ -141,7 +158,7 @@ c Coefficient of density deficit, for external solution
 c Cell in which to accumulate distribution functions
       integer ircell,itcell
       common /diagcom/nvdiag,nvdiagave,vdiag,vrange,diagrho,diagphi,
-     $     nrein,ninner,fluxprobe,ninthstep,ninth,rhoinf
+     $     diagchi,nrein,ninner,fluxprobe,ninthstep,ninth,rhoinf
      $     ,diagvr,vrdiagin,vtdiagin,
      $     spotrein,averein,fluxrein,ntrapre,adeficit,
      $     ircell,itcell,zmout,zmomprobe,finthave,zmom

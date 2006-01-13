@@ -96,7 +96,7 @@ c
          voltot=voltot+vol
       enddo
 c      if(myid.eq.0) write(*,*)'Voltot',voltot,'   Ratio to actual',
-c     $     voltot/(r(NRFULL)**3-r(1)**3)
+c          voltot/(r(NRFULL)**3-r(1)**3)
 c     Zero the ninth storage.
       do k=1,nstepmax
          do j=1,nth
@@ -232,13 +232,17 @@ c Common data:
       logical istrapped
 
 c For now use the whole array.
-c      write(*,*)'Initializing particles'
+      nrealin=0
       ntries=0
       ntrapped=0
       rmax=r(NRFULL)
+      rsp=r(rsplit)
       rmax2=rmax*rmax
+      rsp2=rsp*rsp
       idum=1
       if(rmax2.le.1.) stop 'Error: rmax is less than 1.'
+
+c     We initialize the 'true' particles'
       do i=1,npart
          ipf(i)=1
  1       continue
@@ -263,10 +267,58 @@ c If this goto is included then trapped particles are rejected.
 c But that tends to deplete the region close to the probe.
 c            goto 1
          endif
+
+c Counting the number of real particles in the inner domain
+         if (sqrt(rc).le.r(rsplit)) then
+            nrealin=nrealin+1
+         endif
+
       enddo
+
+c     We now initialize the add particles
+      if (dsub.and.(npartadd.ge.1)) then
+         do i=npartmax+1,npartmax+npartadd
+            ipf(i)=1
+ 2          continue
+            ntries=ntries+1
+            xp(1,i)=rsp*(2.*ran0(idum)-1.)
+            xp(2,i)=rsp*(2.*ran0(idum)-1.)
+            xp(3,i)=rsp*(2.*ran0(idum)-1.)
+            rc=0.
+            do j=1,3
+               rc=rc+xp(j,i)**2
+            enddo
+c     If we are not in the inner region, try again.
+            if(rc.ge.rsp2 .or. rc.le.1.) goto 2
+            Ti0=Ti
+            tisq=sqrt(Ti0)
+            xp(4,i)=tisq*gasdev(idum)
+            xp(5,i)=tisq*gasdev(idum)
+            xp(6,i)=tisq*gasdev(idum) + vd
+            if(istrapped(i))then
+               ntrapped=ntrapped+1
+c     If this goto is included then trapped particles are rejected.
+c     But that tends to deplete the region close to the probe.
+c     goto 2
+            endif
+               
+c     Initialize the storage arrays
+            if (i-npartmax.le.10) then
+               do k=1,addhist
+                  do l=1,6
+                     xpstorage(l,i-npartmax,k)=xp(l,i)
+                  enddo
+                  xpstonum(k)=10
+               enddo
+            endif
+         enddo
+      endif
+
+c Set flag of unused slots to 0
       do i=npart+1,npartmax
          ipf(i)=0
       enddo
+      
 c      write(*,*)'Initialized ','id=',myid,
 c     $     '  n=',npart,'  ntries=',ntries,'  ntrapped=',ntrapped
 c Initialize rhoinf:
@@ -275,6 +327,7 @@ c Initialize orbit tracking
       do ko=1,norbits
          iorbitlen(ko)=0
       enddo
+
       end
 c***********************************************************************
 c Initializing the fields
@@ -365,6 +418,7 @@ c     Now il and ir, rl and rr bracket the radius.
       enddo
 c      write(*,*)'Precalculated the r and theta mesh lookups.'
 c      write(*,*)itpre,tfac
+
 
 c Now irpre(1+int(rp-r(1))*rfac)) is the irl except for rounding etc.
 c The irpre spacing must be small enough that the maximum increment of

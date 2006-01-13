@@ -16,7 +16,8 @@ c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c Version 2.5; Jan 2005: subcycling of padvnc.
 c Version 2.5; Jan 2005: fixed reinjection flux option.
 c Advance the particles
-      subroutine padvnc(dtin,icolntype)
+      subroutine padvnc(dtin,icolntype,step)
+      integer step
       real dtin
 c Common data:
       include 'piccom.f'
@@ -24,9 +25,17 @@ c Common data:
       real accel(3)
       logical lsubcycle
       real cosomdt,sinomdt
-
 c temp data:
       real temp
+      integer idum
+
+c Place to read/write on the add particule injection
+      integer nread
+      nread=mod(step,addhist)+1
+      idum=1
+c Reset the number of particles that enter the inner domain
+      xpstonum(nread)=0
+      rsp=r(rsplit)
 
 c Xp is the three x-coordinates followed by the 3 v coordinates.
 c Use a leapfrog scheme, so interpret the v-coords as half a step
@@ -59,22 +68,31 @@ c Zero the sums now these are assigned here.
             vtp2sum(i,j)=0.
          enddo
       enddo
-      if(lfixedn)then
+
+c      if(lfixedn)then
 c Fixed number of particles. The ninjcomp is already=npartmax.
-         ipmax=npart
-      else
+c         ipmax=npart
+c      else
 c Fixed flux. Rely on ninjcomp to terminate the particle slot treatment.
-         ipmax=npartmax
-      endif
+c         ipmax=npartmax
+c      endif
 c      write(*,*)'Starting cycle',ipmax,ninjcomp
+
+
 c End of setup. Start Cycling through particles.
-      do i=1,ipmax
+      if (dsub) then
+         ido=npartmax+npartadd
+      else
+         ido=npartmax
+      endif
+      do i=1,ido
          if(ipf(i).gt.0) then
 c     Is this an active slot?
 c     Find the mesh position and the trigonometry.
 c     Here we do need half quantities.
             ih=1
             hf=88.
+ 
             call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
      $           ,zetap,ih,hf)
 c     Now we know where we are in radius rp. We decide the level of subcycling.
@@ -102,6 +120,7 @@ c     Except for the first time, find new position.
                endif
                call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
+
 c getaccel returns the accel based on the charge-field calculation.
 c We then add on the acceleration due to the neutral-collisions-implied
 c electric field.
@@ -109,19 +128,25 @@ c electric field.
 
 c     write(*,501)accel,(xp(j,i),j=1,3)
 
+               rn2=0.
+               do j=1,3
+                  rn2=rn2+xp(j,i)**2
+               enddo
+               rn0=sqrt(rn2)
+
 c     AccelPhi/2+AccelBz+AccelPhi/2
 
                do j=4,6
-                  xp(j,i)=xp(j,i)+accel(j-3)*dt
+                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
                enddo
 
                temp=xp(4,i)
                xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
                xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
 
-c               do j=4,6
-c                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
-c               enddo
+               do j=4,6
+                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
+               enddo
 
                rn2=0.
                xdv=0.
@@ -132,6 +157,8 @@ c               enddo
                   xdv=xdv+xp(j,i)*xp(j+3,i)
                   v2=v2+xp(j+3,i)**2
                enddo
+
+
                tm=xdv/v2
                rn=sqrt(rn2)
 c     Test if we went through the probe and came back out.
@@ -142,55 +169,85 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                      rn=0.
                   endif
                endif
-               if(rn.lt.r(1))then
-                  ninner=ninner+1
-c     Inner flux density calculation:
+
+c     Handling boundaries for 'real paricles' :
+               if(i.le.npartmax) then
+                  if(rn.le.r(1)) then
+                     ninner=ninner+1
+                     nrealin=nrealin-1
 c     Solve for sphere crossing step fraction, s.
-                  a=0.
-                  b=0.
-                  c=0.
-                  do j=1,3
-                     a=a+(dt*xp(j+3,i))**2
-                     b=b-2.*xp(j,i)*(dt*xp(j+3,i))
-                     c=c+xp(j,i)**2
-                  enddo
-                  c=c-r(1)**2
-                  s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
-                  xc=xp(1,i)-s*dt*xp(4,i)
-                  yc=xp(2,i)-s*dt*xp(5,i)
-                  zc=xp(3,i)-s*dt*xp(6,i)
-                  ctc=zc/sqrt(xc**2+yc**2+zc**2)
+                     a=0.
+                     b=0.
+                     c=0.
+                     do j=1,3
+                        a=a+(dt*xp(j+3,i))**2
+                        b=b-2.*xp(j,i)*(dt*xp(j+3,i))
+                        c=c+xp(j,i)**2
+                     enddo
+                     c=c-r(1)**2
+                     s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
+                     xc=xp(1,i)-s*dt*xp(4,i)
+                     yc=xp(2,i)-s*dt*xp(5,i)
+                     zc=xp(3,i)-s*dt*xp(6,i)
+                     ctc=zc/sqrt(xc**2+yc**2+zc**2)
 c     Interpolate onto the theta mesh as in ptomesh               
-                  ithc=interpth(ctc,tfc)
+                     ithc=interpth(ctc,tfc)
 c     
-                  if(LCIC)then
-                     icell=nint(ithc+tfc)
+                     if(LCIC)then
+                        icell=nint(ithc+tfc)
+                     else
+                        icell=ithc
+                     endif
+                     ninth(icell)=ninth(icell)+1
+                     zmomprobe=zmomprobe+xp(6,i)
+                  elseif(rn.ge.r(nr))then
+                     zmout=zmout-xp(6,i)
+c     We did not leave the grid inside.
+                  elseif(dsub) then
+c     Check if the particule entered the inner domain, and if yes
+c     store it. We also update nrealin
+                     if ((rn0.ge.rsp) .and. (rn.lt.rsp)) then
+                        xpstonum(nread)=xpstonum(nread)+1
+                        do k=1,6
+                           xpstorage(k,xpstonum(nread),nread)=xp(k,i)
+                        enddo  
+                        nrealin=nrealin+1
+                     elseif ((rn.ge.rsp) .and. (rn0.lt.rsp)) then
+                        nrealin=nrealin-1
+                     endif
+                     goto 81
                   else
-                     icell=ithc
+                     goto 81
                   endif
-                  ninth(icell)=ninth(icell)+1
-                  zmomprobe=zmomprobe+xp(6,i)
-               elseif(rn.ge.r(nr))then
-                  zmout=zmout-xp(6,i)
-               else
-c     We did not leave the grid inside.            
-                  goto 81
-               endif
-c We left. 
-c If we haven't exhausted complement, restart particle i.
-               if(nrein.lt.ninjcomp) then
-                  call reinject(i,dtin,icolntype)
-                  ipf(i)=1
-                  zmout=zmout+xp(6,i)
-                  if(i.le.norbits) iorbitlen(i)=0
-               else
-                  ipf(i)=0
-c                  if(i.gt.190000) write(*,*)'Leaving empty slot',i
-               endif
+c     We left. 
+c     If we haven't exhausted complement, restart particle i.
+                  if(nrein.lt.ninjcomp) then
+                     call reinject(i,dtin,icolntype,nbc)
+                     ipf(i)=1
+                     zmout=zmout+xp(6,i)
+                     if(i.le.norbits) iorbitlen(i)=0
+                  else
+                     ipf(i)=0
+c     if(i.gt.190000) write(*,*)'Leaving empty slot',i
+                  endif
 c     Break from subcycles.
-               goto 82
- 81         continue
- 82         continue
+                  goto 82
+c     Now we care about the add particles. If they leave the domain, we
+c     just reinject them, since we don't use them for diagnostics
+c     as fluxes
+               else
+                  if((rn.le.r(1)).or.(rn.ge.rsp)) then
+                     a=nint(ran0(idum)*(addhist-1))+1
+                     b=nint(ran0(idum)*(xpstonum(a)-1))+1
+                     do k=1,6
+                        xp(k,i)=xpstorage(k,b,a)
+                     enddo
+                  endif
+               endif
+ 81            continue
+ 82            continue
+
+
             if(ldist) then
                rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c     Diagnostics of f_r(rmax):
@@ -221,6 +278,7 @@ c     write(*,502)rn,ithc,vr
                   endif
                endif
             endif
+
 c     Orbit diagnostics
             if(i.le.norbits) then
                iorbitlen(i)=iorbitlen(i)+1
@@ -237,7 +295,7 @@ c     $           ,rorbit(iorbitlen(i),i)
 c Case for ipf(i) le 0 (empty slot) but still wanting to inject. 
 c We should not come here unless .not.lfixedn.
 c            write(*,*)'Reinjecting empty slot',i
-            call reinject(i,dtin,icolntype)
+            call reinject(i,dtin,icolntype,nbc)
             ipf(i)=1
             iocthis=i
          elseif(i.ge.iocprev)then
@@ -247,6 +305,8 @@ c And we have reached the maximum occupied slot of previous run.
          endif
       enddo
  401  continue
+c We just want the diagnostics with the true particles for now
+c      iocthis=min(iocthis,npartmax)
       iocprev=iocthis
 c      if(.not.lfixedn)write(*,504)ninjcomp,nrein,i,iocprev
  504  format('  ninjcomp=',i6,'  nrein=',i6,'  i=',i6,
@@ -254,6 +314,7 @@ c      if(.not.lfixedn)write(*,504)ninjcomp,nrein,i,iocprev
  503  format('Orbit',i3,' length=',i5,' position=',4f7.3)
  502  format('Distrib. rn=',f6.3,' ithc=',i4,' vr=',f6.3)
  501  format('accel=',3f11.4,' xp=',3f11.4)
+
       end
 c***********************************************************************
 c Version using precalculated functions. About 30% faster.
@@ -301,6 +362,7 @@ c
          write(*,*)'xp:',(xp(ipl,i),ipl=1,6)
          write(*,*)'i,r(nr),rp,zetap,ih,hf'
          write(*,*)i,r(nr),rp,zetap,ih,hf
+         write(*,*) 'x:',x,' y:',y,' z:',z
          stop
       endif
       rsp=sqrt(rsp)
@@ -331,8 +393,11 @@ c
 
       irl=irpre(1+int((rp-r(1))*rfac))
       rf=(rp-r(irl))/(r(irl+1)-r(irl))
-      if(rf.lt.0.)write(*,*)"Negative rf from irpre. i,ih,irl,rf,rp="
-     $     ,i,ih,irl,rf,rp
+      if(rf.lt.0.) then
+         write(*,*)"Negative rf from irpre. i,ih,irl,rf,rp="
+     $        ,i,ih,irl,rf,rp
+         write(*,*) 'r: ',xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+      endif
 c "While not"      
  402  if(rf.le.1.)goto 401
       if(irl.eq.nr)then
