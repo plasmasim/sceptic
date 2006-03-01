@@ -137,16 +137,16 @@ c     write(*,501)accel,(xp(j,i),j=1,3)
 c     AccelPhi/2+AccelBz+AccelPhi/2
 c               vzbefore=abs(xp(6,i))/xp(6,i)
                do j=4,6
-                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
+                  xp(j,i)=xp(j,i)+accel(j-3)*dt
                enddo
 
                temp=xp(4,i)
                xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
                xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
 
-               do j=4,6
-                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
-               enddo
+c               do j=4,6
+c                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
+c               enddo
 c               vzafter=abs(xp(6,i))/xp(6,i)
 c     Checking if the particle changed direction
 c               if (abs(vzafter-vzbefore).gt.0.1)
