@@ -254,7 +254,7 @@ c     We initialize the 'true' particles'
          do j=1,3
             rc=rc+xp(j,i)**2
          enddo
-c If we are not in the plasma region, try again.
+c     If we are not in the plasma region, try again.
          if(rc.ge.rmax2 .or. rc.le.1.) goto 1
          Ti0=Ti
          tisq=sqrt(Ti0)
@@ -272,7 +272,8 @@ c Counting the number of real particles in the inner domain
          if (sqrt(rc).le.r(rsplit)) then
             nrealin=nrealin+1
          endif
-
+c Putting the vz oscillation counter to 0
+         vzvar(i)=0
       enddo
 
 c     We now initialize the add particles
@@ -547,7 +548,9 @@ c Definition that the particle does not reach infinity.
 
 c Domain definition.
 c      vte2=(vt2*(rn/rcc(NRUSED))**2)
-      vte2=0. 
+      vte2=0.
+c conservation of angular momentum imposes the particule to have the
+c following vphi as minimum on the probe
       vtp2=vt2*rn**2
 
       if( (vte2 .gt. v2 + 2.*(phin-phie) ) .and.

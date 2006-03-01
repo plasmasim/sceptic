@@ -93,6 +93,7 @@ c Read the outputfile
      $     ierr)
       if(ierr.eq.101) goto 101
 
+
 c Set arrow scale
       v1=max(1.,vd)
 
@@ -205,7 +206,7 @@ c            write(*,*)kk,rpic(kk),phiyukawa(kk)
          call pltend()
 c Potential slices
 c         call multiframe(0,0,0)
-        call axptset(0.,0.)
+         call axptset(0.,0.)
          call minmax(phi(1,1),nthhere*nrhere,rhmin,rhmax)
          if(ledge)rhmin=max(rhmin,-.4)
          call pltinit(-rpic(nrhere),rpic(nrhere),rhmin,max(rhmax,0.1))
@@ -255,7 +256,7 @@ c Contouring:
       else
          if(ldens)then
             call conrho(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
+     $           nrhere,nthhere,v1,larrows,lconline,rholocal)
          endif
          if(ltempc)then
             call contemp(ir,jstepth,rhomax,rhomin,
@@ -351,12 +352,13 @@ c     fix up as double on boundary.
 c***************************************************************************
 c Contouring of the charge density, rho, on distorted mesh.
       subroutine conrho(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline)
+     $     larrows,lconline,rholocal)
       integer ir,it
       real rhomax,v1
       logical larrows,lconline
 c Common data:
       include 'piccompost.f'
+      real rholocal(0:NRFULL,0:NTHFULL)
 c      include 'cic/piccompost.f'
 c      save
       character*20 cstring
@@ -411,7 +413,7 @@ c      call multiframe(2,2,3)
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
       call accisgradinit(-25000,00000,25000,130000,65000,130000)
       ntype=2+16+32
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(rholocal(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
@@ -427,8 +429,8 @@ c     $              rhomax,fac10,first,delta
             enddo
             ntype=2
             icl=(ncont-1)
-            call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $           zclv,icl,zrho,xrho,ntype)
+            call contourl(rholocal(1,0),cworka,NRFULL+1,nrhere,
+     $           nthhere+2,zclv,icl,zrho,xrho,ntype)
             write(*,*)'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
             tstring=' contour spacing: '//cstring
@@ -726,6 +728,7 @@ c      call multiframe(2,2,3)
      $        zclv,icl,zrho,xrho,ntype)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
+
 c Call a second time for contours, without the highest.
          if(lconline)then
 c If this is not very bipolar
@@ -1385,7 +1388,8 @@ c Calculate rho(i,j) from the psum, volinv. Normalized by rhoinf.
       do k1=1,nrhere
          do k2=1,nthhere
             rho(k1,k2)=psum(k1,k2)*volinv(k1)*thcells*nphere/rhoinf
-            if(rho(k1,k2).gt.rhomax)rhomax=rho(k1,k2)
+c For now, use rholocal to fix --ds problem, maybe wrong ?
+            if(rholocal(k1,k2).gt.rhomax)rhomax=rholocal(k1,k2)
          enddo
          if(lpcic)then
 c fix up rho as double on boundary.
@@ -1397,6 +1401,8 @@ c fix angle ends of rho and phi
          rho(k1,nthhere+1)=rho(k1,nthhere)
          phi(k1,0)=phi(k1,1)
          phi(k1,nthhere+1)=phi(k1,nthhere)
+         rholocal(k1,0)=rholocal(k1,1)
+         rholocal(k1,nthhere+1)=rholocal(k1,nthhere)
       enddo
       ir=10.
       if(ledge)then

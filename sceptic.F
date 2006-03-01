@@ -89,10 +89,13 @@ c Common defaults. Avoid block data.
       lfixedn=.true.
       ipstep=1
       vneutral=0.
-      nbc=.false.
+c     bcphi : BC on potential
+      bcphi=0
+c     bcr : BC on reinjection
+      bcr=0
       dsub=.false.
       Bz=0.
-
+      infdbl=.false.
 
 c Deal with arguments
       if(iargc().eq.0) goto 51
@@ -174,7 +177,10 @@ c restore defaults on read error.
  251        ipfsw=0
  252        continue
          endif
-         if(string(1:4) .eq. '-nbc') nbc=.true.
+         if(string(1:5) .eq. '--bcr') read(string(6:),*)bcr
+         if(string(1:7) .eq. '--bcphi') read(string(8:),*)bcphi
+         if(string(1:7) .eq. '-infdbl') infdbl=.true.
+         
          if(string(1:2) .eq. '-o') read(string(3:),*)norbits
          if(string(1:3) .eq. '-kt')then
             read(string(4:),*)icolntype
@@ -193,7 +199,7 @@ c            call exit(0)
  1    continue
  3    continue
 c      write(*,*)linsulate,diags
-
+      write(*,*) bcr,bcphi
 c Set Array sizes, allowed variable.
       if(nr.gt.nrsize)then
          write(*,*)'Too many radial points:',nr,'  Set to',nrsize
@@ -273,7 +279,7 @@ c Checks when using an external file for potential
  521     format(10g8.2)
       endif
 c Initialize the random functions for reinjection.
-      call injinit(icolntype,nbc)
+      call injinit(icolntype,bcr)
 c Initialize velocity diagnostics
       vrange=8.*sqrt(Ti)+1.4*abs(vd)+1.4*sqrt(abs(vprobe))
       do kk=1,nvmax
@@ -327,11 +333,8 @@ c Save the permanent plot switch.
       nsamax=min(39,maxsteps/10)+1
       if(success)nstepsave=nsamax
 
-
-
 c Main Stepping loop.
       do i=1,maxsteps
-
 c Plot at some subset of steps.
 c         write(*,*)mod(i-1,ipstep),i,ipstep
          lplot=lpstore.and.(mod(i-1,ipstep).eq.0)
@@ -347,6 +350,7 @@ c     on leaving the loop, until we are about to reinitialize plotting.
 c     As a result the last plot is only saved if it is on the maxsteps step.
          if(i.eq.maxsteps)call pfset(ipfsw)
 c Assign charge to mesh
+
          call chargetomesh()
 c Collect the partial sums of moments of distribution.
          call sumreduce()
@@ -356,11 +360,11 @@ c myid.eq.0 for the master node.
 
 c Refresh precalculated fuctions
 
-            if ((mod(i,20).eq.0)) then
-               call injinit(icolntype,nbc)
-            endif
+c            if ((mod(i,20).eq.0)) then
+c               call injinit(icolntype,bcr)
+c            endif
 
-            
+
 c Plot density contours.
             if(lplot)then
                if(lcolcont)then
@@ -410,19 +414,22 @@ c                        yvpre=fluxrein/nrein
                endif
             endif
             write(*,'(i5,$)')i
-
-c Calculate the potential field, unless it is fixed.
+            
+c     Calculate the potential field, unless it is fixed.
             if(.not.lfext)then
-               if(debyelen.ne.0.) then
+               if(infdbl) then
+                  call fcalc_infdbl(dt)
+               elseif(debyelen.eq.0) then
+                  call fcalc(dt)
+               elseif(bcphi.eq.0) then
                   call fcalc_lambda(dt)
                else
-                  call fcalc(dt)
+                  call fcalc_shielding(dt)
                endif
-               
-c Damping on ion motion by artificial potential modification.
+c     Damping on ion motion by artificial potential modification.
                if(damplen.gt.0.) call damp(dt,damplen)
             endif
-c Evaluate total charge and z-forces. Not yet implemented for NGP.
+c     Evaluate total charge and z-forces. Not yet implemented for NGP.
             if(LCIC)then
                call esforce(ierad,qp,fz,epz)
                zmom(i,enccharge,1)=qp
@@ -433,10 +440,10 @@ c Evaluate total charge and z-forces. Not yet implemented for NGP.
                zmom(i,fieldz,2)=fz
                zmom(i,epressz,2)=epz
             endif
-
+            
          endif
 #ifdef MPI
-c Broadcast back to the slaves.
+c     Broadcast back to the slaves.
          call MPI_BCAST(phi,(nrsize+1)*(nthsize+1),
      $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
          call MPI_BCAST(averein,1,
@@ -444,8 +451,8 @@ c Broadcast back to the slaves.
          call MPI_BCAST(adeficit,1,
      $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
 #endif
- 
-c Plot radial average velocity and temperatures.
+         
+c     Plot radial average velocity and temperatures.
          if(lplot)then
             call vrdiag()
             if(ldist)then
@@ -453,20 +460,20 @@ c Plot radial average velocity and temperatures.
                call vdiagsin(.false.)
             endif
          endif
-c Main particle advance.
-
+c     Main particle advance.
+         
          call padvnc(dt,icolntype,i)
-
-c Collide the particles. See routine in advancing.f.
+         
+c     Collide the particles. See routine in advancing.f.
          if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
-c Reduce back the flux and distribution data from the particle advance.
+c     Reduce back the flux and distribution data from the particle advance.
          call partreduce(i)
-c Adjust to the flux that would have occurred for standard step size.
+c     Adjust to the flux that would have occurred for standard step size.
          fluxprobe(i)=fluxprobe(i)/bdtnow
-c 
+c     
          zmom(i,partz,1)=zmom(i,partz,1)/dt
          zmom(i,partz,2)=zmom(i,partz,2)/dt
-
+         
 c Small mesh written diagnostics.         
          if(nr.eq.10) then
             write(*,*)'Rho,phi'
@@ -574,8 +581,12 @@ c Help section
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
       write(*,*)' --rhoinf.ff specify constant injection rate, rather',
      $     ' than particle number.'
-      write(*,*)' --bz.ff Bz (0), -nbc New BC (false), --ds subdivide',
-     $     ' the domain'
+      write(*,*)' --bz.ff Bz (0),--ds subdivide the domain'
+      write(*,*)'--bcphi(0) bc potential (0:spherical sym, 1: Quasi',
+     $     ' neutrality on outer crone, 2: Phiout=0, 3: dPhiout/dr=0)'
+      write(*,*)'--bcr(0) bc reinject (0:spherical sym, 1: Simple',
+     $     'Maxwellian, 2: Adiabatic)'
+
       end
       
 c***********************************************************************
@@ -600,6 +611,7 @@ c Initialize rhoinf approximately:
          write(*,*)'Rhoinf in rhocalc approximated as',rhoinf
       endif
 
+c Correction for --ds
       do ir=1,NRUSED
          corr=1.
          if(dsub) then
@@ -620,7 +632,7 @@ c     Volumes are now calculated in meshinit.
      $              psum(ir,ith)*volinv(ir)*(nth-1.)*np*corr/rhoinf
             endif
          enddo
-      
+         
          if(LCIC)then
 c Fix the theta boundaries. The extra small quantity prevents zeros, I hope.
             rho(ir,1)=2.*rho(ir,1)+1.e-4

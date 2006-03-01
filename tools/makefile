@@ -30,7 +30,11 @@ fluxVp : fluxVp.f /home/hutch/accis/libaccisX.a coulflux.f
 
 postprocB : postprocB.f piccompost.f /home/hutch/accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f coulflux.f $(libraries)
+
+
 clean :
 
 	rm -f *.o
 	rm -f postproc parrot fluxVp newsumplot
+	rm -f *.dat *.frc
+	rm -f *.ps *.txt

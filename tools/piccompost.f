@@ -1,5 +1,5 @@
       integer npartmax,npart,nr,nth,ndim,np
-      parameter (npartmax=200000,nr=401,nth=101,np=1,ndim=6)
+      parameter (npartmax=200000,nr=401,nth=401,np=1,ndim=6)
 c NGP definitions
       logical LCIC
       integer NRUSED,NTHUSED,NRFULL,NTHFULL
@@ -30,13 +30,13 @@ c Mag field
 
       real pi
       parameter (pi=3.1415927)
-      real cerr,bdyfc,Ti,vd
+      real cerr,bdyfc,Ti,vd,damplen
       logical diags,lplot
       integer myid,numprocs
       common /piccom/xp,npart,
      $     psum,vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,lplot
-     $     ,myid,numprocs,Bz
+     $     ,myid,numprocs,Bz,damplen
 
 c Radius mesh
       real r(0:NRFULL),rcc(0:NRFULL)
@@ -68,7 +68,7 @@ c Lower limit of averaging range. 0.6 by default
       common /rancom/Gcom,Vcom,Qcom
 
       integer nvmax,nrein,ninner,nstepmax
-      parameter (nvmax=60,nstepmax=4000)
+      parameter (nvmax=60,nstepmax=10000)
       real nvdiag(nvmax),nvdiagave(nvmax),vdiag(nvmax)
       real vrange
       real diagrho(nr),diagphi(nr)

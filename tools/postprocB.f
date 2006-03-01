@@ -1,1227 +1,519 @@
-
+c Tools for postprocessing a serie of log files with different Bz, but
+c same other parameters.
+c The launch syntax is postprocB [switches] T...B*.dat
+c Must launch at least two files to work properly
 
 
 
 c********************************************************************
       character*100 string,filename
-      real Blist(100),Fluxlist(100)
-      integer narg
-      real Gamma(100)
-
-
-
       include 'piccompost.f'
-c      include 'cic/piccompost.f'
-
       real rholocal(0:NRFULL,0:NTHFULL)
-c      real thanglocal(0:NTHFULL)
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
-
       real phipic(1000),rhopic(1000)
       real rpic(1000),rpicleft(1000),phicos(1000)
-      real phiyukawa(1000)
       integer nti0
       parameter (nti0=100)
-      real rti0(nti0)
-      real phiti0(nti0)
       character*100 charin
-      real fluxofangle(nth),cflux(nth)
-      integer jstepth
-      logical lpcic,ltempc,lphip,lreaddiag,lgraph,larrows,lconline
-      logical lvfwrt,lseptp,lunlabel,ledge,ldens,langle
+      logical lpcic,lreaddiag
+      logical ledge
+      logical output,sh
+
+c     Data tables to be collected for the plotting
+      real Blist(40),fluxlist(40),probeplist(40)
+      integer narg
+      real gamma(40)
+      real temp1,temp2,randflux
+      integer oaverage,temp
+      real outdens(250,40),outphi(250,40),inphi1(250,40),thcos(250,40)
+      real thflux(250,40),inphi2(250,40),indens1(250,40),indens2(250,40)
+      real tempt1(250),tempt2(250),inphi3(250,40),indens3(250,40)
+
+
+c     Tables for the sheath calculation. Doesn't make sense
+c     for high B field
+      real xsheath(250,40)
+      real ysheath(250,40)
+      real sheathrho(250,250)
+      real sheathr(250)
+
+
       data lpcic/.false./
-      data ltempc/.false./
-      data lconline/.false./
-      data lphip/.false./
       data lreaddiag/.false./
-      data lgraph/.true./
-      data larrows/.false./
-      data lvfwrt/.true./
-      data lseptp/.false./
-      data lunlabel/.false./
       data ledge/.false./
-      data ldens/.false./
-      data langle/.false./
-      data jstepth/1/
+      data output/.false./
+      data oaverage/10/
+      data sh/.false./
+c     Temporary data, for the bubble sort or the plotting
+      temp=1.
+      temp1=1
+      temp2=1
 
-
-
-c Deal with arguments
+c Deal with arguments, and store all the values in the table for each B
       narg=iargc()
+      if (iargc().eq.0) goto 51
       do i=1,narg
-         call getarg(i,string)
+ 11      call getarg(i,string)
 
          if(string(1:1) .eq. ' ') then
             goto 3
          endif
+         if(string(1:2).eq.'-f') then
+            output=.true.
+            goto 3
+         elseif(string(1:3).eq.'-sh') then
+            sh=.true.
+            goto 3
+         else
             filename=string
-         do k=1,len(filename)-2
-            if(filename(k:k+1).eq.'Sp')then
-               filename(k:k+1)='Ti'
-               write(*,*) 'Using Ti file ',filename
-               goto 110
-            endif
-         enddo
- 110     continue
-
-c        Read the outputfile
+            do k=1,len(filename)-2
+               if(filename(k:k+1).eq.'Sp')then
+                  filename(k:k+1)='Ti'
+                  write(*,*) 'Using Ti file ',filename
+                  goto 110
+               endif
+            enddo
+ 110        continue
+         endif
+c     Read the outputfile
          call readoutput(lreaddiag,lpcic,ledge,
      $        filename,rholocal,nrhere,nthhere,nphere,
      $        phipic,rhopic,rpic,rpicleft,phicos,
-     $        rhomax,rhomin,
-     $        nrti,phiinf,nastep,nsteps,
-     $        dt,rmax,fave,debyelen,vprobe,
+     $        rhomax,rhomin,nrti,phiinf,nastep,nsteps,dt,rmax,fave,
+     $        debyelen,vprobe,
      $        ierr)
 
-         if(ierr.eq.101) goto 101
-
-         Fluxlist(i)=fluxprobe(nsteps)
-         do k=1,39
-            Fluxlist(i)=Fluxlist(i)+fluxprobe(nsteps-k)
-         enddo
-         Fluxlist(i)=Fluxlist(i)/40
-
+c     Creating a list with all the Bz to analyse, and the corresponding
+c     potential. Useful in the float potential case
          Blist(i)=Bz
-         Gamma(i)=1.*ninth(1)/ninth(nthhere)
-         write(*,*) "Bz",Blist(i)
+         probeplist(i)=vprobe
 
+c         open(15,file='flux.txt',access='append')
+c         write(15,*) 'B: ',Bz,' Vp: ',vprobe
+c         close(15)
+c     Creating a list of the flux as a function of theta
+         fluxlist(i)=0.
+         write(*,*) "nastep",nastep
+         do j=1,nthhere
+            thflux(j,i)=ninth(j)*(nthhere-1.)/
+     $           (4.*pi*rhoinf*dt*nastep)
+            if(j.eq.1 .or. j.eq.nthhere) thflux(j,i)=thflux(j,i)*2.
+            fluxlist(i)=fluxlist(i)+thflux(j,i)
+         enddo
+         randflux=2*sqrt(2*Ti)*sqrt(pi)*(1-0/Ti)
+         fluxlist(i)=4*pi*fluxlist(i)/nthhere/randflux
+
+c     Creating a list of the flux ratios for all the files
+         gamma(i)=1.*ninth(1)/ninth(nthhere)
+
+c     Creating a list of the outer density as a funtion of theta
+         do k=1,nthhere
+            outdens(k,i)=0.
+            do l=0,oaverage-1
+               outdens(k,i)=outdens(k,i)+rholocal(nrhere-l,k)
+            enddo
+            outdens(k,i)=outdens(k,i)/(oaverage)
+            thcos(k,i)=tcc(k)
+         enddo
+
+c     Creating a list of the outer potential as a function of theta
+         do k=1,nthhere
+            outphi(k,i)=0.
+            do l=0,oaverage-1
+               outphi(k,i)=outphi(k,i)+phi(nrhere-l,k)
+            enddo
+            outphi(k,i)=outphi(k,i)/(oaverage)
+         enddo
+
+c     Creating a list of the potential and density as a function of r
+         do k=1,nrhere
+            inphi1(k,i)=phi(k,1)
+            inphi2(k,i)=phi(k,int(nthhere/2))
+            inphi3(k,i)=phi(k,nthhere)
+            indens1(k,i)=rho(k,1)
+            indens2(k,i)=rho(k,int(nthhere/2))
+            indens3(k,i)=rho(k,nthhere)
+         enddo
+
+
+c     calculates the sheath size
+         ptaverage=1.
+         do j=1,nthhere
+            do k=nrhere,1,-1
+               ptaverage=1.
+               sheathrho(k,j)=rholocal(k,j)
+               if (j.ge.2) then
+                  ptaverage=ptaverage+1
+                  sheathrho(k,j)=sheathrho(k,j)+rholocal(k,j-1)
+               endif
+               if (j.le.(nthhere-1)) then
+                  ptaverage=ptaverage+1
+                  sheathrho(k,j)=sheathrho(k,j)+rholocal(k,j+1)
+               endif
+               if (k.ge.2) then
+                  ptaverage=ptaverage+1
+                  sheathrho(k,j)=sheathrho(k,j)+rholocal(k-1,j)
+               endif
+               if (k.le.(nrhere-1)) then
+                  ptaverage=ptaverage+1
+                  sheathrho(k,j)=sheathrho(k,j)+rholocal(k+1,j)
+               endif
+               sheathrho(k,j)=sheathrho(k,j)/ptaverage
+               if ((-exp(phi(k,j))+sheathrho(k,j)).le.(0.1)) then
+                  sheathr(j)=rcc(k)
+               endif
+            enddo
+         enddo
+         do j=1,nthhere
+            xsheath(j,i)=sheathr(j)*tcc(j)
+            ysheath(j,i)=sheathr(j)*sqrt(1-tcc(j)**2)
+         enddo
+
+3       continue
       enddo
- 3    continue
 
+
+c     We sort all the lists to have them in rising B order
+c     We do a simple bubble sort
+
+      temp=1
+ 900  if(Blist(temp).gt.Blist(temp+1)) then
+
+
+         temp1=Blist(temp+1)
+         Blist(temp+1)=Blist(temp)
+         Blist(temp)=temp1
+
+         temp1=probeplist(temp+1)
+         probeplist(temp+1)=probeplist(temp)
+         probeplist(temp)=temp1
+
+         temp1=gamma(temp+1)
+         gamma(temp+1)=gamma(temp)
+         gamma(temp)=temp1
+
+         temp1=fluxlist(temp+1)
+         fluxlist(temp+1)=fluxlist(temp)
+         fluxlist(temp)=temp1
+         
+         do k=1,nthhere
+            temp1=outdens(k,temp+1)
+            outdens(k,temp+1)=outdens(k,temp)
+            outdens(k,temp)=temp1
+
+            temp1=thcos(k,temp+1)
+            thcos(k,temp+1)=thcos(k,temp)
+            thcos(k,temp)=temp1
+
+            temp1=outphi(k,temp+1)
+            outphi(k,temp+1)=outphi(k,temp)
+            outphi(k,temp)=temp1
+
+            temp1=xsheath(k,temp+1)
+            xsheath(k,temp+1)=xsheath(k,temp)
+            xsheath(k,temp)=temp1
+
+            temp1=ysheath(k,temp+1)
+            ysheath(k,temp+1)=ysheath(k,temp)
+            ysheath(k,temp)=temp1
+            
+            temp1=thflux(k,temp+1)
+            thflux(k,temp+1)=thflux(k,temp)
+            thflux(k,temp)=temp1
+         enddo
+
+         do k=1,nrhere
+            temp1=inphi1(k,temp+1)
+            inphi1(k,temp+1)=inphi1(k,temp)
+            inphi1(k,temp)=temp1
+            temp1=inphi2(k,temp+1)
+            inphi2(k,temp+1)=inphi2(k,temp)
+            inphi2(k,temp)=temp1
+            temp1=inphi3(k,temp+1)
+            inphi3(k,temp+1)=inphi3(k,temp)
+            inphi3(k,temp)=temp1
+
+            temp1=indens1(k,temp+1)
+            indens1(k,temp+1)=indens1(k,temp)
+            indens1(k,temp)=temp1
+            temp1=indens2(k,temp+1)
+            indens2(k,temp+1)=indens2(k,temp)
+            indens2(k,temp)=temp1
+            temp1=indens3(k,temp+1)
+            indens3(k,temp+1)=indens3(k,temp)
+            indens3(k,temp)=temp1
+         enddo
+
+         temp=0
+      endif
+      if (temp.eq.(narg-1)) goto 901
+      temp=temp+1
+      goto 900
+ 901  continue
+
+
+
+
+c Writes on the output file if necessary
+      if (output) then
+         open(15,file='flux.txt',access='append')
+         write(15,*) 'Ti:',Ti,'   Lambda:',debyelen,'   Vp:',vprobe
+         write(15,*) 'B        flux       Vp'
+         do k=1,narg
+            write(15,'(3f8.4)') Blist(k),fluxlist(k),probeplist(k)
+         enddo
+         write(15,*) ""
+         close(15)
+      endif
+
+c Start of Plotting:
 c Set arrow scale
       v1=max(1.,vd)
-
-C Start of Plotting:
+c Change the B scale for the sake of plotting
+      do k=1,narg
+         Blist(k)=Blist(k)/(1+Blist(k))
+      enddo
 
       call pfset(3)
-      if(lgraph)then
 
 
-c Now we make the first plot a time trace.
-c         call multiframe(2,1,3)
+      call multiframe(0,0,0)
 
-         call autoplot(Blist,Fluxlist,narg)
-         call fwrite(vd,iwdth,2,charin)
-         call jdrwstr(0.05,.70,
-     $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
-         call fwrite(Bz,iwdth,2,charin)
-         call jdrwstr(0.05,0.65,
-     $        'B!dz!d='//charin(1:iwdth)//char(0),1.)
-         call fwrite(Ti,iwdth,2,charin)
-         call jdrwstr(0.05,0.60,
-     $        'T!di!d='//charin(1:iwdth)//char(0),1.)
-         call axlabels('B','Flux to probe')
-         call pltend()
-
-         call autoplot(Blist,Gamma,narg)
-         call fwrite(vd,iwdth,2,charin)
-         call jdrwstr(0.05,.70,
-     $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
-         call fwrite(Bz,iwdth,2,charin)
-         call jdrwstr(0.05,0.65,
-     $        'B!dz!d='//charin(1:iwdth)//char(0),1.)
-         call fwrite(Ti,iwdth,2,charin)
-         call jdrwstr(0.05,0.60,
-     $        'T!di!d='//charin(1:iwdth)//char(0),1.)
-         call axlabels('B','Flux ratio')
-         call pltend()
-
-
-
-
-
-
-         goto 220
-
-
-
-
-c Old start of plotting.
-         call multiframe(2,1,3)
-         call autoplot(rpic,rhopic,nrhere)
-         call axlabels('r','angle averaged density')
-         call winset(.true.)
-         call vecw(rpic(1),1.,0)
-         call vecw(rpic(nrhere),1.,1)
-         call winset(.false.)
-         call minmax(rho(1,1),nthhere*nrhere,rhmin,rhmax)
-         if(ledge)rhmax=min(rhmax,1.5)
-         call pltinit(-rpic(nrhere),rpic(nrhere),0.,max(rhmax,1.1))
-         call axis()
-         call axis2()
-         call axlabels('radial position','n/n!A!d;!d!@')
-         do j=1,nthhere/2,jstepth
-            call color(mod(j,15)+1)
-            call winset(.true.)
-            call polyline(rpicleft,rho(1,nthhere-j+1),nrhere)
-            call polyline(rpic,rho(1,j),nrhere)
-            call winset(.false.)
-            write(charin,'(i3,f5.2)')j,tcc(j)
-            call legendline(1.05,0.08*(j-1)/jstepth,
-     $           0,charin(1:8)//char(0))
-         enddo
-         call color(15)
-         call legendline(1.05,0.08*(j-1)/jstepth,258,
-     $        'angle:   j |cos!Aq!@|')
-         call vecw(-rpic(nrhere),1.,0)
-         call vecw(rpic(nrhere),1.,1)
-         call fwrite(vd,iwdth,2,charin)
-         if(lvfwrt) call jdrwstr(0.05,0.72,
-     $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
-         call pltend()
-         call multiframe(0,0,0)
-      endif
-c Ti=0 quasineutral case:
-      do j=1,nti0
-         phiti0(j)=-0.5*j/float(nti0)
-         rti0(j)=sqrt(exp(-0.5-phiti0(j))/sqrt(-2.*phiti0(j)))
-      enddo
-      do j=1,nrTi
-         phipic(j)=phipic(j)-phiinf
-      enddo
-      goto 102
- 101  write(*,*) 'Does not seem to be a Ti... file here.'
- 102  continue
-
-C End of stuff dependent on Ti file reading.
-      open(13,status='unknown',file='phiout.dat')
-      write(13,*)'dt,      vd,      Ti,      rmax,',
-     $     '   fave, debyelen,    Vp'
-      write(13,'(2f8.5,f8.4,f8.3,f8.3,f12.5,f10.5)')
-     $     dt,vd,Ti,rmax,fave,debyelen,vprobe
-      write(13,*)nrhere
-      write(13,'(2f12.5)')(rpic(j),phipic(j),j=1,nrhere)
-
-      if(lphip)then
-         call minmax2(phi(1,1),nr+1,nrhere,nthhere,pmin,pmax)
-         write(*,*)'minmax',nr,nrhere,nthhere,pmin,pmax
-         cscale=0.02
-         if(abs(phipic(1)) .lt. 5.)cscale=0.1
-         ppmax=1.2
-         call pltinit(rpic(1),rpic(nrhere),pmin,ppmax)
-         call polyline(rpic,phipic,nrhere)
-         call axis()
-         call vecw(rpic(1),0.,0)
-         call vecw(rpic(nrhere),0.,1)
-         vt2=vd**2+3.*Ti
-c Linearized shielding length corrected for finite size.
-         slambda=sqrt(debyelen**2*vt2/(3.+vt2) + 1.)
-c         slambda=8.5
-c         slambda=debyelen
-         write(*,*)'vt2,slambda,vprobe,phipic(1)'
-     $        ,vt2,slambda,vprobe,phipic(1)
-         if(slambda.eq.0.) slambda=1.e-4
-         do kk=1,nrhere
-            phiyukawa(kk)=(vprobe*rpic(1)/exp(-rpic(1)/slambda))
-     $           *exp(-rpic(kk)/slambda)/rpic(kk)
-c            write(*,*)kk,rpic(kk),phiyukawa(kk)
-         enddo
-         call dashset(1)
-         call polyline(rpic,phiyukawa,nrhere)
-         call dashset(0)
-         call axlabels('r',
-     $        '<!Af!@>!A=Jf!@ dcos!Aq!@/2')
-         call scalewn(rpic(1),rpic(nrhere),pmin*cscale,ppmax*cscale,
-     $        .false.,.false.)
-         call color(iblue())
-         call winset(.true.)
-         call polyline(rpic,phicos,nrhere)
-         call winset(.false.)
-         call axptset(1.,0.)
-         call ticrev()
-         call altyaxis(1.,1.)
-         call ticrev()
-         call axlabels('','!AJf!@cos!Aq!@ dcos!Aq!@')
-         call color(15)
-         call pltend()
-c Potential slices
-c         call multiframe(0,0,0)
-        call axptset(0.,0.)
-         call minmax(phi(1,1),nthhere*nrhere,rhmin,rhmax)
-         if(ledge)rhmin=max(rhmin,-.4)
-         call pltinit(-rpic(nrhere),rpic(nrhere),rhmin,max(rhmax,0.1))
-         call axis()
-         call axis2()
-         call axlabels('radial position','!Af!@')
-         do j=1,nthhere/2,jstepth
-            call color(mod(j,15)+1)
-            call winset(.true.)
-            call polyline(rpicleft,phi(1,nthhere-j+1),nrhere)
-            call polyline(rpic,phi(1,j),nrhere)
-            call winset(.false.)
-            write(charin,'(i3,f5.2)')j,tcc(j)
-            call legendline(-.48,0.08*(j-1)/jstepth,
-     $           0,charin(1:8)//char(0))
-         enddo
-         call color(15)
-         call legendline(-.48,0.08*(j-1)/jstepth,258,
-     $        'angle:   j |cos!Aq!@|')
-         call vecw(-rpic(nrhere),1.,0)
-         call vecw(rpic(nrhere),1.,1)
-         call fwrite(vd,iwdth,2,charin)
-         if(lvfwrt) call jdrwstr(.05,0.72,
-     $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
-         call winset(.true.)
-         call dashset(4)
-         call polyline(rpic,phipic,nrhere)
-         call winset(.false.)
-         call legendline(-.48,-0.08,
-     $           0,'Average')
-         call dashset(0)
-         call pltend()
-c Contouring
-c         call condisphi(ir,jstepth,0.,vprobe,
-c     $     nrhere,nthhere,v1,larrows,lconline)
-         call condisphi(ir,jstepth,pmin,pmax,
-     $     nrhere,nthhere,v1,larrows,lconline,lpcic)
-         call pltend()
-      endif
-
-c Contouring:
-      if(lseptp)then
-         if(ltempc)then
-            call condisplay2(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
-         endif
-      else
-         if(ldens)then
-            call conrho(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
-         endif
-         if(ltempc)then
-            call contemp(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
-         endif
-      endif
-
-      if(lunlabel)then
-         call condisunlabel(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
-         call pltend()
-      endif
-
-      if(lreaddiag)write(*,*)'tcc, fluxofangle'
-      write(*,*)'cos(theta), flux, coulflux'
-c Calculate the flux as a function of angle.
-      do j=1,nthhere
-c Seems to be an error here for the ngp version.
-         fluxofangle(j)=ninth(j)*(nthhere-1.)/
-     $        (4.*pi*rhoinf*dt*nastep)
-         if(lpcic)then
-            if(j.eq.1 .or. j.eq.nthhere)fluxofangle(j)=fluxofangle(j)*2.
-         else
-c Correct the ngp error: 2 Sep 2002
-            fluxofangle(j)=fluxofangle(j)*nthhere/(nthhere-1.)
-         endif
-c         write(*,*)rhoinf,dt,nastep,ninth(j)
-         cthang=acos(tcc(j))
-         cunnorm=coulflux(cthang,-vprobe/Ti,vd/sqrt(Ti))
-         cflux(j)=cunnorm
-     $        /sqrt(2.*3.14159/Ti)
-         write(*,'(4f10.5)')tcc(j),fluxofangle(j)
-     $        ,cflux(j),cunnorm
-c     $        ,cthang
-      enddo
-
-c Plot flux as a function of angle.
-      if(lgraph .and. langle)then
-         call multiframe(0,0,0)
-         call autoplot(tcc(1),fluxofangle,nthhere)
-         call axlabels('cos!Aq!@','flux density (normalized)')
-         call axis2()
-c         if(vprobe.eq.0)
-         call polymark(tcc(1),cflux,nthhere,1)
-         call fwrite(vd,iwdth,2,charin)
-         if(lvfwrt) call jdrwstr(0.05,0.65,
-     $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
-         call pltend()
-      endif
-
-c Plot angle for differents steps
-      if(lgraph .and. langle)then
-         ifirst=nsteps/2
-         ispace=20
-         do k=ifirst,nsteps,ispace
-            do kk=1,nthhere
-               cflux(kk)=ninthstep(kk,k)
-            enddo
-            if(lpcic)then
-c     fix up as double on boundary.
-               cflux(1)=2.*cflux(1)
-               cflux(nthhere)=2.*cflux(nthhere)
-            endif
-            if(k.eq.ifirst)then
-               call autoplot(tcc(1),cflux(1),nthhere)
-               call axlabels('cos!Aq!@','particles per step')
-               call axis2()
-               call fwrite(vd,iwdth,2,charin)
-               call jdrwstr(0.05,0.65,
-     $              'v!dd!d='//charin(1:iwdth)//char(0),1.)
-               call winset(.true.)
-            endif
-            call color((k-ifirst)*14/(nsteps-ifirst))
-            call polyline(tcc(1),cflux(1),nthhere)
-         enddo
-         call pltend()
-      endif
-
-
- 220  call exit
-      end
-
-c***************************************************************************
-c Contouring of the charge density, rho, on distorted mesh.
-      subroutine conrho(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline)
-      integer ir,it
-      real rhomax,v1
-      logical larrows,lconline
-c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
-c      save
-      character*20 cstring
-      character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
-      integer ncont
-      parameter (ncont=12)
-      real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      save xrho,zrho
-      real basesize
-      parameter (basesize=.02)
-
-      if(nthhere.gt.NTHFULL)then
-         write(*,*)' Conrho error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
-         stop
-      endif
-c Correct the outside angle centers if necessary.
-      if(tcc(1).eq.1)then
-         tcc(1)=0.25*(3.+tcc(2))
-         tcc(0)=1.
-         tcc(nthhere)=0.25*(-3.+tcc(nthhere-1))
-         tcc(nthhere+1)=-1.
-      endif
-
-      do i=1,nrhere
-          do j=1,nthhere
-            zrho(i,j)=rcc(i)*tcc(j)
-            xrho(i,j)=rcc(i)*sqrt(1.-tcc(j)**2)
-         enddo
-         zrho(i,0)=rcc(i)
-         xrho(i,0)=0.
-         zrho(i,nthhere+1)=-rcc(i)
-         xrho(i,nthhere+1)=0.         
-      enddo
-
-c      rpmax=2.*rcc(nrhere)-rcc(nrhere-1)
-      rpmax=rcc(nrhere)
-c      write(*,*)rcc(nrhere),nrhere,nthhere,rpmax
-
-
-      do j=1,ncont
-c         zclv(j)=rhomin+(rhomax-rhomin)*(0.95*(j-1)/float(ncont-1))
-         zclv(j)=(rhomax-rhomin)*(1.*(j-1)/float(ncont-1))+rhomin
-      enddo
-      icl=-ncont
-
-c      call multiframe(2,2,3)
-
-      call ticnumset(8)
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      call accisgradinit(-25000,00000,25000,130000,65000,130000)
-      ntype=2+16+32
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      call gradlegend(zclv(1),zclv(abs(icl)),
-     $     .1,1.25,.9,1.25,0.02,.true.)
-c Call a second time for contours, without the highest.
-      tstring(1:1)=char(0)
-         if(lconline)then
-            call fitrange(rhomin,rhomax,ncont,ipow,
-     $           fac10,delta,first,xlast)
-c               write(*,*)'rhomax,fac10,first,delta',
-c     $              rhomax,fac10,first,delta
-            do j=1,ncont
-               zclv(j)=(first+j*delta)
-            enddo
-            ntype=2
-            icl=(ncont-1)
-            call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $           zclv,icl,zrho,xrho,ntype)
-            write(*,*)'Density Contours=',zclv
-            call fwrite(delta,iwd,1,cstring)
-            tstring=' contour spacing: '//cstring
-c            call legendline(-.1,-.22,258,tstring)
-         endif
-c      endif
-c Fit closer than boxtitle
-      call legendline(0.47,1.07,258,'n/n!A!d;!d!@'//tstring)
-c      call boxtitle('n/n!A!d;!d!@')
+c     Plot floating potential as a function of B
+      call pltinit(0.,1.,-5.,0.)
       call axis()
-      call axlabels('z','r sin!Aq!@')
-      call color(12)
-      if(ir.le.0.or.ir.ge.100) ir=10
-      do j=1,nthhere,it
-         do i=1,nrhere,max(nrhere/ir,1)
-            vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-            vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-            size=basesize/v1*sqrt(vri**2+vti**2)
-            angle=atan2(vti,vri)+acos(tcc(j))
-            call charsize(size,0.3*size)
-            call charangl(180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $           '!A_!@',0.)
-         enddo
-      enddo
-      call charangl(0.)
-      size=basesize
-      call charsize(size,0.3*size)
-      call legendline(0.8,0.95,258,'!A_!@'//char(0))
-      call charsize(0.,0.)
-      write(cstring,'(''  v='',f4.1)') v1
-      call color(15)
-      call legendline(0.8,0.95,258,cstring(1:8)//char(0))
+      call axis2()
+      call winset(.true.)
+      call polyline(Blist,probeplist,narg)
+      call winset(.false.)
+      call fwrite(vd,iwdth,2,charin)
+      call jdrwstr(0.05,.70,
+     $     'v!dd!d='//charin(1:iwdth)//char(0),1.)
+      call fwrite(Ti,iwdth,2,charin)
+      call jdrwstr(0.05,0.60,
+     $     'T!di!d='//charin(1:iwdth)//char(0),1.)
+      call axlabels('B/(1+B)','Probe floating potential')
       call pltend()
-      end
 
-c***************************************************************************
-c Contouring of the temperature.
-      subroutine contemp(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline)
-      integer ir,it
-      real rhomax,v1
-      logical larrows,lconline
-c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
-c      save
-c      character*20 cstring
-c      character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
-      integer ncont
-      parameter (ncont=12)
-      real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
-      save xrho,zrho
-      real basesize
-      parameter (basesize=.02)
+c     Plot outer flux as a function of B
+      call pltinit(0.,1.0,0.,-vprobe/Ti+1.)
+      call axis()
+      call axis2()
+      call winset(.true.)
+      call polyline(Blist,fluxlist,narg)
+      call winset(.false.)
+      call fwrite(vd,iwdth,2,charin)
+      call jdrwstr(0.05,.70,
+     $     'v!dd!d='//charin(1:iwdth)//char(0),1.)
+      call fwrite(Ti,iwdth,2,charin)
+      call jdrwstr(0.05,0.60,
+     $     'T!di!d='//charin(1:iwdth)//char(0),1.)
+      call axlabels('B/(1+B)','Flux to probe')
+      call pltend()
+      
+c     Plot flux ratio as a function of B
+      call autoplot(Blist,gamma,narg)
+      call fwrite(vd,iwdth,2,charin)
+      call jdrwstr(0.05,.70,
+     $     'v!dd!d='//charin(1:iwdth)//char(0),1.)
+      call fwrite(Ti,iwdth,2,charin)
+      call jdrwstr(0.05,0.60,
+     $     'T!di!d='//charin(1:iwdth)//char(0),1.)
+      call axlabels('B','Flux ratio')
+      call pltend()
 
-      if(nthhere.gt.NTHFULL)then
-         write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
-         stop
-      endif
-c Correct the outside angle centers if necessary.
-      if(tcc(1).eq.1)then
-         tcc(1)=0.25*(3.+tcc(2))
-         tcc(0)=1.
-         tcc(nthhere)=0.25*(-3.+tcc(nthhere-1))
-         tcc(nthhere+1)=-1.
-      endif
 
-      do i=1,nrhere
-          do j=1,nthhere
-            zrho(i,j)=rcc(i)*tcc(j)
-            xrho(i,j)=rcc(i)*sqrt(1.-tcc(j)**2)
+c     Plot outer density as a function of cos(theta) for all B
+      call axptset(0.,0.)
+
+      call minmax(outdens(1,1),nthhere*narg,outmin,outmax)
+      call pltinit(-1.0,1.0,outmin-0.1,outmax+0.1)
+      call axis()
+      call axis2()
+      call axlabels('cos(!Aq!@)','rho boundary')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nthhere
+            tempt1(k)=outdens(k,j)
+            tempt2(k)=thcos(k,j)
          enddo
-         zrho(i,0)=rcc(i)
-         xrho(i,0)=0.
-         zrho(i,nthhere+1)=-rcc(i)
-         xrho(i,nthhere+1)=0.         
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nthhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
       enddo
-      rpmax=rcc(nrhere)
+      call pltend()
 
-c Temperature plots.
+c     Plot flux as a funtion of theta
+      call minmax(thflux(1,1),nthhere*narg,outmin,outmax)
+      call pltinit(-1.0,1.0,outmin-0.1,outmax+0.1)
+      call axis()
+      call axis2()
+      call axlabels('cos(!Aq!@)','flux to probe')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nthhere
+            tempt1(k)=thflux(k,j)
+            tempt2(k)=thcos(k,j)
+         enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nthhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+         if (output) then
+            open(15,file='flux.txt',access='append')
+            write(*,*) Blist(j)
+            write(15,*) tempt1
+            write(15,*) ""
+            close(15)
+         endif
+      enddo
+      
+      call pltend()
+
+c     Plot outer potential as a function of cos(theta)
+      call minmax(outphi(1,1),nthhere*narg,outmin,outmax)
+      call pltinit(-1.0,1.0,outmin-0.1,outmax+0.1)
+      call axis()
+      call axis2()
+      call axlabels('cos(!Aq!@)','phi boundary')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nthhere
+            tempt1(k)=outphi(k,j)
+            tempt2(k)=thcos(k,j)
+         enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nthhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+      enddo
+      call pltend()
+      
       call multiframe(2,1,3)
-      Tmax=0.
-      Tmin=1000.
-      Trmax=0.
-      Trmin=1000.
-      do i=1,nrhere
-         do j=1,nthhere
-            Tr(i,j)=(vr2sum(i,j)*psum(i,j)-vrsum(i,j)**2)
-     $           /(psum(i,j)**2+1.e-5)
-            Ttp(i,j)=0.5*(vtp2sum(i,j)*psum(i,j)-
-     $           (vpsum(i,j)**2+vtsum(i,j)**2) )
-     $           /(psum(i,j)**2+1.e-5)
-            if(Tr(i,j).lt.Trmin)Trmin=Tr(i,j)
-            if(Tr(i,j).gt.Trmax)Trmax=Tr(i,j)
-            if(Ttp(i,j).lt.Tmin)Tmin=Ttp(i,j)
-            if(Ttp(i,j).gt.Tmax)Tmax=Ttp(i,j)
-         enddo
-         Tr(i,0)=Tr(i,1)
-         Tr(i,nthhere+1)=Tr(i,nthhere)
-         Ttp(i,0)=Ttp(i,1)
-         Ttp(i,nthhere+1)=Ttp(i,nthhere)
-      enddo
-      Tmax=0.8*Tmax
-      
-c Tr plot
-c      do j=1,ncont
-c         zclv(j)=rhomin+(rhomax-rhomin)*(0.95*(j-1)/float(ncont-1))
-c         zclv(j)=Trmin+(Tmax-Trmin)*(1.*(j-1)/float(ncont-1))
-c      enddo
-c      icl=-ncont
-c
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      zclv(1)=Trmin
-      zclv(2)=Tmax
-      icl=-2
-      ntype=2+16
-      if(.not.lconline)ntype=ntype+32
-      call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      ntype=2
-      zclv(1)=10
-      icl=0
-      if(lconline)
-     $     call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      write(*,*)'Trmin,Trmax',Trmin,Trmax
-      call ticrev()
-      call gradlegend(Trmin,Tmax,
-     $     1.1,0.1,1.1,0.9,0.03,.false.)
-      call ticrev()
-      call legendline(1.03,0.5,258,'T!dr!d'//char(0))
-      call ticnumset(8)
+
+c     Plot potential at theta=0 and Pi/2 as function of r
+      call minmax(inphi1(1,1),nrhere*narg,outmin,outmax)
+      call pltinit(0.,rcc(nrhere)+0.,outmin-0.1,0.2)
       call axis()
-      call axlabels('z','r sin!Aq!@')
-      if(larrows)then
-         call color(12)
-         if(ir.le.0.or.ir.ge.100) ir=10
-         do j=1,nthhere
-            do i=1,nrhere,max(nrhere/ir,1)
-               vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-               vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-               size=basesize/v1*sqrt(vri**2+vti**2)
-               angle=atan2(vti,vri)+acos(tcc(j))
-               call charsize(size,0.3*size)
-               call charangl(180.*angle/3.141593)
-               call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $              char(ichar('_')+128)//char(0),0.)
-            enddo
+      call axis2()
+      call axlabels('r','phi !Aq!@=Pi/2')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nrhere
+            tempt1(k)=inphi1(k,j)
+            tempt2(k)=rcc(k)
          enddo
-         call charangl(0.)
-         size=basesize
-         call charsize(size,0.3*size)
-         call legendline(0.8,0.95,258,'!A_!@'//char(0)) 
-         call charsize(0.,0.)
-         call color(15)
-         call legendline(0.8,0.95,258,'  v=1'//char(0))
-      endif
-c      call pltend()
-c Ttp plot
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      zclv(1)=Trmin
-      zclv(2)=Tmax
-      icl=-2
-      ntype=2+16
-      if(.not.lconline)ntype=ntype+32
-      call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      ntype=2
-      zclv(1)=10
-      icl=0
-      if(lconline)
-     $     call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      write(*,*)'Tmin,Tmax',Tmin,Tmax
-      call ticrev()
-      call gradlegend(Trmin,Tmax,
-     $     1.1,0.1,1.1,0.9,0.03,.false.)
-      call ticrev()
-      call legendline(1.03,0.5,258,'T!d!A`!@!d'//char(0))
-      call ticnumset(8)
-      call axis()
-      call axlabels('z','r sin!Aq!@')
-      if(larrows)then
-         call color(12)
-         if(ir.le.0.or.ir.ge.100) ir=10
-         do j=1,nthhere
-            do i=1,nrhere,max(nrhere/ir,1)
-               vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-               vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-               size=basesize/v1*sqrt(vri**2+vti**2)
-               angle=atan2(vti,vri)+acos(tcc(j))
-               call charsize(size,0.3*size)
-               call charangl(180.*angle/3.141593)
-               call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $              char(ichar('_')+128)//char(0),0.)
-            enddo
-         enddo
-         call charangl(0.)
-         size=basesize
-         call charsize(size,0.3*size)
-         call legendline(0.8,0.95,258,'!A_!@'//char(0))
-         call charsize(0.,0.)
-         call color(15)
-         call legendline(0.8,0.95,258,'  v=1'//char(0))
-      endif
-      call multiframe(0,0,0)
-      call pltend()
-      end
-
-c***************************************************************************
-c***************************************************************************
-c Contouring of the potential, on distorted mesh.
-      subroutine condisphi(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline,lpcic)
-      integer ir,it
-      real rhomax,v1
-      logical larrows,lconline,lpcic
-c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
-c      save
-      character*20 cstring
-      character cworka(nr*(NTHFULL+1+1))
-      integer ncont
-      parameter (ncont=12)
-      real zclv(2*ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      real x2rho(NRFULL+1,0:NTHFULL+1),z2rho(NRFULL+1,0:NTHFULL+1)
-c      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
-      save xrho,zrho
-      real basesize
-      parameter (basesize=.02)
-
-      if(nthhere.gt.NTHFULL)then
-         write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
-         stop
-      endif
-
-      do i=1,nrhere
-          do j=1,nthhere
-            zrho(i,j)=rcc(i)*tcc(j)
-            xrho(i,j)=rcc(i)*sqrt(1.-tcc(j)**2)
-            z2rho(i,j)=zrho(i,j)
-            x2rho(i,j)=xrho(i,j)            
-         enddo
-         zrho(i,0)=rcc(i)
-         xrho(i,0)=0.
-         zrho(i,nthhere+1)=-rcc(i)
-         xrho(i,nthhere+1)=0.
-         if(lpcic)then
-            z2rho(i,1)=zrho(i,0)
-            x2rho(i,1)=xrho(i,0)
-            z2rho(i,nthhere)=zrho(i,nthhere+1)
-            x2rho(i,nthhere)=xrho(i,nthhere+1)
-         endif
-      enddo
-c Adjust the outside angle centers if necessary.
-c Should never be necessary.
-c      if(tcc(1).eq.1)then
-c         tcc(1)=0.25*(3.+tcc(2))
-c         tcc(0)=1.
-c         tcc(nthhere)=0.25*(-3.+tcc(nthhere-1))
-c         tcc(nthhere+1)=-1.
-c      endif
-
-
-      zscale=log(1000.)/(ncont-1.)
-      do j=1,ncont
-c Logarithmic
-         zclv(j)=rhomax + (rhomin-rhomax)*
-     $        exp(zscale*float(ncont-j))/exp(zscale*float(ncont-1))
-c Linear
-         zclv(j)=(rhomax-rhomin)*(1.*(j-1)/float(ncont-1))+ rhomin
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nrhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
       enddo
 
-c      write(*,*)'Contours=',zclv
-      icl=-ncont
-
-c      rpmax=2.*rcc(nrhere)-rcc(nrhere-1)
-      rpmax=rcc(nrhere)
-c      write(*,*)rcc(nrhere),nrhere,nthhere,rpmax
-c      call multiframe(2,2,3)
-
-      call ticnumset(8)
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      call accisgradinit(-25000,00000,35000,130000,65000,130000)
-      ntype=2+16+32
-      call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      call gradlegend(zclv(1),zclv(abs(icl)),
-     $     .1,1.25,.9,1.25,0.02,.true.)
-c Call a second time for contours, without the highest.
-         if(lconline)then
-c If this is not very bipolar
-            if(abs(rhomax)-abs(rhomin).gt.0.2*abs(rhomax-rhomin))then
-c Rational logarithmic contours
-               do indx=1,ncont-2,3
-                  base=10.**(-2+(indx-1)/3)
-                  zclv(ncont+indx)=-base
-                  zclv(ncont+indx+1)=-base*2.
-                  zclv(ncont+indx+2)=-base*5.
-c     New positive contours.
-                  zclv(ncont-indx)=base
-                  zclv(ncont-(indx+1))=base*2.
-                  zclv(ncont-(indx+2))=base*5.
-               enddo
-               zclv(ncont)=0.
-            endif
-            write(*,*)'Contours=',zclv
-            ntype=2
-            icl=(ncont-1)
-c            write(*,'(2f8.4)')
-c     $           (zrho(nrhere,k),z2rho(nrhere,k),k=0,nthhere+1)
-c            call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-c     $           zclv(ncont),icl,zrho,xrho,ntype)
-c Fixed contour plot avoiding the hacked coordinates:
-            call color(igreen())
-            call contourl(phi(1,1),cworka,NRFULL+1,nrhere,nthhere,
-     $           zclv(ncont),icl,z2rho(1,1),x2rho(1,1),ntype)
-            call color(iskyblue())
-c            call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-c     $           zclv(1),icl,zrho,xrho,ntype)
-            call contourl(phi(1,1),cworka,NRFULL+1,nrhere,nthhere,
-     $           zclv(1),icl,z2rho(1,1),x2rho(1,1),ntype)
-            call color(15)
-         endif
-c      endif
-      call legendline(0.47,1.07,258,'!Af!@'//char(0))
-      call axis()
-      call axlabels('z','r sin!Aq!@')
-      call color(12)
-      if(ir.le.0.or.ir.ge.100) ir=10
-      do j=1,nthhere,it
-         do i=1,nrhere,max(nrhere/ir,1)
-            vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-            vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-            size=basesize/v1*sqrt(vri**2+vti**2)
-            angle=atan2(vti,vri)+acos(tcc(j))
-            call charsize(size,0.3*size)
-            call charangl(180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $           '!A_!@',0.)
-         enddo
-      enddo
-      call charangl(0.)
-      size=basesize
-      call charsize(size,0.3*size)
-      call legendline(0.8,0.95,258,'!A_!@'//char(0))
-      call charsize(0.,0.)
-      write(cstring,'(''  v='',f4.1)') v1
       call color(15)
-      call legendline(0.8,0.95,258,cstring(1:8)//char(0))
-c      call pltend()
-      end
-
-c***************************************************************************
-
-c***************************************************************************
-c Get the average and slope over the rmesh range i1,i2.
-      subroutine slopegen(phi,r,nr,i1,i2,slope,average)
-      integer nr
-      real phi(nr),r(nr)
-
-c Assume r-mesh is linear
-      rmom0=0.
-      rmom1=0.
-      rmid=(r(i2)+r(i1))/2.
-      do i=i1,i2
-         rmom0=rmom0+phi(i)
-         rmom1=rmom1+(r(i)-rmid)*phi(i)
-      enddo
-      average=rmom0/(i2-i1+1)
-      rave=rmom1/(i2-i1+1)
-      rlen=r(i2)-r(i1)
-      slope=12.*(rmom1)/(rlen*rlen)/(i2-i1+1)
-c      write(*,*)rmom0,rmom1,r(i1),r(i2),rmid,rlen
-      end
-c***************************************************************************
-c Contouring of the charge density, rho, on distorted mesh. And temperature.
-c This version temperature plots are separate.
-      subroutine condisplay2(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline)
-      integer ir,it
-      real rhomax,v1
-      logical larrows,lconline
-c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
-c      save
-      character*20 cstring
-      character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
-      integer ncont
-      parameter (ncont=12)
-      real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
-      save xrho,zrho
-      real basesize
-      parameter (basesize=.02)
-
-      if(nthhere.gt.NTHFULL)then
-         write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
-         stop
-      endif
-c Correct the outside angle centers if necessary.
-      if(tcc(1).eq.1)then
-         tcc(1)=0.25*(3.+tcc(2))
-         tcc(0)=1.
-         tcc(nthhere)=0.25*(-3.+tcc(nthhere-1))
-         tcc(nthhere+1)=-1.
-      endif
-
-      do i=1,nrhere
-          do j=1,nthhere
-            zrho(i,j)=rcc(i)*tcc(j)
-            xrho(i,j)=rcc(i)*sqrt(1.-tcc(j)**2)
-         enddo
-         zrho(i,0)=rcc(i)
-         xrho(i,0)=0.
-         zrho(i,nthhere+1)=-rcc(i)
-         xrho(i,nthhere+1)=0.         
-      enddo
-
-      do j=1,ncont
-c         zclv(j)=rhomin+(rhomax-rhomin)*(0.95*(j-1)/float(ncont-1))
-         zclv(j)=(rhomax-rhomin)*(1.*(j-1)/float(ncont-1)) + rhomin
-      enddo
-      icl=-ncont
-
-c      rpmax=2.*rcc(nrhere)-rcc(nrhere-1)
-      rpmax=rcc(nrhere)
-c      write(*,*)rcc(nrhere),nrhere,nthhere,rpmax
-c      call multiframe(2,2,3)
-
-      call ticnumset(8)
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      call accisgradinit(-25000,00000,25000,130000,65000,130000)
-      ntype=2+16+32
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      call gradlegend(zclv(1),zclv(abs(icl)),
-     $     .1,1.25,.9,1.25,0.02,.true.)
-c Call a second time for contours, without the highest.
-      tstring(1:1)=char(0)
-         if(lconline)then
-            call fitrange(rhomin,rhomax,ncont,ipow,
-     $           fac10,delta,first,xlast)
-c               write(*,*)'rhomax,fac10,first,delta',
-c     $              rhomax,fac10,first,delta
-            do j=1,ncont
-               zclv(j)=(first+j*delta)
-            enddo
-            ntype=2
-            icl=(ncont-1)
-            call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $           zclv,icl,zrho,xrho,ntype)
-            write(*,*)'Density Contours=',zclv
-            call fwrite(delta,iwd,1,cstring)
-            tstring=' contour spacing: '//cstring
-c            call legendline(-.1,-.22,258,tstring)
-         endif
-c      endif
-c Fit closer than boxtitle
-      call legendline(0.47,1.07,258,'n/n!A!d;!d!@'//tstring)
-c      call boxtitle('n/n!A!d;!d!@')
+      call pltinit(0.,rcc(nrhere)+0.,outmin,outmax)
       call axis()
-      call axlabels('z','r sin!Aq!@')
-      call color(12)
-      if(ir.le.0.or.ir.ge.100) ir=10
-      do j=1,nthhere,it
-         do i=1,nrhere,max(nrhere/ir,1)
-            vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-            vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-            size=basesize/v1*sqrt(vri**2+vti**2)
-            angle=atan2(vti,vri)+acos(tcc(j))
-            call charsize(size,0.3*size)
-            call charangl(180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $           '!A_!@',0.)
+      call axis2()
+      call axlabels('r','phi !Aq!@=0')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nrhere
+            tempt1(k)=inphi2(k,j)
+            tempt2(k)=rcc(k)
          enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nrhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
       enddo
-      call charangl(0.)
-      size=basesize
-      call charsize(size,0.3*size)
-      call legendline(0.8,0.95,258,'!A_!@'//char(0))
-      call charsize(0.,0.)
-      write(cstring,'(''  v='',f4.1)') v1
+      call pltend()
+
+c     Plot density at theta=0 and Pi/2 as function of r
+      call minmax(indens1(1,1),nrhere*narg,outmin,outmax)
+      call pltinit(0.,rcc(nrhere)+0.,outmin-0.1,outmax+0.2)
+      call axis()
+      call axis2()
+      call axlabels('r','rho !Aq!@=Pi/2')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nrhere
+            tempt1(k)=indens1(k,j)
+            tempt2(k)=rcc(k)
+         enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nrhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+      enddo
+      call minmax(indens2(1,1),nrhere*narg,outmin,outmax)
       call color(15)
-      call legendline(0.8,0.95,258,cstring(1:8)//char(0))
-      call pltend()
-
-c Temperature plots.
-c      call multiframe(2,1,3)
-      Tmax=0.
-      Tmin=1000.
-      Trmax=0.
-      Trmin=1000.
-      do i=1,nrhere
-         do j=1,nthhere
-            Tr(i,j)=(vr2sum(i,j)*psum(i,j)-vrsum(i,j)**2)
-     $           /(psum(i,j)**2+1.e-5)
-            Ttp(i,j)=0.5*(vtp2sum(i,j)*psum(i,j)-
-     $           (vpsum(i,j)**2+vtsum(i,j)**2) )
-     $           /(psum(i,j)**2+1.e-5)
-            if(Tr(i,j).lt.Trmin)Trmin=Tr(i,j)
-            if(Tr(i,j).gt.Trmax)Trmax=Tr(i,j)
-            if(Ttp(i,j).lt.Tmin)Tmin=Ttp(i,j)
-            if(Ttp(i,j).gt.Tmax)Tmax=Ttp(i,j)
-         enddo
-         Tr(i,0)=Tr(i,1)
-         Tr(i,nthhere+1)=Tr(i,nthhere)
-         Ttp(i,0)=Ttp(i,1)
-         Ttp(i,nthhere+1)=Ttp(i,nthhere)
-      enddo
-      Tmax=0.8*Tmax
-      
-c Tr plot
-c      do j=1,ncont
-c         zclv(j)=rhomin+(rhomax-rhomin)*(0.95*(j-1)/float(ncont-1))
-c         zclv(j)=Trmin+(Tmax-Trmin)*(1.*(j-1)/float(ncont-1))
-c      enddo
-c      icl=-ncont
-c
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      zclv(1)=Trmin
-      zclv(2)=Tmax
-      icl=-2
-      ntype=2+16
-      if(.not.lconline)ntype=ntype+32
-      call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      ntype=2
-      zclv(1)=10
-      icl=0
-      if(lconline)
-     $     call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      write(*,*)'Trmin,Trmax',Trmin,Trmax
-      call gradlegend(Trmin,Tmax,
-     $     .1,1.25,.9,1.25,0.02,.true.)
-      call legendline(0.47,1.07,258,'T!dr!d')
-c      call ticrev()
-c      call gradlegend(Trmin,Tmax,
-c     $     1.1,0.1,1.1,0.9,0.03,.false.)
-c      call ticrev()
-c      call legendline(1.03,0.5,258,'T!dr!d'//char(0))
-      call ticnumset(8)
+      call pltinit(0.,rcc(nrhere)+0.,outmin-0.1,outmax+0.2)
       call axis()
-      call axlabels('z','r sin!Aq!@')
-      if(larrows)then
-         call color(12)
-         if(ir.le.0.or.ir.ge.100) ir=10
-         do j=1,nthhere
-            do i=1,nrhere,max(nrhere/ir,1)
-               vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-               vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-               size=basesize/v1*sqrt(vri**2+vti**2)
-               angle=atan2(vti,vri)+acos(tcc(j))
-               call charsize(size,0.3*size)
-               call charangl(180.*angle/3.141593)
-               call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $              char(ichar('_')+128)//char(0),0.)
-            enddo
+      call axis2()
+      call axlabels('r','rho !Aq!@=0')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nrhere
+            tempt1(k)=indens2(k,j)
+            tempt2(k)=rcc(k)
          enddo
-         call charangl(0.)
-         size=basesize
-         call charsize(size,0.3*size)
-         call legendline(0.8,0.95,258,'!A_!@'//char(0)) 
-         call charsize(0.,0.)
-         call color(15)
-         call legendline(0.8,0.95,258,'  v=1'//char(0))
-      endif
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nrhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+      enddo
       call pltend()
-c Ttp plot
-      call pltinaspect(-rpmax,rpmax,0.,rpmax)
-      zclv(1)=Trmin
-      zclv(2)=Tmax
-      icl=-2
-      ntype=2+16
-      if(.not.lconline)ntype=ntype+32
-      call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      ntype=2
-      zclv(1)=10
-      icl=0
-      if(lconline)
-     $     call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      write(*,*)'Tmin,Tmax',Tmin,Tmax
-      call gradlegend(Trmin,Tmax,
-     $     .1,1.25,.9,1.25,0.02,.true.)
-      call legendline(0.47,1.07,258,'T!d!A`!@!d')
-c      call ticrev()
-c      call gradlegend(Trmin,Tmax,
-c     $     1.1,0.1,1.1,0.9,0.03,.false.)
-c      call ticrev()
-c      call legendline(1.03,0.5,258,'T!d!A`!@!d'//char(0))
-      call ticnumset(8)
-      call axis()
-      call axlabels('z','r sin!Aq!@')
-      if(larrows)then
-         call color(12)
-         if(ir.le.0.or.ir.ge.100) ir=10
-         do j=1,nthhere
-            do i=1,nrhere,max(nrhere/ir,1)
-               vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-               vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-               size=basesize/v1*sqrt(vri**2+vti**2)
-               angle=atan2(vti,vri)+acos(tcc(j))
-               call charsize(size,0.3*size)
-               call charangl(180.*angle/3.141593)
-               call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $              char(ichar('_')+128)//char(0),0.)
-            enddo
-         enddo
-         call charangl(0.)
-         size=basesize
-         call charsize(size,0.3*size)
-         call legendline(0.8,0.95,258,'!A_!@'//char(0))
-         call charsize(0.,0.)
-         call color(15)
-         call legendline(0.8,0.95,258,'  v=1'//char(0))
-      endif
       call multiframe(0,0,0)
-c     call pltend()
-      end
 
-c***************************************************************************
-c***************************************************************************
-c Contouring of the charge density, rho, on distorted mesh. Unlabelled.
-c Top and bottom.
-      subroutine condisunlabel(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline)
-      integer ir,it
-      real rhomax,v1
-      logical larrows,lconline
-c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
-c      save
-      character*20 cstring
-      character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
-      integer ncont
-      parameter (ncont=12)
-      real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-c      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
-      real xrhob(NRFULL+1,0:NTHFULL+1)
-      save xrho,zrho,xrhob
-
-      external ACCIRCLE
-      real basesize
-      parameter (basesize=.02)
-
-      if(nthhere.gt.NTHFULL)then
-         write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
-         stop
-      endif
-c Correct the outside angle centers if necessary.
-      if(tcc(1).eq.1)then
-         tcc(1)=0.25*(3.+tcc(2))
-         tcc(0)=1.
-         tcc(nthhere)=0.25*(-3.+tcc(nthhere-1))
-         tcc(nthhere+1)=-1.
-      endif
-
-      do i=1,nrhere
-          do j=1,nthhere
-            zrho(i,j)=rcc(i)*tcc(j)
-            xrho(i,j)=rcc(i)*sqrt(1.-tcc(j)**2-1.e-3)
-            xrhob(i,j)=-xrho(i,j)
-         enddo
-         zrho(i,0)=rcc(i)
-         xrho(i,0)=0.
-         zrho(i,nthhere+1)=-rcc(i)
-         xrho(i,nthhere+1)=0.         
-      enddo
-
-      do j=1,ncont
-c         zclv(j)=rhomin+(rhomax-rhomin)*(0.95*(j-1)/float(ncont-1))
-         zclv(j)=(rhomax-rhomin)*(1.*(j-1)/float(ncont-1)) + rhomin
-      enddo
-      icl=-ncont
-
-c      rpmax=2.*rcc(nrhere)-rcc(nrhere-1)
-      rpmax=rcc(nrhere)
-c      write(*,*)rcc(nrhere),nrhere,nthhere,rpmax
-c      call multiframe(2,2,3)
-
-      call ticnumset(8)
-c top half
-      call pltinaspect(-rpmax,rpmax,-rpmax,rpmax)
-      call accisgradinit(-25000,00000,25000,130000,65000,130000)
-      ntype=2+16+32
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrhob,ntype)
-c      call gradlegend(zclv(1),zclv(abs(icl)),
-c     $     .1,1.25,.9,1.25,0.02,.true.)
-c Call a second time for contours, without the highest.
-      tstring(1:1)=char(0)
-         if(lconline)then
-            call fitrange(rhomin,rhomax,ncont,ipow,
-     $           fac10,delta,first,xlast)
-c               write(*,*)'rhomax,fac10,first,delta',
-c     $              rhomax,fac10,first,delta
-            do j=1,ncont
-               zclv(j)=(first+j*delta)
+c     Plot sheaths
+      if (sh) then
+         call minmax(xsheath(1,1),nthhere*narg,outmin,outmax)
+         call pltinit(-outmax*1.1,outmax*1.1,0.,outmax*2.2)
+         call axis()
+         do j=1,narg
+            call color(mod(j,10)+1)
+            do k=1,nthhere
+               tempt1(k)=xsheath(k,j)
+               tempt2(k)=ysheath(k,j)
             enddo
-            ntype=2
-            icl=(ncont-1)
-            call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $           zclv,icl,zrho,xrho,ntype)
-            write(*,*)'Density Contours=',zclv
-            call fwrite(delta,iwd,1,cstring)
-            tstring=' contour spacing: '//cstring
-c            call legendline(-.1,-.22,258,tstring)
-         endif
-c      endif
-c Fit closer than boxtitle
-c      call legendline(0.47,1.07,258,'n/n!A!d;!d!@'//tstring)
-c      call boxtitle('n/n!A!d;!d!@')
-c         call axis()
-c         ilength=1
-         call charsize(wx2nx(2.)-wx2nx(0.),wx2nx(2.)-wx2nx(0.))
-         call accircle(wx2nx(0.),wy2ny(0.))
-         call pathfill()
-c      call axlabels('z','r sin!Aq!@')
-      call color(ibrickred())
-      if(ir.le.0.or.ir.ge.100) ir=10
-      do j=1,nthhere,it
-         do i=1,nrhere,max(nrhere/ir,1)
-            vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-            vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-            size=basesize/v1*sqrt(vri**2+vti**2)
-            angle=atan2(vti,vri)+acos(tcc(j))
-            call charsize(size,0.3*size)
-c top
-            call charangl(180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $           '!A_!@',0.)
-c bottom
-            call charangl(-180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrhob(i,j)),
-     $           '!A_!@',0.)
+            call winset(.true.)
+            call polyline(tempt1,tempt2,nthhere)
+            call winset(.false.)
+            write(charin,'(f4.2)') Blist(j)
+            call legendline(-.48,0.05*(j-1),0,
+     $           charin)
+            
          enddo
-      enddo
-      call charangl(0.)
-      size=basesize
-c      call charsize(size,0.3*size)
-c      call legendline(0.8,0.95,258,'!A_!@'//char(0))
-c      call charsize(0.,0.)
-c      write(cstring,'(''  v='',f4.1)') v1
-c      call color(15)
-c      call legendline(0.8,0.95,258,cstring(1:8)//char(0))
-      call multiframe(0,0,0)
-c     call pltend()
-      end
+         call pltend()
+      endif
 
-c***************************************************************************
+      goto 52
+ 51   continue
+c Help section
+      write(*,*)
+     $     'Usage: postprocB [-sh..-f..] filenameB*.dat'
+      write(*,*) 'e.g. ./postprocB -f T1e0v000r05P04L1m1B00e0.dat'
+      write(*,*) 'Switch arguments (defaults)'
+      write(*,*) '-sh(false) Plot sheaths (Quasineutrality break down)'
+      write(*,*) 'f(false) Writes output file'
+
+ 52   end
+
 c Data reading subroutine
       subroutine readoutput(lreaddiag,lpcic,ledge,
      $     filename,rholocal,nrhere,nthhere,nphere,
@@ -1247,8 +539,10 @@ c__________________________________________________________________
       open(10,file=filename,status='old',err=101)
 c Line for nothing.
       read(10,*)charin
-      read(10,'(f4.2,2f8.5,f8.4,i6,f12.4,f12.6,f7.4,2f14.5)',err=201)
-     $     Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
+
+      read(10,'(2f8.5, f8.4, i6, f12.4, f11.5, f8.4, 2f14.5, f8.3,
+     $     f8.4)',err=201) dt,vd,Ti,isteps,rhoinf,phiinf,fave,
+     $     debyelen,vprobe,damplen,Bz
  201  continue
       write(*,*)'Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,Vp'
       write(*,*)Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
@@ -1474,3 +768,5 @@ c__________________________________________________________________
  101  ierr=101
       end
 
+
+      

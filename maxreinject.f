@@ -19,6 +19,7 @@ c To use for simple reinjection (If Ldebye=0 or Bz=/0)
 
 
       subroutine maxreinject(i,dt)
+
       integer i
       real dt
 c Common data:
@@ -30,6 +31,7 @@ c Common data:
       idum=1
  1    continue
       y=ran0(idum)
+ 2    continue
 c Pick angle from cumulative Q.
       call invtfunc(Qcom,nQth,y,x)
       ic1=x
@@ -42,15 +44,15 @@ c Pick angle from cumulative Q.
 c      if(ic1.ge.nQth)ic1=ic1-1
       ic2=ic1+1
       dc=x-ic1
-      y=ran0(idum)
+      yy=ran0(idum)
 c Pick normal velocity from cumulative G.
-      call invtfunc(Gcom(1,ic1),nvel,y,v1)
-      call invtfunc(Gcom(1,ic2),nvel,y,v2)
+      call invtfunc(Gcom(1,ic1),nvel,yy,v1)
+      call invtfunc(Gcom(1,ic2),nvel,yy,v2)
       vr=dc*v2+(1.-dc)*v1
       if(vr.lt.1. .or. vr.ge.nvel) then
          write(*,*) 'REINJECT V-Error'
-         write(*,*) y,v1,v2,ic1,ic2,nvel
-         goto 1
+         write(*,*) yy,v1,v2,ic1,ic2,nvel
+         goto 2
       endif
       iv=vr
       dv=vr-iv
@@ -100,11 +102,20 @@ c      write(*,'(''vr,vt,vp='',3f8.3)') vr,vt,vp
 c      write(*,501) (xp(j,i),j=1,6)
  501  format('Reinject xp=',6f10.5)
       rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
-c      
+c     
+
       phihere=phi(NRUSED,ic1)*(1.-dc)+phi(NRUSED,ic2)*dc
       vv2=vt**2 + vr**2 + vp**2
+      vz2=(xp(6,i)/vscale)**2
 c Reject particles that have too low an energy
-      if(.not.vv2.gt.-2.*phihere) goto 1
+c bcr=1 means isotropic reinjection
+c bcr=2 means adiabatic, so the velocity increase is only on the z direction
+      if (bcr.eq.0) then
+         if(.not.vv2.gt.-2.*phihere) goto 2
+      elseif (bcr.eq.2) then
+         if(.not.vz2.gt.-2.*phihere) goto 2
+      else
+      endif
 
 c Do the outer flux accumulation.
          spotrein=spotrein+phihere
@@ -124,9 +135,22 @@ c Initialize the distributions describing reinjected particles
       subroutine maxinjinit()
 c Common data:
       include 'piccom.f'
+      real chi
       integer*2 idum
       real gam(nQth)
 c      character*1 work(nvel,nth)
+
+c     If bcr=2, initialize the interpolation fuction for the reinjection
+      if (bcr.eq.2) then
+         open(10,file='fluxadiab.txt',status='old')
+         do i=1,50
+            read(10,*)(fluxadiab(i,j),j=1,51)
+         enddo
+         do j=1,51
+            fluxadiab(51,j)=1.
+         enddo
+         close(10)
+      endif
 
 c Range of velocities (times (Ti/m_i)^(1/2)) permitted for injection.
       vspread=5.+abs(vd)/sqrt(Ti)
@@ -138,7 +162,8 @@ c Random interpolates
 
       do i=1,nQth
          t=NTHUSED*i/nQth
-         chi=diagchi(int(t)+1)*(t-int(t))+diagchi(int(t))*(int(t)+1-t)
+c Depending on the reinjection, we have a flux depending on chi or not
+           chi=diagchi(int(t)+1)*(t-int(t))+diagchi(int(t))*(int(t)+1-t)
 
 c Qth is the cosine angle of the ith angle interpolation position. 
 c We used to used th(i). This is the equivalent definition.
@@ -146,7 +171,22 @@ c We used to used th(i). This is the equivalent definition.
 c Here the drift velocity is scaled to the ion temperature.
          vdr=vd*Qth/sqrt(Ti)
          dqn=sq2pi*exp(-0.5*vdr**2)+.5*vdr*erfcc(-sq2*vdr)
-         if(i.gt.1) Qcom(i)=Qcom(i-1) +(dqp +dqn)*(1-chi)
+         if(bcr.eq.1) then
+c            dqn=dqn*(1-chi)
+            if(i.gt.1) Qcom(i)=Qcom(i-1) +dqp +dqn
+         else
+c     Case where we reinject adiabaticly with negative resistance,
+c     doesn't work (Except maybe for infinite lambda)
+            s=1+50*log(-2*chi+1.)/log(10.)
+            if (chi.gt.0) s=1
+            ss=int(s)
+            sss=int(1+50*abs(Qth))
+            dqn=dqn*(fluxadiab(sss,ss)*(ss+1-s)+
+     $           fluxadiab(sss,ss+1)*(s-ss))
+            if(i.gt.1) then
+               Qcom(i)=Qcom(i-1) + dqp +dqn
+            endif
+         endif
 c Gamma is the total flux over all velocities at this angle. 
 c But it is never used 
          gam(i)=dqn

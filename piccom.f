@@ -18,7 +18,6 @@ c Version 2.5; Aug 2004
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
       parameter (npartmax=200000,np=1,ndim=6)
-
 c Number of additional particules in the inner domain
       parameter (npartadd=50000)
 c History size for the additional part inejection
@@ -40,9 +39,10 @@ c CIC definitions
       parameter (LCIC=.true.)
       integer nrsize,nthsize
 c These correspond to nrfull and nthfull.
-      parameter (nrsize=100,nthsize=101)
+      parameter (nrsize=400,nthsize=301)
 c Positions and velocities of particles (6-d phase-space).
       real xp(ndim,npartmax+npartadd)
+      integer vzvar(npartmax)
 
 c Flag of particle slot status (e.g. in use or not)
       integer ipf(npartmax+npartadd)
@@ -68,8 +68,6 @@ c Injection complement. How many particles to reinject each step
       integer ninjcomp
 c Highest occupied particle slot.
       integer iocprev
-c New BC
-      logical nbc
 
       real pi
       parameter (pi=3.1415927)
@@ -82,8 +80,8 @@ c New BC
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
-     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,nbc,xpstorage,
-     $     xpstonum,nrealin,rsplit,dsub
+     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,xpstorage,
+     $     xpstonum,nrealin,dsub,rsplit,vzvar
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)
@@ -116,11 +114,17 @@ c Random interpolate data.
       real Gcom(nvel,nQth)
       real Vcom(nvel)
       real pu1(nvel),pu2(nvel)
-      common /rancom/Gcom,Vcom,Qcom,pu1,pu2
+c New BC
+      integer bcphi,bcr
+      logical infdbl
+c Reinjection flux as a function of cos(theta) (line) and chi (column,
+c from 0 to 9)
+      real fluxadiab(1:51,1:51)
+      common /rancom/Gcom,Vcom,Qcom,pu1,pu2,fluxadiab,infdbl,bcphi,bcr
 c********************************************************************
 c diagnostic data
       integer nvmax,nrein,ninner,nstepmax
-      parameter (nvmax=60,nstepmax=4001)
+      parameter (nvmax=60,nstepmax=10001)
       real nvdiag(nvmax),nvdiagave(nvmax),vdiag(nvmax)
       real vrdiagin(nvmax),vtdiagin(nvmax)
       real vrange

@@ -16,12 +16,12 @@ c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c***********************************************************************
 c General version allows choice of reinjection scheme.
 c***********************************************************************
-      subroutine reinject(i,dt,icolntype,nbc)
+      subroutine reinject(i,dt,icolntype,bcr)
 
-      logical nbc 
+      integer bcr 
 
-      if(nbc) then
-         call maxreinject(i,dt)
+      if(bcr.ne.0) then
+         call maxreinject(i,dt,bcr)
       elseif(icolntype.eq.1) then
          call fvreinject(i,dt)
       elseif(icolntype.eq.2)then
@@ -32,12 +32,12 @@ c     Here one should put other options but for now
       endif
       end
 c***********************************************************************
-      subroutine injinit(icolntype,nbc)
+      subroutine injinit(icolntype,bcr)
 
-      logical nbc
+      integer bcr
 
-      if(nbc) then
-         call maxinjinit()
+      if(bcr.ne.0) then
+         call maxinjinit(bcr)
       elseif(icolntype.eq.1) then
          call fvinjinit(icolntype)
       elseif(icolntype.eq.2)then
@@ -209,13 +209,15 @@ c      xinc=0.
          write(*,*)'Positive projection. u,phi=',u,phihere
  601     format(a,5G10.5)
       endif
-      rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+      rcyl=xp(1,i)**2+xp(2,i)**2
+      rp=rcyl+xp(3,i)**2
 c Reject particles that are already outside the mesh.
       if(.not.rp.lt.r(nr)*r(nr))then
 c      if(.not.rp.le.r(nr)*r(nr))then
 c         write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
          goto 1
       else
+
 c Do the outer flux accumulation.
 c In order to accumulate the number of launches at infinity, rather than
 c just the number of reinjections, we weight this by ilaunch
@@ -264,8 +266,7 @@ c Can't use these formulas for Uc exactly equal to zero.
      $           +(Uc**2 +0.5)*pu2(i)
          enddo
       endif
-
-      call srand(myid)
+         call srand(myid)
       end
 c***********************************************************************
 c***********************************************************************

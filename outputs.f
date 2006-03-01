@@ -47,7 +47,6 @@ c Common data:
       include 'piccom.f'
       character*30 filename
       integer iti,it2
-      
 c Construct a filename that contains many parameters
       write(filename,'(a)')'T'
       iti=nint(alog10(Ti)-0.49)
@@ -126,7 +125,7 @@ c -log(rhoinf)
       nastep=0
       do k=1,i
          write(10,*)(ninthstep(j,k),j=1,NTHUSED)
-         if(k.gt.i/2)then
+         if(k.gt.3*i/4)then
             nastep=nastep+1
             do j=1,NTHUSED
                ninth(j)=ninth(j)+ninthstep(j,k)

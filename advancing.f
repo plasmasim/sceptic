@@ -135,7 +135,7 @@ c     write(*,501)accel,(xp(j,i),j=1,3)
                rn0=sqrt(rn2)
 
 c     AccelPhi/2+AccelBz+AccelPhi/2
-
+c               vzbefore=abs(xp(6,i))/xp(6,i)
                do j=4,6
                   xp(j,i)=xp(j,i)+accel(j-3)*dt/2
                enddo
@@ -147,7 +147,17 @@ c     AccelPhi/2+AccelBz+AccelPhi/2
                do j=4,6
                   xp(j,i)=xp(j,i)+accel(j-3)*dt/2
                enddo
-
+c               vzafter=abs(xp(6,i))/xp(6,i)
+c     Checking if the particle changed direction
+c               if (abs(vzafter-vzbefore).gt.0.1)
+c     $              then
+c                  vzvar(i)=vzvar(i)+1
+c               endif
+c               if (vzvar(i).ge.1)  then
+c                  write(*,*) "x:",xp(1,i),"y:",xp(2,i),"z:",xp(3,i),
+c     $              "rcyl:",sqrt(xp(2,i)**2+xp(1,i)**2),"var:",vzvar(i)
+c     $                 "r:",sqrt(rn0),"var:",vzvar(i)
+c               endif
                rn2=0.
                xdv=0.
                v2=0.
@@ -170,7 +180,7 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                   endif
                endif
 
-c     Handling boundaries for 'real paricles' :
+c     Handling boundaries for 'real particles' :
                if(i.le.npartmax) then
                   if(rn.le.r(1)) then
                      ninner=ninner+1
@@ -222,7 +232,7 @@ c     store it. We also update nrealin
 c     We left. 
 c     If we haven't exhausted complement, restart particle i.
                   if(nrein.lt.ninjcomp) then
-                     call reinject(i,dtin,icolntype,nbc)
+                     call reinject(i,dtin,icolntype,bcr)
                      ipf(i)=1
                      zmout=zmout+xp(6,i)
                      if(i.le.norbits) iorbitlen(i)=0
@@ -295,7 +305,7 @@ c     $           ,rorbit(iorbitlen(i),i)
 c Case for ipf(i) le 0 (empty slot) but still wanting to inject. 
 c We should not come here unless .not.lfixedn.
 c            write(*,*)'Reinjecting empty slot',i
-            call reinject(i,dtin,icolntype,nbc)
+            call reinject(i,dtin,icolntype,bcr)
             ipf(i)=1
             iocthis=i
          elseif(i.ge.iocprev)then
@@ -442,6 +452,7 @@ c Common data:
       real relax
 
       real phislopeconst(nth),phislopefac(nth)
+
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
       rjac=1.-4./max(10,NRUSED)**2
       omega=1.
@@ -583,6 +594,121 @@ c Inner Boundary values
       enddo
 c      write(*,*)'phi(rmax)=',phi(NRFULL,NTHUSED/2)
       end
+
+c******************************************************************
+      subroutine fcalc_shielding(dt)
+      
+      include 'piccom.f'
+      real dt
+      real relax
+      real delta
+
+c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
+      rjac=1.-4./max(10,NRUSED)**2
+      omega=1.
+      maxits=2.5*NRUSED
+      dconverge=1.e-5
+      imin=1
+      relax=0.5
+      call innerbc(imin,dt)
+      
+c Potential calculation in the shielding region
+c bpc=1 -> Quasineutrality on the 15% outer crone
+c bpc=2 -> Phiout=0
+c bpc=3 -> dPhi/drout=0
+      if(bcphi.eq.1) then
+         rshield=nint(NRFULL*.85)
+         do j=1,nth
+            do i=rshield,nr
+               phi(i,j)=log(rho(i,j))
+            enddo
+         enddo
+      else
+         rshield=NRFULL
+      endif
+      
+c SOR iteration
+      do k=1,maxits
+c Use over-relaxation if debyelen is large, or straight newton otherwise.
+         relax=(omega*debyelen**2+1.)/(debyelen**2+1.)
+         deltamax=0.
+c Changed to chessboard calculation. Twice as fast
+         c=mod(k,2)
+
+         do j=1,NTHUSED
+c We only go to rshield-1
+            do i=imin+1+mod(j+c,2),rshield-1,2
+               expphi=exp(phi(i,j))
+               dnum= apc(i)*phi(i+1,j)+bpc(i)*phi(i-1,j) + cpc(i,j)
+     $              *phi(i,j+1)+dpc(i,j)*phi(i,j-1) -fpc(i,j)*phi(i,j)
+     $              + rho(i,j) - expphi
+               dden=fpc(i,j) + expphi
+               delta=relax*dnum/dden
+               if(abs(delta).gt.abs(deltamax))deltamax=delta
+               phi(i,j)=phi(i,j)+delta
+            enddo
+c     Boundary at rshield
+            if(bcphi.eq.2) then
+               phi(NRFULL,j)=0
+            elseif(bcphi.eq.3) then
+               delta=phi(NRFULL-1,j)-phi(NRFULL,j)
+               if(abs(delta).gt.abs(deltamax))deltamax=delta
+               phi(NRFULL,j)=phi(NRFULL,j)+relax*delta
+            else
+            endif
+         enddo           
+         
+         if(abs(deltamax).lt.dconverge.and.k.ge.2)goto 11
+         if(k.eq.1)then
+            omega=1./(1.-0.5*rjac**2)
+         else
+            omega=1./(1.-0.25*rjac**2*omega)
+         endif
+      enddo
+
+c     write(*,*)'SOR not converged. deltamax=',deltamax
+ 11   continue
+      write(*,'('':'',i3,$)')k
+c     write(*,201)k,deltamax,relax
+ 201  format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4)
+c     Calculate electric force on probe. Moved to main.
+c     Inner Boundary values
+      do j=1,NTHUSED
+         phi(0,j)=2.*phi(imin,j)-phi(imin+1,j)
+      enddo
+      do i=1,NRUSED
+         phi(i,0)=phi(i,imin+1)
+         phi(i,NTHUSED+1)=phi(i,NTHUSED-imin)
+      enddo
+c     write(*,*)'phi(rmax)=',phi(NRFULL,NTHUSED/2)
+      end 
+
+c*******************************************************************
+      subroutine fcalc_infdbl(dt)
+      include 'piccom.f'
+      real dt
+      imin=1.
+
+      call innerbc(imin,dt)
+
+      do j=1,NTHUSED
+         do k=1,NRUSED
+            phi(k,j)=vprobe/rcc(k)
+         enddo
+      enddo
+      do j=1,NTHUSED
+         phi(0,j)=2.*phi(imin,j)-phi(imin+1,j)
+      enddo
+      do i=1,NRUSED
+         phi(i,0)=phi(i,imin+1)
+         phi(i,NTHUSED+1)=phi(i,NTHUSED-imin)
+      enddo
+      write(*,'($)')" "
+
+      end
+
+
+
 c*******************************************************************
       subroutine innerbc(imin,dt)
       include 'piccom.f'
