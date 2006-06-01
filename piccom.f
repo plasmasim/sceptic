@@ -19,13 +19,13 @@ c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
       parameter (npartmax=200000,np=1,ndim=6)
 c Number of additional particules in the inner domain
-      parameter (npartadd=50000)
+      parameter (npartadd=100000)
 c History size for the additional part inejection
-      parameter (addhist=50)
+      parameter (addhist=100)
 c nr where the domain is split
       integer rsplit
 c Storage of incoming particules in the inner domain
-      real xpstorage(ndim,10000,addhist)
+      real xpstorage(ndim,2000,addhist)
 c Number of stored particules at a certain time step
       real xpstonum(addhist)
 c Number of real particles in the inner domain
@@ -39,10 +39,9 @@ c CIC definitions
       parameter (LCIC=.true.)
       integer nrsize,nthsize
 c These correspond to nrfull and nthfull.
-      parameter (nrsize=400,nthsize=301)
+      parameter (nrsize=200,nthsize=201)
 c Positions and velocities of particles (6-d phase-space).
       real xp(ndim,npartmax+npartadd)
-      integer vzvar(npartmax)
 
 c Flag of particle slot status (e.g. in use or not)
       integer ipf(npartmax+npartadd)
@@ -81,7 +80,7 @@ c Highest occupied particle slot.
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
      $     myid,numprocs,rmtoz,ipf,iocprev,Bz,xpstorage,
-     $     xpstonum,nrealin,dsub,rsplit,vzvar
+     $     xpstonum,nrealin,dsub,rsplit
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)
@@ -101,10 +100,15 @@ c Non-uniform handling quantities.
      $     cminus(nrsize),cmid(nrsize),cplus(nrsize)
 c Lower limit of averaging range. 0.6 by default
       real avelim
+c Parallel or serial solving
+      logical sorparallel
+c Parallel bloc solver arguments
+      integer idim1,idim2
 
       common /meshcom/r,rcc,th,tcc,thang,volinv,irpre,itpre,rfac,tfac,
      $     hr,zeta,zetahalf,cminus,cmid,cplus,avelim
-     $     ,nr,NRFULL,NRUSED,nth,NTHFULL,NTHUSED
+     $     ,nr,NRFULL,NRUSED,nth,NTHFULL,NTHUSED,sorparallel,
+     $     idim1,idim2
 c********************************************************************
 c Random interpolate data.
       integer nvel,nQth
@@ -119,16 +123,16 @@ c New BC
       logical infdbl
 c Reinjection flux as a function of cos(theta) (line) and chi (column,
 c from 0 to 9)
-      real fluxadiab(1:51,1:51)
-      common /rancom/Gcom,Vcom,Qcom,pu1,pu2,fluxadiab,infdbl,bcphi,bcr
+      common /rancom/Gcom,Vcom,Qcom,pu1,pu2,infdbl,bcphi,bcr
 c********************************************************************
 c diagnostic data
-      integer nvmax,nrein,ninner,nstepmax
-      parameter (nvmax=60,nstepmax=10001)
+      integer nvmax,nrein,nreintry,ninner,nstepmax
+      parameter (nvmax=60,nstepmax=30001)
       real nvdiag(nvmax),nvdiagave(nvmax),vdiag(nvmax)
       real vrdiagin(nvmax),vtdiagin(nvmax)
       real vrange
-      real diagrho(nrsize),diagphi(nrsize),diagchi(nthsize)
+      real diagrho(nrsize),diagphi(nrsize)
+      real diagchi(nthsize)
       real diagvr(nrsize,nthsize)
       integer partz,fieldz,epressz,enccharge
       parameter(enccharge=1,fieldz=2,epressz=3,partz=4)
@@ -162,17 +166,19 @@ c Coefficient of density deficit, for external solution
 c Cell in which to accumulate distribution functions
       integer ircell,itcell
       common /diagcom/nvdiag,nvdiagave,vdiag,vrange,diagrho,diagphi,
-     $     diagchi,nrein,ninner,fluxprobe,ninthstep,ninth,rhoinf
-     $     ,diagvr,vrdiagin,vtdiagin,
+     $     diagchi,nrein,nreintry,ninner,fluxprobe,ninthstep,ninth,
+     $     rhoinf,diagvr,vrdiagin,vtdiagin,
      $     spotrein,averein,fluxrein,ntrapre,adeficit,
      $     ircell,itcell,zmout,zmomprobe,finthave,zmom
 c*********************************************************************
 c Poisson coefficients for iterative solution, etc.
+
       real debyelen,vprobe,Ezext
       real apc(0:nrsize),bpc(0:nrsize)
       real cpc(0:nrsize,0:nthsize),dpc(0:nrsize,0:nthsize)
       real fpc(0:nrsize,0:nthsize)
-      common /poisson/debyelen,vprobe,Ezext,apc,bpc,cpc,dpc,fpc
+      real gpc(0:nthsize,1:5)
+      common /poisson/debyelen,vprobe,Ezext,apc,bpc,cpc,dpc,fpc,gpc
 c*********************************************************************
 c Smoothing steps
       integer nstepsave,nsamax
@@ -184,9 +190,13 @@ c Orbit plotting storage for tracking the first norbits orbits.
       real xorbit(nstepmax,nobsmax),yorbit(nstepmax,nobsmax),
      $     zorbit(nstepmax,nobsmax)
       real vxorbit(nstepmax,nobsmax),vyorbit(nstepmax,nobsmax),
-     $     vzorbit(nstepmax,nobsmax)
-
-      real rorbit(nstepmax,nobsmax)
+     $     vzorbit(nstepmax,nobsmax),rorbit(nstepmax,nobsmax)
       integer iorbitlen(nobsmax)
       common /orbits/norbits,iorbitlen,xorbit,yorbit,zorbit,rorbit,
      $     vxorbit,vyorbit,vzorbit
+
+c*********************************************************************
+c Data necessary for the orbit tracking
+      logical orbinit
+      integer maxsteps,trackinit
+      common /orbtrack/orbinit,maxsteps,trackinit

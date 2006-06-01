@@ -16,13 +16,21 @@ c Version 2.5: Jan 2005
 C Main program for pic code
       program sceptic
 
-      integer maxsteps,ipstep
+c     For now, put maxsteps in piccom
+      integer ipstep
       logical success,finaldiags
       real rmax
       character*100 string
       logical readpart,writepart
       logical lsmooth,lcolcont,lpstore
-c Common storage:
+      logical rmaxauto
+
+c Communicator and id for the sor communicator
+c In the case of sorparallel=false, myid2=0 only
+c does the potential calculation
+      integer sor_comm,myid2
+      
+c Common storage
       include 'piccom.f'
       include 'colncom.f'
       data maxsteps/500/
@@ -31,16 +39,17 @@ c Common storage:
       data success/.false./
       data readpart/.false./
       data writepart/.false./
-
-
-
+      data sorparallel/.false./
+      data rmaxauto/.false./
 c Parallel processing MPI options.
 #ifdef MPI
       include 'mpif.h'
+      double precision sortime
       integer rc
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, numprocs, ierr )
+
 #else
       myid=0
       numprocs=1
@@ -96,12 +105,12 @@ c     bcr : BC on reinjection
       dsub=.false.
       Bz=0.
       infdbl=.false.
+      orbinit=.false.
 
 c Deal with arguments
       if(iargc().eq.0) goto 51
       do 1 i=1,iargc()
          call getarg(i,string)
-         
          if(string(1:1) .eq. ' ') then
             goto 3
          endif
@@ -139,7 +148,12 @@ c restore defaults on read error.
          endif
          if(string(1:4) .eq. '--bz') read(string(5:),*)Bz
          if(string(1:4) .eq. '--ds') dsub=.true.
-         if(string(1:2) .eq. '-s') read(string(3:),*)maxsteps
+         if(string(1:4) .eq. '--sp') sorparallel=.true.
+         if(string(1:3) .eq. '-sa') then
+            rmaxauto=.true.
+         elseif(string(1:2) .eq. '-s') then
+            read(string(3:),*)maxsteps
+         endif
          if(string(1:2) .eq. '-b') read(string(3:),*)bdyfc
          if(string(1:2) .eq. '-t') read(string(3:),*)Ti
          if(string(1:6) .eq. '--damp')read(string(7:),*)damplen
@@ -189,8 +203,8 @@ c restore defaults on read error.
          endif
          if(string(1:2) .eq. '-?') goto 51
          if(string(1:8) .eq. '--smooth') lsmooth=.true.
-         if(string(1:8) .eq. '--at0') lat0=.true.
-         if(string(1:8) .eq. '--localinj') localinj=.true.
+         if(string(1:5) .eq. '--at0') lat0=.true.
+         if(string(1:10) .eq. '--localinj') localinj=.true.
          if(string(1:6) .eq. '--fext')then
 c Read potential from a file
             call potread(string(7:),nrTi,rccmax)
@@ -198,8 +212,15 @@ c            call exit(0)
          endif
  1    continue
  3    continue
+c PROVIS
+      if (rmaxauto) then
+         maxsteps=nint(4*rmax/(sqrt(2*Ti)*dtf))
+      endif
+
+
+
+
 c      write(*,*)linsulate,diags
-      write(*,*) bcr,bcphi
 c Set Array sizes, allowed variable.
       if(nr.gt.nrsize)then
          write(*,*)'Too many radial points:',nr,'  Set to',nrsize
@@ -232,6 +253,9 @@ c Set Array sizes, allowed variable.
 c Inner domain parameter
       rsplit=nint(NRUSED/2.)
 
+c Orbit tracking setting
+      trackinit=maxsteps/2
+      
       if(myid.eq.0)then
 c         write(*,*)'Command line and defaults:'
          write(*,505)nr,nth,npart,Bz
@@ -243,6 +267,23 @@ c         write(*,*)'Command line and defaults:'
       if(maxsteps.gt.nstepmax-1) Stop 'Too many steps requested.'
       lplot=diags.and.(myid.eq.0)
       k=0
+
+c     Parallel solver stuff
+
+c Don't need the parallel solver for 0 Debye length
+      if ((debyelen.eq.0).or.infdbl) sorparallel=.false.
+
+#ifdef MPI
+      if (sorparallel) then
+         call sorparinit(myid2,sor_comm)
+      elseif (myid.eq.0) then
+         myid2=0
+      else
+         myid2=-1
+      endif
+#else
+      myid2=0
+#endif
 
 c Initialize the mesh and poisson coefficients
       if(LCIC)then
@@ -278,6 +319,9 @@ c Checks when using an external file for potential
          write(*,521)((fpc(i,j),i=1,10),j=0,NTHFULL)
  521     format(10g8.2)
       endif
+
+c Initialize the fields. (Changed the order of finit and injinit)
+      call finit()
 c Initialize the random functions for reinjection.
       call injinit(icolntype,bcr)
 c Initialize velocity diagnostics
@@ -298,8 +342,6 @@ c Initialize velocity diagnostics
       endif
       iocprev=npart
 
-c Initialize the fields. 
-      call finit()
 c Initialize collisions and related fields.
       call colninit(colnwt,icolntype)
 c Read in the previous particle distribution and averages.
@@ -333,13 +375,22 @@ c Save the permanent plot switch.
       nsamax=min(39,maxsteps/10)+1
       if(success)nstepsave=nsamax
 
+c     Timing
+#ifdef MPI
+      sortime=MPI_WTIME()
+#endif
+      
+      if (myid.eq.0) then
+         write(*,*) "Maxsteps : ",maxsteps
+      endif
 c Main Stepping loop.
       do i=1,maxsteps
+
 c Plot at some subset of steps.
 c         write(*,*)mod(i-1,ipstep),i,ipstep
          lplot=lpstore.and.(mod(i-1,ipstep).eq.0)
 c Acceleration for first 1/3rd of steps.
-         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
+         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.)+1.)
          dt=bdtnow*dtf
          ninjcomp=bdtnow*ninjcomp0
 c     Here there is a problem if we have ipstep!=1 because it is
@@ -348,6 +399,28 @@ c     pltinit. Otherwise initialization may be incorrect. This problem
 c     is avoided by ensuring that the lplot is not changed back to true,
 c     on leaving the loop, until we are about to reinitialize plotting.
 c     As a result the last plot is only saved if it is on the maxsteps step.
+
+c     If this flag is on, then we force the tracked particles to have the
+c     following properties.
+
+         if (myid.eq.0.and.i.eq.trackinit.and.orbinit) then 
+            h=1./2*rmax
+            do k=1,norbits
+               iorbitlen(k)=0
+               xp(3,k)=-2./3*rmax
+c               xp(1,k)=h*k/norbits*cos(2*pi*k/norbits)
+c               xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
+               xp(1,k)=h*k/norbits
+               xp(2,k)=0
+               xp(6,k)=vd*1.
+               xp(4,k)=0.
+               xp(5,k)=0.
+            enddo
+         endif
+               
+
+
+
          if(i.eq.maxsteps)call pfset(ipfsw)
 c Assign charge to mesh
 
@@ -355,17 +428,17 @@ c Assign charge to mesh
 c Collect the partial sums of moments of distribution.
          call sumreduce()
          call aveupstep()
+
 c myid.eq.0 for the master node.
          if(myid.eq.0)then
-
-c Refresh precalculated fuctions
-
-c            if ((mod(i,20).eq.0)) then
+            
+c     Refresh precalculated fuctions
+            
+c     if ((mod(i,20).eq.0)) then
 c               call injinit(icolntype,bcr)
-c            endif
-
-
-c Plot density contours.
+c     endif
+            
+c     Plot density contours.
             if(lplot)then
                if(lcolcont)then
                   call rhodisplay(10,rhomin,rhomax)
@@ -375,14 +448,37 @@ c Plot density contours.
                endif
             endif
             call rhocalc(lsmooth)
+         endif
+
+#ifdef MPI
+c     Broadcast back to the slaves.
+         if (sorparallel) then
+            call MPI_BCAST(rho,(nrsize+1)*(nthsize+1),
+     $           MPI_REAL,0,MPI_COMM_WORLD,ierr)
+         endif
+#endif
+
+         if(myid.eq.0) then          
 c Plot the slices through the probe.
+
+
             if(lplot) call slices(jstepth,rhomin,rhomax,time)
 
 c Document charge accumulated; calculate diagrho.
 c This is where rhoinf and finthave get calculated.
             call chargediag(dt,i)
+         endif
 
-c Write step information.
+c If we use floating potential, the slaves may need rhoinf and fluxes
+#ifdef MPI
+         if (sorparallel.and.(linsulate.or.lfloat)) then
+            call MPI_BCAST(rhoinf,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+            call MPI_BCAST(finthave,nthused,MPI_REAL,0,
+     $           MPI_COMM_WORLD,ierr)
+         endif
+#endif
+         if(myid.eq.0) then
+c  Write step information.
             if(mod(i,5).eq.1) then
                if(i.gt.1)then
                   mtrap=mtrapped()
@@ -414,21 +510,46 @@ c                        yvpre=fluxrein/nrein
                endif
             endif
             write(*,'(i5,$)')i
-            
+         endif
+
+c Avoid uggly printing on the screen :
+#ifdef MPI
+         if (NRUSED.lt.150) then
+            call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+         endif
+#endif
+
+
 c     Calculate the potential field, unless it is fixed.
-            if(.not.lfext)then
-               if(infdbl) then
-                  call fcalc_infdbl(dt)
-               elseif(debyelen.eq.0) then
-                  call fcalc(dt)
-               elseif(bcphi.eq.0) then
-                  call fcalc_lambda(dt)
-               else
-                  call fcalc_shielding(dt)
-               endif
-c     Damping on ion motion by artificial potential modification.
-               if(damplen.gt.0.) call damp(dt,damplen)
+         if(.not.lfext)then
+            if (myid2.eq.0.and.infdbl) then
+               call fcalc_infdbl(dt)
+            elseif (myid2.eq.0.and.debyelen.eq.0) then
+               call fcalc(dt)
+            elseif (myid2.ge.0)then
+c     Run fcalc_lambda to compare with older versions
+c               call fcalc_lambda(dt)
+               call fcalc_shielding(dt,sor_comm,myid2)
             endif
+         endif
+
+
+c     Broadcast back to the slaves.
+#ifdef MPI
+         call MPI_BCAST(phi,(nrsize+1)*(nthsize+1),
+     $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
+         call MPI_BCAST(adeficit,1,
+     $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
+c     Averein is always broadcasted from 0 since it is calculated
+c     in diags, called only by myid=0, not myid2=0
+         call MPI_BCAST(averein,1,
+     $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
+#endif
+
+         if (myid.eq.0) then
+c     Damping on ion motion by artificial potential modification.
+            if(.not.lfext.and.damplen.gt.0.) call damp(dt,damplen)
+            
 c     Evaluate total charge and z-forces. Not yet implemented for NGP.
             if(LCIC)then
                call esforce(ierad,qp,fz,epz)
@@ -442,15 +563,7 @@ c     Evaluate total charge and z-forces. Not yet implemented for NGP.
             endif
             
          endif
-#ifdef MPI
-c     Broadcast back to the slaves.
-         call MPI_BCAST(phi,(nrsize+1)*(nthsize+1),
-     $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
-         call MPI_BCAST(averein,1,
-     $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
-         call MPI_BCAST(adeficit,1,
-     $        MPI_REAL,0,MPI_COMM_WORLD,ierr)
-#endif
+
          
 c     Plot radial average velocity and temperatures.
          if(lplot)then
@@ -461,20 +574,21 @@ c     Plot radial average velocity and temperatures.
             endif
          endif
 c     Main particle advance.
-         
          call padvnc(dt,icolntype,i)
-         
+c         call padvnc(dt,icolntype)
 c     Collide the particles. See routine in advancing.f.
          if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
 c     Reduce back the flux and distribution data from the particle advance.
          call partreduce(i)
+
 c     Adjust to the flux that would have occurred for standard step size.
          fluxprobe(i)=fluxprobe(i)/bdtnow
 c     
          zmom(i,partz,1)=zmom(i,partz,1)/dt
          zmom(i,partz,2)=zmom(i,partz,2)/dt
          
-c Small mesh written diagnostics.         
+c Small mesh written diagnostics.   
+    
          if(nr.eq.10) then
             write(*,*)'Rho,phi'
             write(*,504)((rho(iw,jw),iw=1,nr),jw=0,NTHFULL)
@@ -536,9 +650,14 @@ c Draw some final diagnostic figures, if flag set.
       if(myid.eq.0)then
 c Write the output file.
          call output(dt,damplen,i-1,fave)
-         call orbitoutput()
+         if (norbits.ge.1) call orbitoutput()
       endif
+
 #ifdef MPI
+      if (myid2.eq.0) then
+         write(*,*) "time : ",MPI_WTIME()-sortime
+      endif
+
       call MPI_FINALIZE(rc)
 #endif
 c Use call exit to avoid silly fortran message.
@@ -552,7 +671,8 @@ c Help section
       write(*,*)' e.g. ./sceptic -v0.2 -nr50 -nt30 -d.05'
       write(*,*)' Switch arguments (defaults):[.ff=float, nnn=integer]'
       write(*,*)' -t.ff ion temp Ti (1);',
-     $     ' -snnn max time steps (500)'
+     $     ' -snnn max time steps (500);',
+     $     ' -sa Autodetermination of max steps'
       write(*,*)' -d.ff time step dt (.025);',
      $     ' -c.ff initial accel factor (1)'
       write(*,*)' -v.ff drift velocity (0.0);',
@@ -581,24 +701,25 @@ c Help section
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
       write(*,*)' --rhoinf.ff specify constant injection rate, rather',
      $     ' than particle number.'
-      write(*,*)' --bz.ff Bz (0),--ds subdivide the domain'
+      write(*,*)' --bz.ff Bz (0),--ds subdivide the domain, --sp use',
+     $     'parallel bloc solver'
       write(*,*)'--bcphi(0) bc potential (0:spherical sym, 1: Quasi',
      $     ' neutrality on outer crone, 2: Phiout=0, 3: dPhiout/dr=0)'
       write(*,*)'--bcr(0) bc reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
 
       end
-      
+
 c***********************************************************************
 c End of Main Program.
 c***********************************************************************
+
 c Calculate rho from the psum.
       subroutine rhocalc(lsmooth)
 
 c If lsmooth, then symmetrize the density, by averaging.
       logical lsmooth
-c Corretion factor to calculate the density in the inner domain
-      real corr
+
 c Common data:
       include 'piccom.f'
  501  format(10f8.1)
@@ -613,23 +734,15 @@ c Initialize rhoinf approximately:
 
 c Correction for --ds
       do ir=1,NRUSED
-         corr=1.
-         if(dsub) then
-            if (ir.lt.rsplit) then 
-               corr=1.*nrealin/(nrealin+npartadd)
-            elseif (ir.eq.rsplit) then
-               corr=1.*nrealin/(nrealin+npartadd*0.5)
-            endif
-         endif
-         
+
 c     Volumes are now calculated in meshinit.
          do ith=1,NTHUSED
             if(psum(ir,ith).eq.0. .and. debyelen.eq.0.)then
-               write(*,*)'Rhocalc fixup: zero particles in cell',ir,ith
+c               write(*,*)'Rhocalc fixup: zero particles in cell',ir,ith
                rho(ir,ith)=0.01*volinv(ir)*(nth-1.)*np/rhoinf
             else
                rho(ir,ith)=
-     $              psum(ir,ith)*volinv(ir)*(nth-1.)*np*corr/rhoinf
+     $              psum(ir,ith)*volinv(ir)*(nth-1.)*np/rhoinf
             endif
          enddo
          
@@ -638,20 +751,23 @@ c Fix the theta boundaries. The extra small quantity prevents zeros, I hope.
             rho(ir,1)=2.*rho(ir,1)+1.e-4
             rho(ir,nth)=2.*rho(ir,nth)+1.e-4
          endif
-      enddo
+
       
 c     Smoothing in angle
 c     Total symmetry case:
-      if(lsmooth) then
-         rhotot=0.
-         do ith=1,NTHUSED
-            rhotot=rhotot+rho(ir,ith)
-         enddo
-         rhotot=rhotot/nth
-         do ith=1,NTHUSED
-            rho(ir,ith)=rhotot
-         enddo
-      endif
+         if(lsmooth) then
+            rhotot=0.
+            do ith=1,NTHUSED
+               rhotot=rhotot+rho(ir,ith)
+            enddo
+            rhotot=rhotot/nth
+            do ith=1,NTHUSED
+               rho(ir,ith)=rhotot
+            enddo
+         endif
+         
+      enddo
+
 c     End of smoothing
       if(.not.LCIC)then
 c     Fix theta ends for plotting.
@@ -670,7 +786,9 @@ c     rho(1,ith)=rho(1,ith)/(1.+(2./3.)*sqrt(r(2)-r(1)))
       endif
       
       end
+ 
 c*********************************************************************
+
       subroutine sumreduce()
 #ifdef MPI
 c The particle number total
@@ -719,6 +837,8 @@ c***********************************************************************
       real nvdiagtot(nvmax)
          call MPI_REDUCE(nrein,nreintot,1,MPI_INTEGER,MPI_SUM,0,
      $        MPI_COMM_WORLD,ierr)
+         call MPI_REDUCE(nreintry,nreintrytot,1,MPI_INTEGER,MPI_SUM,0,
+     $        MPI_COMM_WORLD,ierr)
          call MPI_REDUCE(spotrein,spotreintot,1,MPI_REAL,MPI_SUM,0,
      $        MPI_COMM_WORLD,ierr)
          call MPI_REDUCE(fluxrein,fluxreintot,1,MPI_REAL,MPI_SUM,0,
@@ -759,6 +879,7 @@ c***********************************************************************
 #else
 c This shuffle is necessary to accommodate the reduce.
          nreintot=nrein
+         nreintrytot=nreintry
          spotreintot=spotrein
          fluxreintot=fluxrein
          nintot=ninner
@@ -770,6 +891,7 @@ c This shuffle is necessary to accommodate the reduce.
 #endif
 c         write(*,*)'zmomstep=',zmomstep(i),'  zoutstep=',zmoutstep(i)
          nrein=nreintot
+         nreintry=nreintrytot
          spotrein=spotreintot
          fluxrein=fluxreintot
          fluxprobe(i)=nintot
@@ -904,4 +1026,48 @@ c         write(*,*)rcc(ir),diagphi(ir)
       call exit()
       end
 
+c***************************************************
 
+      subroutine sorparinit(myid2,sor_comm)
+
+c     Creates a new communicator, sor_comm, who contains a subset of
+c     MPI_COMM_WORLD, because we don't need all the processes for the
+c     bloc SOR
+
+c     Not to be confused with mpicommcart, which is a reorganisation of
+c     sor_comm
+
+c     myid2 is the process id in the new communicator. If myid2 is negative,
+c     the process does not belong to the communicator
+
+      integer myid2,nprocsor
+      integer members(0:100)
+      integer group_world,sor_group,sor_comm
+
+      include 'piccom.f'
+      include 'mpif.h'
+
+      idim1=nint(sqrt(numprocs*NRUSED/NTHUSED*1.))
+      idim2=nint(numprocs/idim1*1.)
+
+      nprocsor=idim1*idim2
+
+      do i=0,nprocsor-1
+         members(i)=i
+      enddo
+
+      call MPI_COMM_GROUP(MPI_COMM_WORLD,group_world,ierr)
+      call MPI_GROUP_INCL(group_world,nprocsor,members,sor_group,ierr)
+      call MPI_GROUP_RANK(sor_group,myid2,ierr)
+      call MPI_COMM_CREATE(MPI_COMM_WORLD,sor_group,sor_comm,ierr)
+      if (myid2.ge.0) then
+         call MPI_COMM_RANK(sor_comm,myid2,ierr)
+      endif
+
+      if (myid2.eq.0) then
+c         write(*,*) "sorp : ",idim1,idim2,nprocsor,numprocs
+         write(*,510) idim1,idim2,nprocsor
+ 510     format('BlocX=',i2,'  BlocY=',i2,'  SorProc=',i2)
+      endif
+
+      end

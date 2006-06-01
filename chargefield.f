@@ -17,6 +17,10 @@ c***********************************************************************
       subroutine chargetomesh()
 c Common data:
       include 'piccom.f'
+
+c Corretion factor to calculate the density in the inner domain
+      real corr
+
 c      ninner=0
       do i=0,nr
          do j=0,nth+1
@@ -31,7 +35,6 @@ c      ninner=0
       enddo
 c Perhaps this needs to be larger than npart for .not.lfixed.
 c      write(*,*)'Starting chargetomesh',npart
-
       do i=1,iocprev
          if(ipf(i).gt.0)then
 c         if(i.lt.10000)write(*,'(i6,$)')i
@@ -50,6 +53,34 @@ c Use fast ptomesh, half-quantities not needed.
             endif
          endif
       enddo
+
+c Correction for --ds
+      
+      if(dsub) then
+         do ir=0,nr
+            corr=1.
+            if (ir.lt.rsplit) then 
+               corr=1.*nrealin/(nrealin+npartadd)
+            elseif (ir.eq.rsplit) then
+               dr=0.5*(r(rsplit)-r(rsplit-1))
+               cvol=( r(rsplit)**3 - (r(rsplit)-dr)**3 )/
+     $              ( (r(rsplit)+dr)**3 - (r(rsplit)-dr)**3 )
+               corr=1.*nrealin/(nrealin+npartadd*cvol)
+            endif
+
+            do ith=0,nth+1
+               psum(ir,ith)=psum(ir,ith)*corr
+               vrsum(ir,ith)=vrsum(ir,ith)*corr
+               vtsum(ir,ith)=vtsum(ir,ith)*corr
+               vpsum(ir,ith)=vpsum(ir,ith)*corr
+               vr2sum(ir,ith)=vr2sum(ir,ith)*corr
+               v2sum(ir,ith)=v2sum(ir,ith)*corr
+               vtp2sum(ir,ith)=vtp2sum(ir,ith)*corr
+            enddo
+         enddo
+      endif
+      
+      
       end
 c***********************************************************************
 c Accumulate particle charge into rho mesh and other diagnostics.
@@ -126,6 +157,7 @@ c      real phi1ave
       data ncs/50./
       save
       cerr=0.
+
       do j=1,nth
          do i=1,nr
             if(rho(i,j).le.0.)then
@@ -198,7 +230,13 @@ c Average the sound-speed value over ncs steps.
 c         write(*,'(10f8.3)')p1,p2,v1,v2,csd(j),cs(j),vs,
 c     $        phi(0,j),phi(1,j),delphinew
 c Adjusting the potential of the first cell.
+
+
+
          phi(1,j)=phi(0,j)
+
+
+
          if(.not.abs(phi(1,j)).lt.1.e20)then
             write(*,*)'phi1 overflow',phi(1,j),bcp,cs(j),ncs,delphinew
      $           ,p1,p2,psum(1,j),psum(2,j),csd(j)

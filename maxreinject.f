@@ -15,7 +15,11 @@ c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c***********************************************************************
 
-c To use for simple reinjection (If Ldebye=0 or Bz=/0)
+c To use for simple reinjection when there is no flow velocity.
+c Maxinjinit should be actualized regularly since it depends the potential
+c on the boundary, but for now it is not done.
+c The adiabatic reinjection is considerent as a restriction of the 3D one,
+c So that we only have 1 maxinjinit for the 3D case.
 
 
       subroutine maxreinject(i,dt)
@@ -103,23 +107,28 @@ c      write(*,501) (xp(j,i),j=1,6)
  501  format('Reinject xp=',6f10.5)
       rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
 c     
-
       phihere=phi(NRUSED,ic1)*(1.-dc)+phi(NRUSED,ic2)*dc
-      vv2=vt**2 + vr**2 + vp**2
-      vz2=(xp(6,i)/vscale)**2
+      vv2=(vt**2 + vr**2 + vp**2)*vscale**2
+      vz2=(xp(6,i))**2
+
 c Reject particles that have too low an energy
 c bcr=1 means isotropic reinjection
 c bcr=2 means adiabatic, so the velocity increase is only on the z direction
-      if (bcr.eq.0) then
+c PROVIS removed the vscale
+      if (bcr.ne.2) then
+c The angle is chosen by the distribution of injinit, so if fail, keep the same
          if(.not.vv2.gt.-2.*phihere) goto 2
       elseif (bcr.eq.2) then
-         if(.not.vz2.gt.-2.*phihere) goto 2
-      else
+         if (.not.(vv2.gt.-2*phihere)) goto 2
+c If 3D launch is ok, count in the tries for diags.f
+         nreintry=nreintry+1
+c If Adiabatic launch fails, chose again an angle
+         if(.not.vz2.gt.-2.*phihere) goto 1
       endif
 
 c Do the outer flux accumulation.
-         spotrein=spotrein+phihere
-         nrein=nrein+1
+      spotrein=spotrein+phihere
+      nrein=nrein+1
 
 c Reject particles that are already outside the mesh.
       if((.not.rp.lt.r(nr)*r(nr)).or.(rp.le.r(1)**2))then
@@ -140,18 +149,6 @@ c Common data:
       real gam(nQth)
 c      character*1 work(nvel,nth)
 
-c     If bcr=2, initialize the interpolation fuction for the reinjection
-      if (bcr.eq.2) then
-         open(10,file='fluxadiab.txt',status='old')
-         do i=1,50
-            read(10,*)(fluxadiab(i,j),j=1,51)
-         enddo
-         do j=1,51
-            fluxadiab(51,j)=1.
-         enddo
-         close(10)
-      endif
-
 c Range of velocities (times (Ti/m_i)^(1/2)) permitted for injection.
       vspread=5.+abs(vd)/sqrt(Ti)
 c Random interpolates
@@ -160,34 +157,33 @@ c Random interpolates
       Qcom(1)=0.
       dqp=0.
 
+
+
       do i=1,nQth
          t=NTHUSED*i/nQth
 c Depending on the reinjection, we have a flux depending on chi or not
-           chi=diagchi(int(t)+1)*(t-int(t))+diagchi(int(t))*(int(t)+1-t)
+         chi=diagchi(int(t)+1)*(t-int(t))+diagchi(int(t))*(int(t)+1-t)
 
 c Qth is the cosine angle of the ith angle interpolation position. 
-c We used to used th(i). This is the equivalent definition.
-         Qth=1.-2.*(i-1.)/(nQth-1.)
+c Qsin is the corresponding sinus
+c     We used to used th(i). This is the equivalent definition.
+           Qth=1.-2.*(i-1.)/(nQth-1.)
+           Qsin=sqrt(1-Qth**2)
 c Here the drift velocity is scaled to the ion temperature.
-         vdr=vd*Qth/sqrt(Ti)
-         dqn=sq2pi*exp(-0.5*vdr**2)+.5*vdr*erfcc(-sq2*vdr)
-         if(bcr.eq.1) then
-c            dqn=dqn*(1-chi)
-            if(i.gt.1) Qcom(i)=Qcom(i-1) +dqp +dqn
-         else
+           vdr=vd*Qth/sqrt(Ti)
+           dqn=sq2pi*exp(-0.5*vdr**2)+.5*vdr*erfcc(-sq2*vdr)
+           if(bcr.eq.2) then
 c     Case where we reinject adiabaticly with negative resistance,
 c     doesn't work (Except maybe for infinite lambda)
-            s=1+50*log(-2*chi+1.)/log(10.)
-            if (chi.gt.0) s=1
-            ss=int(s)
-            sss=int(1+50*abs(Qth))
-            dqn=dqn*(fluxadiab(sss,ss)*(ss+1-s)+
-     $           fluxadiab(sss,ss+1)*(s-ss))
-            if(i.gt.1) then
-               Qcom(i)=Qcom(i-1) + dqp +dqn
-            endif
-         endif
-c Gamma is the total flux over all velocities at this angle. 
+c              dqn=dqn*(
+c     $             Qth*(1-erfcc(sqrt(-chi)*Qth/Qsin))
+c     $             +exp(-chi)*erfcc(sqrt(-chi)/Qsin)  )
+           endif
+           if(i.gt.1) then
+              Qcom(i)=Qcom(i-1) + dqp +dqn
+           endif
+   
+c     Gamma is the total flux over all velocities at this angle. 
 c But it is never used 
          gam(i)=dqn
          dqp=dqn

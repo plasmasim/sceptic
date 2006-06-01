@@ -22,31 +22,39 @@ c Advance the particles
 c Common data:
       include 'piccom.f'
       include 'colncom.f'
+
       real accel(3)
+      real dt
       logical lsubcycle
       real cosomdt,sinomdt
 c temp data:
       real temp
       integer idum
 
+c Data for the domain sub
+      real rn0
+
+
 c Place to read/write on the add particule injection
       integer nread
+      
       nread=mod(step,addhist)+1
       idum=1
 c Reset the number of particles that enter the inner domain
       xpstonum(nread)=0
       rsp=r(rsplit)
-
+      rn0=1.
 c Xp is the three x-coordinates followed by the 3 v coordinates.
 c Use a leapfrog scheme, so interpret the v-coords as half a step
 c behind the x-coords. If lsubcycle, use multiple fractional steps near
 c inner boundary.
-      lsubcycle=.true.
-c      lsubcycle=.false.
+c      lsubcycle=.true.
+      lsubcycle=.false.
       dt=dtin
       rp2=r(1)**2
 c Zero the sums now these are assigned here.
       nrein=0
+      nreintry=0
       spotrein=0.
       ninner=0
       fluxrein=0.
@@ -81,9 +89,9 @@ c      write(*,*)'Starting cycle',ipmax,ninjcomp
 
 c End of setup. Start Cycling through particles.
       if (dsub) then
-         ido=npartmax+npartadd
+         ido=npart+npartadd
       else
-         ido=npartmax
+         ido=npart
       endif
       do i=1,ido
          if(ipf(i).gt.0) then
@@ -95,16 +103,15 @@ c     Here we do need half quantities.
  
             call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
      $           ,zetap,ih,hf)
+
 c     Now we know where we are in radius rp. We decide the level of subcycling.
             if(lsubcycle) then
-               isubcycle=r(nrfull)/rp
-c     if(mod(i,1000).eq.0) write(*,'(i2,$)')isubcycle
-               if(isubcycle.eq.0) stop 'isubcycle=0 error'
+               isubcycle=4*(r(nrfull)-rp)/(r(nrfull)-1)+2
+c               if(mod(i,1000).eq.0) write(*,*)isubcycle,
                dt=dtin/isubcycle
             else
                isubcycle=1
             endif
-
 c     Parameters for the Lorentz force
             cosomdt=cos(Bz*dt)
             sinomdt=sin(Bz*dt)
@@ -117,10 +124,10 @@ c     Except for the first time, find new position.
                   hf=77.
                   call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
+               
                endif
                call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
-
 c getaccel returns the accel based on the charge-field calculation.
 c We then add on the acceleration due to the neutral-collisions-implied
 c electric field.
@@ -128,36 +135,28 @@ c electric field.
 
 c     write(*,501)accel,(xp(j,i),j=1,3)
 
-               rn2=0.
-               do j=1,3
-                  rn2=rn2+xp(j,i)**2
-               enddo
-               rn0=sqrt(rn2)
-
+               if(dsub) then
+                  rn2=0.
+                  do j=1,3
+                     rn2=rn2+xp(j,i)**2
+                  enddo
+                  rn0=sqrt(rn2)
+               endif
+               
 c     AccelPhi/2+AccelBz+AccelPhi/2
 c               vzbefore=abs(xp(6,i))/xp(6,i)
                do j=4,6
-                  xp(j,i)=xp(j,i)+accel(j-3)*dt
+                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
                enddo
 
                temp=xp(4,i)
                xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
                xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
 
-c               do j=4,6
-c                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
-c               enddo
-c               vzafter=abs(xp(6,i))/xp(6,i)
-c     Checking if the particle changed direction
-c               if (abs(vzafter-vzbefore).gt.0.1)
-c     $              then
-c                  vzvar(i)=vzvar(i)+1
-c               endif
-c               if (vzvar(i).ge.1)  then
-c                  write(*,*) "x:",xp(1,i),"y:",xp(2,i),"z:",xp(3,i),
-c     $              "rcyl:",sqrt(xp(2,i)**2+xp(1,i)**2),"var:",vzvar(i)
-c     $                 "r:",sqrt(rn0),"var:",vzvar(i)
-c               endif
+               do j=4,6
+                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
+               enddo
+
                rn2=0.
                xdv=0.
                v2=0.
@@ -167,7 +166,6 @@ c               endif
                   xdv=xdv+xp(j,i)*xp(j+3,i)
                   v2=v2+xp(j+3,i)**2
                enddo
-
 
                tm=xdv/v2
                rn=sqrt(rn2)
@@ -181,7 +179,7 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                endif
 
 c     Handling boundaries for 'real particles' :
-               if(i.le.npartmax) then
+               if(i.le.npart) then
                   if(rn.le.r(1)) then
                      ninner=ninner+1
                      nrealin=nrealin-1
@@ -222,7 +220,7 @@ c     store it. We also update nrealin
                            xpstorage(k,xpstonum(nread),nread)=xp(k,i)
                         enddo  
                         nrealin=nrealin+1
-                     elseif ((rn.ge.rsp) .and. (rn0.lt.rsp)) then
+                     elseif ((rn.gt.rsp) .and. (rn0.le.rsp)) then
                         nrealin=nrealin-1
                      endif
                      goto 81
@@ -235,7 +233,10 @@ c     If we haven't exhausted complement, restart particle i.
                      call reinject(i,dtin,icolntype,bcr)
                      ipf(i)=1
                      zmout=zmout+xp(6,i)
-                     if(i.le.norbits) iorbitlen(i)=0
+                     if(i.le.norbits) then
+                        if (.not.(orbinit))
+     $                       iorbitlen(i)=0
+                     endif
                   else
                      ipf(i)=0
 c     if(i.gt.190000) write(*,*)'Leaving empty slot',i
@@ -294,8 +295,11 @@ c     Orbit diagnostics
                iorbitlen(i)=iorbitlen(i)+1
                xorbit(iorbitlen(i),i)=xp(1,i)
                yorbit(iorbitlen(i),i)=xp(2,i)
+               rorbit(iorbitlen(i),i)=sqrt(xp(2,i)**2+xp(1,i)**2)
                zorbit(iorbitlen(i),i)=xp(3,i)
-               rorbit(iorbitlen(i),i)=sqrt(xp(1,i)**2+xp(2,i)**2)
+               vxorbit(iorbitlen(i),i)=xp(4,i)
+               vyorbit(iorbitlen(i),i)=xp(5,i)
+               vzorbit(iorbitlen(i),i)=xp(6,i)
 c     write(*,503)i,iorbitlen(i),xorbit(iorbitlen(i),i)
 c     $           ,yorbit(iorbitlen(i),i),zorbit(iorbitlen(i),i)
 c     $           ,rorbit(iorbitlen(i),i)
@@ -524,6 +528,7 @@ c SOR iteration.
       do k=1,maxits
 c Use over-relaxation if debyelen is large, or straight newton otherwise.
          relax=(omega*debyelen**2+1.)/(debyelen**2+1.)
+
          deltamax=0.
 c Alternate iteration directions
          if(mod(k/2,2).eq.0)then
@@ -578,13 +583,14 @@ c     Outer boundary.
             omega=1./(1.-0.25*rjac**2*omega)
         endif
       enddo
-c      write(*,*)'SOR not converged. deltamax=',deltamax
+c     write(*,*)'SOR not converged. deltamax=',deltamax
  11   continue
       write(*,'('':'',i3,$)')k
-c      write(*,201)k,deltamax,relax
+c write(*,201)k,deltamax,relax
  201  format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4)
 c Calculate electric force on probe. Moved to main.
 c Inner Boundary values
+
       do j=1,NTHUSED
          phi(0,j)=2.*phi(imin,j)-phi(imin+1,j)
       enddo
@@ -596,82 +602,188 @@ c      write(*,*)'phi(rmax)=',phi(NRFULL,NTHUSED/2)
       end
 
 c******************************************************************
-      subroutine fcalc_shielding(dt)
-      
+      subroutine fcalc_shielding(dt,sor_comm,myid2)
+
       include 'piccom.f'
+      include 'mpif.h'
       real dt
       real relax
       real delta
-
+c     If rshield is not an integer, problem with the MPI routines
+      integer rshield
+c     sor_comm is the subset of MPI_COMM_WORLD communicator used for
+c     the bloc sor
+      integer sor_comm
+      real phislopeconst(0:nth+1),phislopefac(0:nth+1)
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
+
       rjac=1.-4./max(10,NRUSED)**2
       omega=1.
       maxits=2.5*NRUSED
       dconverge=1.e-5
       imin=1
       relax=0.5
-      call innerbc(imin,dt)
-      
-c Potential calculation in the shielding region
+
+
+c bpc=0 -> Use the spherical symmetry approximation (Hutch paper2)
 c bpc=1 -> Quasineutrality on the 15% outer crone
 c bpc=2 -> Phiout=0
 c bpc=3 -> dPhi/drout=0
+
+c Potential calculation in the shielding region
       if(bcphi.eq.1) then
-         rshield=nint(NRFULL*.85)
+         rshield=nint(NRUSED*.85)
          do j=1,nth
             do i=rshield,nr
                phi(i,j)=log(rho(i,j))
             enddo
          enddo
       else
-         rshield=NRFULL
+         rshield=NRUSED
+         if(bcphi.eq.2) then
+            do j=1,nth
+               phi(rshield,j)=0
+            enddo
+         endif
       endif
       
-c SOR iteration
-      do k=1,maxits
-c Use over-relaxation if debyelen is large, or straight newton otherwise.
-         relax=(omega*debyelen**2+1.)/(debyelen**2+1.)
-         deltamax=0.
-c Changed to chessboard calculation. Twice as fast
-         c=mod(k,2)
+      if (bcphi.eq.0) then
 
-         do j=1,NTHUSED
-c We only go to rshield-1
-            do i=imin+1+mod(j+c,2),rshield-1,2
-               expphi=exp(phi(i,j))
-               dnum= apc(i)*phi(i+1,j)+bpc(i)*phi(i-1,j) + cpc(i,j)
-     $              *phi(i,j+1)+dpc(i,j)*phi(i,j-1) -fpc(i,j)*phi(i,j)
-     $              + rho(i,j) - expphi
-               dden=fpc(i,j) + expphi
-               delta=relax*dnum/dden
-               if(abs(delta).gt.abs(deltamax))deltamax=delta
-               phi(i,j)=phi(i,j)+delta
-            enddo
-c     Boundary at rshield
-            if(bcphi.eq.2) then
-               phi(NRFULL,j)=0
-            elseif(bcphi.eq.3) then
-               delta=phi(NRFULL-1,j)-phi(NRFULL,j)
-               if(abs(delta).gt.abs(deltamax))deltamax=delta
-               phi(NRFULL,j)=phi(NRFULL,j)+relax*delta
-            else
-            endif
-         enddo           
-         
-         if(abs(deltamax).lt.dconverge.and.k.ge.2)goto 11
-         if(k.eq.1)then
-            omega=1./(1.-0.5*rjac**2)
+c     Setting of the gpc array 
+         redge= (rcc(NRFULL)+rcc(NRFULL-1))*0.5
+         delredge=rcc(NRFULL)-rcc(NRFULL-1)
+c     Screening k-number combines electrons and ions.
+         if(debyelen.gt. 1.e-10) then
+            el2=(1.+1./Ti)/debyelen**2
          else
-            omega=1./(1.-0.25*rjac**2*omega)
+            el2=2.e20
          endif
-      enddo
+         el=sqrt(el2)
+         afactor=0.02
+         alpha=1./(1.+(afactor*redge/debyelen)**2)
+         rxl=el*redge
+         expE1=(alog(1.+1./rxl) - 0.56/(1.+4.1*rxl+0.9*rxl**2))
+         rindex=alpha*(redge*el+1.)+ (1.-alpha)*2.
+         adeficit=0
+c     Boundary slope factor calculations:
+         do j=0,NTHUSED+1
+c     Current fractional ion deficit due to collection.
+c     Coefficient of 1/r^2 in modified shielding equation is
+c     a = deficitj * r_edge^2 / \lambda_De^2
+            deficitj=1-phi(NRUSED,j)/Ti -rho(NRUSED,j)
+c     write(*,*)rho(NRUSED,j),phi(NRUSED,j),deficitj
+            blfac1=(deficitj/debyelen**2) * redge
+            adeficit=adeficit+blfac1
+c     BC modification is (a/r_edge)[exp(EL*r) E_1(El*r)] given by approx.
+            blfac=blfac1*expE1
+            blfac=alpha*blfac
+            phislopeconst(j)=blfac*redge*delredge/
+     $           (redge+delredge*rindex*0.5)
+            phislopefac(j)=(redge-delredge*rindex*0.5)/
+     $           (redge+delredge*rindex*0.5)
+c     Set gpc array
+            gpc(j,1)=phislopefac(j)
+            gpc(j,2)=0
+            gpc(j,3)=0
+            gpc(j,4)=-phislopeconst(j)
+            gpc(j,5)=-1
+         enddo
+c     Actual a factor averaged over angles:
+         adeficit=adeficit*redge/NTHUSED
+         if(adeficit.lt.0.)then
+c     write(*,*)'Negative adeficit',adeficit,' set to zero'
+            adeficit=0.
+         endif
 
-c     write(*,*)'SOR not converged. deltamax=',deltamax
+      elseif(bcphi.eq.1.or.bcphi.eq.2) then
+c     In this case, the potential outside the crone is prespecified
+         do j=0,NTHUSED+1
+            gpc(j,1)=0
+            gpc(j,2)=0
+            gpc(j,3)=0
+            gpc(j,4)=0
+            gpc(j,5)=0
+         enddo
+
+      elseif(bcphi.eq.3) then
+c     This is the case where dphi/dr=0 on the boundary
+         do j=0,NTHUSED+1
+            gpc(j,1)=1
+            gpc(j,2)=0
+            gpc(j,3)=0
+            gpc(j,4)=0
+            gpc(j,5)=-1
+         enddo
+      endif
+c     Set inner Boundary conditions
+
+      call innerbc(imin,dt)
+      
+c     Do the iterations in serial
+      if (.not.sorparallel.and.myid2.eq.0) then
+c      if (.true.) then
+c SOR iteration
+         do k=1,maxits
+c Use over-relaxation if debyelen is large, or straight newton otherwise.
+            relax=(omega*debyelen**2+1.)/(debyelen**2+1.)
+            deltamax=0.
+c Changed to chessboard calculation. Twice as fast
+            c=mod(k,2)
+
+
+            do j=1,NTHUSED
+c     We only go to rshield-1
+               do i=imin+1+mod(j+c,2),rshield,2
+
+c     Boundary at rshield
+                  if (i.eq.rshield) then
+                     delta=gpc(j,1)*phi(i-1,j)+gpc(j,2)*phi(i,j-1)+
+     $                    gpc(j,3)*phi(i,j+1)+gpc(j,4)+gpc(j,5)*phi(i,j)
+                     
+                     if(abs(delta).gt.abs(deltamax))deltamax=delta
+                     phi(i,j)=phi(i,j)+relax*delta
+
+                  else
+                     expphi=exp(phi(i,j))
+                    dnum= apc(i)*phi(i+1,j)+bpc(i)*phi(i-1,j) + cpc(i,j)
+     $               *phi(i,j+1)+dpc(i,j)*phi(i,j-1) -fpc(i,j)*phi(i,j)
+     $                    + rho(i,j) - expphi
+                     dden=fpc(i,j) + expphi
+                     delta=relax*dnum/dden
+                     if(abs(delta).gt.abs(deltamax))deltamax=delta
+                     phi(i,j)=phi(i,j)+delta
+                  endif
+
+               enddo
+            enddo
+
+            if(abs(deltamax).lt.dconverge.and.k.ge.2) goto 11
+            if(k.eq.1)then
+               omega=1./(1.-0.5*rjac**2)
+            else
+               omega=1./(1.-0.25*rjac**2*omega)
+            endif
+         enddo
+
+      elseif(sorparallel) then
+c fcalc_sor call : Do the iterations in parallel
+c nrsize+1 is the 1st dimension of the mesh (phi, rho, ...)
+c rshield+1 is 1+ the r dimension really used. From 1 to rshield, but we add
+c 1 to ensure bloc communications of the BC at each iteration
+c NTHUSED+2 is the th dimension really used
+         call fcalc_sor(nrsize+1,nthsize+1,rshield+1,NTHUSED+2,rjac,
+     $        maxits,dconverge,k,sor_comm)
+     
+      endif
  11   continue
-      write(*,'('':'',i3,$)')k
+
+      if (myid2.eq.0) then
+         write(*,'('':'',i3,$)')k
 c     write(*,201)k,deltamax,relax
- 201  format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4)
+ 201     format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4)
 c     Calculate electric force on probe. Moved to main.
+      endif
+
 c     Inner Boundary values
       do j=1,NTHUSED
          phi(0,j)=2.*phi(imin,j)-phi(imin+1,j)
@@ -681,6 +793,9 @@ c     Inner Boundary values
          phi(i,NTHUSED+1)=phi(i,NTHUSED-imin)
       enddo
 c     write(*,*)'phi(rmax)=',phi(NRFULL,NTHUSED/2)
+
+ 123  continue
+
       end 
 
 c*******************************************************************
@@ -714,9 +829,11 @@ c*******************************************************************
       include 'piccom.f'
       real flogfac
       real fluxofangle(nthsize)
+   
       if(linsulate.or.lfloat) then
          flogfac=0.5*alog(2.*pi/(rmtoz*1837.))
          totflux=0.
+
          do j=1,nthused
             if(lcic)then
                fluxofangle(j)=finthave(j)*(nthused-1.)/

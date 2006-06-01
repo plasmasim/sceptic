@@ -135,7 +135,9 @@ c         stop
 c      if(.not.lfixedn)chium2=0.
       brcsq=ran0(idum)*(1.+chium2)
 c Reject a particle that will not reach boundary.
-      if(brcsq.lt.0.)goto 1
+      if(brcsq.lt.0.) then
+         goto 1
+      endif
       brc=sqrt(brcsq)
 c Get cosine and sine of impact angle relative to distant position.
 c Based on integration.
@@ -174,7 +176,7 @@ c This expression should work for CIC And NGP.
      $        +(phi(NRUSED,ic2)+phi(NRFULL,ic2))*0.5*dc
 c Section to correct the injection velocity and direction (but not the
 c position) to account for local potential. 26 July 2004.
-      if(localinj)then 
+      if(localinj)then
          brcsq=(brcsq*(1.-phihere/Ti/(u+eup)**2)/(1.+chium2))
          if(brcsq.lt. 0.) then
 c     This launch cannot penetrate at this angle. But it would have done
@@ -266,7 +268,7 @@ c Can't use these formulas for Uc exactly equal to zero.
      $           +(Uc**2 +0.5)*pu2(i)
          enddo
       endif
-         call srand(myid)
+      call srand(myid)
       end
 c***********************************************************************
 c***********************************************************************

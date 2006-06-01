@@ -80,14 +80,14 @@ c last step.
       tcc(NTHUSED+1)=2.*tcc(NTHUSED)-tcc(NTHUSED-1)
       thang(NTHUSED+1)=2.*thang(NTHUSED)-thang(NTHUSED-1)
       thang(0)=2.*thang(1)-thang(2)
-      if(NRFULL.le.10 .and. nth.le.10) then
-         write(*,*)'r,rcc,th,tcc,thang'
-         write(*,*)(r(j),j=0,nrfull)
-         write(*,*)(rcc(j),j=0,nrfull)
-         write(*,*)(th(j),j=0,nthfull)
-         write(*,*)(tcc(j),j=0,nthfull)
-         write(*,*)(thang(j),j=0,nthfull)
-      endif
+c      if(NRFULL.le.10 .and. nth.le.10) then
+c         write(*,*)'r,rcc,th,tcc,thang'
+c         write(*,*)(r(j),j=0,nrfull)
+c         write(*,*)(rcc(j),j=0,nrfull)
+c         write(*,*)(th(j),j=0,nthfull)
+c         write(*,*)(tcc(j),j=0,nthfull)
+c         write(*,*)(thang(j),j=0,nthfull)
+c      endif
 c      write(*,*)'zeta=',zeta
 c
       do i=1,NRUSED
@@ -177,14 +177,14 @@ c     Cic version
       tcc(NTHUSED+1)=2.*tcc(NTHUSED)-tcc(NTHUSED-1)
       thang(NTHUSED+1)=2.*thang(NTHUSED)-thang(NTHUSED-1)
       thang(0)=2.*thang(1)-thang(2)
-      if(NRFULL.le.10 .and. nth.le.10) then
-         write(*,*)'r,rcc,th,tcc,thang'
-         write(*,*)(r(j),j=0,nrfull)
-         write(*,*)(rcc(j),j=0,nrfull)
-         write(*,*)(th(j),j=0,nthfull)
-         write(*,*)(tcc(j),j=0,nthfull)
-         write(*,*)(thang(j),j=0,nthfull)
-      endif
+c      if(NRFULL.le.10 .and. nth.le.10) then
+c         write(*,*)'r,rcc,th,tcc,thang'
+c         write(*,*)(r(j),j=0,nrfull)
+c         write(*,*)(rcc(j),j=0,nrfull)
+c         write(*,*)(th(j),j=0,nthfull)
+c         write(*,*)(tcc(j),j=0,nthfull)
+c         write(*,*)(thang(j),j=0,nthfull)
+c      endif
 c      write(*,*)'th=',th
 
 c Calculate the mesh volumes
@@ -230,6 +230,7 @@ c Initializing particles.
 c Common data:
       include 'piccom.f'
       logical istrapped
+      logical istrapped2
 
 c For now use the whole array.
       nrealin=0
@@ -261,19 +262,25 @@ c     If we are not in the plasma region, try again.
          xp(4,i)=tisq*gasdev(idum)
          xp(5,i)=tisq*gasdev(idum)
          xp(6,i)=tisq*gasdev(idum) + vd
-         if(istrapped(i))then
-            ntrapped=ntrapped+1
+c         if(istrapped(i))then
+c            ntrapped=ntrapped+1
 c If this goto is included then trapped particles are rejected.
 c But that tends to deplete the region close to the probe.
 c            goto 1
+c         endif
+         if(bcr.eq.2) then
+c     Remove particles with too low vz
+            if (istrapped2(i)) then
+               ntrapped=ntrapped+1
+               goto 1
+            endif
          endif
 
 c Counting the number of real particles in the inner domain
          if (sqrt(rc).le.r(rsplit)) then
             nrealin=nrealin+1
          endif
-c Putting the vz oscillation counter to 0
-         vzvar(i)=0
+
       enddo
 
 c     We now initialize the add particles
@@ -316,9 +323,9 @@ c     Initialize the storage arrays
       endif
 
 c Set flag of unused slots to 0
-      do i=npart+1,npartmax
-         ipf(i)=0
-      enddo
+c      do i=npart+1,npartmax
+c         ipf(i)=0
+c      enddo
       
 c      write(*,*)'Initialized ','id=',myid,
 c     $     '  n=',npart,'  ntries=',ntries,'  ntrapped=',ntrapped
@@ -328,6 +335,7 @@ c Initialize orbit tracking
       do ko=1,norbits
          iorbitlen(ko)=0
       enddo
+
 
       end
 c***********************************************************************
@@ -366,6 +374,7 @@ c     Trivial initialization was used for a long time. Hardly different.
 c     phi(i,j)=0.
                if(i.eq.0)phi(i,j)=vprobe
             enddo
+            diagchi(j)=phi(NRFULL,j)/Ti
          enddo
       endif
       end
@@ -563,7 +572,42 @@ c      write(*,*)'phin=',phin,'  phie=',phie,'  phip=',phip
 c      write(*,*)'vte=',vte,' vtp=',vtp
 
       end
+
+c***********************************************************************
+      logical function istrapped2(i)
+
+c     Return as logical whether the particle i is trapped or not.  It is
+c     considered trapped if the energy available for radial velocity at
+c     the outer boundary and at the probe, conserving angular momentum
+c     and energy is negative. The assumption of angular momentum
+c     conservation is false for non-symmetric situations.
+
+      include 'piccom.f'
+
+      ih=0
+      hf=66.
+      call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
+     $     ,zetap,ih,hf)
+
+      phihere=(phi(il,ith)*(1.-tf)+phi(il,ith+1)*tf)*(1.-rf) +
+     $     (phi(il+1,ith)*(1.-tf)+phi(il+1,ith+1)*tf)*rf
+
+      vv=xp(4,i)**2+xp(5,i)**2+xp(6,i)**2
+      vz2=xp(6,i)**2
+      if (vz2.le.-2*phihere) then
+         istrapped2=.true.
+      else
+         istrapped2=.false.
+      endif
+c      write(*,*)'phin=',phin,'  phie=',phie,'  phip=',phip
+c      write(*,*)'vte=',vte,' vtp=',vtp
+
+      end
 c********************************************************************
+
+
+
+
       function mtrapped()
       include 'piccom.f'
       logical istrapped

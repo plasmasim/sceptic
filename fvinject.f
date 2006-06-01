@@ -354,14 +354,14 @@ c random position prior to reentering the domain.
 c Deal with possibly non-zero potential. Not yet done.      
       phihere=0.
       rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+c Do the outer flux accumulation.
+      spotrein=spotrein+phihere
+      nrein=nrein+1
 c Reject particles that are already outside the mesh.
       if(.not.rp.le.r(nr)*r(nr).or. rp.le.1.)then
 c         write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
          goto 1
       else
-c Do the outer flux accumulation.
-         spotrein=spotrein+phihere
-         nrein=nrein+1
 c Needs th to be initialized, I think.
          if(th(nth).eq.-1.)then
 c The th array is initialized.

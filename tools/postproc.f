@@ -243,7 +243,7 @@ c Contouring
 c         call condisphi(ir,jstepth,0.,vprobe,
 c     $     nrhere,nthhere,v1,larrows,lconline)
          call condisphi(ir,jstepth,pmin,pmax,
-     $     nrhere,nthhere,v1,larrows,lconline,lpcic)
+     $     nrhere,nthhere,v1,larrows,lconline,lpcic,ledge)
          call pltend()
       endif
 
@@ -260,7 +260,7 @@ c Contouring:
          endif
          if(ltempc)then
             call contemp(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
+     $           nrhere,nthhere,v1,larrows,lconline,ledge)
          endif
       endif
 
@@ -288,8 +288,8 @@ c         write(*,*)rhoinf,dt,nastep,ninth(j)
          cunnorm=coulflux(cthang,-vprobe/Ti,vd/sqrt(Ti))
          cflux(j)=cunnorm
      $        /sqrt(2.*3.14159/Ti)
-         write(*,'(4f10.5)')tcc(j),fluxofangle(j)
-     $        ,cflux(j),cunnorm
+c         write(*,'(4f10.5)')tcc(j),fluxofangle(j)
+c     $        ,cflux(j),cunnorm
 c     $        ,cthang
       enddo
 
@@ -442,38 +442,43 @@ c Fit closer than boxtitle
 c      call boxtitle('n/n!A!d;!d!@')
       call axis()
       call axlabels('z','r sin!Aq!@')
-      call color(12)
-      if(ir.le.0.or.ir.ge.100) ir=10
-      do j=1,nthhere,it
-         do i=1,nrhere,max(nrhere/ir,1)
-            vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-            vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-            size=basesize/v1*sqrt(vri**2+vti**2)
-            angle=atan2(vti,vri)+acos(tcc(j))
-            call charsize(size,0.3*size)
-            call charangl(180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $           '!A_!@',0.)
+  
+      
+      if(larrows) then
+         call color(12)
+         if(ir.le.0.or.ir.ge.100) ir=10
+         do j=1,nthhere,it
+            do i=1,nrhere,max(nrhere/ir,1)
+               vri=vrsum(i,j)/(psum(i,j)+1.e-5)
+               vti=vtsum(i,j)/(psum(i,j)+1.e-5)
+               size=basesize/v1*sqrt(vri**2+vti**2)
+               angle=atan2(vti,vri)+acos(tcc(j))
+               call charsize(size,0.3*size)
+               call charangl(180.*angle/3.141593)
+               call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
+     $              '!A_!@',0.)
+            enddo
          enddo
-      enddo
-      call charangl(0.)
-      size=basesize
-      call charsize(size,0.3*size)
-      call legendline(0.8,0.95,258,'!A_!@'//char(0))
-      call charsize(0.,0.)
-      write(cstring,'(''  v='',f4.1)') v1
-      call color(15)
-      call legendline(0.8,0.95,258,cstring(1:8)//char(0))
+         call charangl(0.)
+         size=basesize
+         call charsize(size,0.3*size)
+         call legendline(0.8,0.95,258,'!A_!@'//char(0))
+         call charsize(0.,0.)
+         write(cstring,'(''  v='',f4.1)') v1
+         call color(15)
+         call legendline(0.8,0.95,258,cstring(1:8)//char(0))
+      endif
+      
       call pltend()
       end
 
 c***************************************************************************
 c Contouring of the temperature.
       subroutine contemp(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline)
+     $     larrows,lconline,ledge)
       integer ir,it
       real rhomax,v1
-      logical larrows,lconline
+      logical larrows,lconline,ledge
 c Common data:
       include 'piccompost.f'
 c      include 'cic/piccompost.f'
@@ -547,6 +552,14 @@ c         zclv(j)=Trmin+(Tmax-Trmin)*(1.*(j-1)/float(ncont-1))
 c      enddo
 c      icl=-ncont
 c
+
+      if(ledge) then
+         Trmin=0.5*Ti
+         Tmin=Trmin
+         Trmax=5*Ti
+         Tmax=Trmax
+      endif
+
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
       zclv(1)=Trmin
       zclv(2)=Tmax
@@ -649,10 +662,10 @@ c***************************************************************************
 c***************************************************************************
 c Contouring of the potential, on distorted mesh.
       subroutine condisphi(ir,it,rhomax,rhomin,nrhere,nthhere,v1,
-     $     larrows,lconline,lpcic)
+     $     larrows,lconline,lpcic,ledge)
       integer ir,it
       real rhomax,v1
-      logical larrows,lconline,lpcic
+      logical larrows,lconline,lpcic,ledge
 c Common data:
       include 'piccompost.f'
 c      include 'cic/piccompost.f'
@@ -702,6 +715,10 @@ c         tcc(nthhere)=0.25*(-3.+tcc(nthhere-1))
 c         tcc(nthhere+1)=-1.
 c      endif
 
+c ledge fixing
+      if (ledge) then
+         rhomax=rhomax/2.
+      endif
 
       zscale=log(1000.)/(ncont-1.)
       do j=1,ncont
@@ -710,7 +727,9 @@ c Logarithmic
      $        exp(zscale*float(ncont-j))/exp(zscale*float(ncont-1))
 c Linear
          zclv(j)=(rhomax-rhomin)*(1.*(j-1)/float(ncont-1))+ rhomin
+c         write(*,*) "zcle : ",zclv(j)
       enddo
+c      write(*,*) "min,max",rhomin,rhomax
 
 c      write(*,*)'Contours=',zclv
       icl=-ncont
@@ -768,29 +787,31 @@ c      endif
       call legendline(0.47,1.07,258,'!Af!@'//char(0))
       call axis()
       call axlabels('z','r sin!Aq!@')
-      call color(12)
-      if(ir.le.0.or.ir.ge.100) ir=10
-      do j=1,nthhere,it
-         do i=1,nrhere,max(nrhere/ir,1)
-            vri=vrsum(i,j)/(psum(i,j)+1.e-5)
-            vti=vtsum(i,j)/(psum(i,j)+1.e-5)
-            size=basesize/v1*sqrt(vri**2+vti**2)
-            angle=atan2(vti,vri)+acos(tcc(j))
-            call charsize(size,0.3*size)
-            call charangl(180.*angle/3.141593)
-            call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
-     $           '!A_!@',0.)
+      if(larrows) then
+         call color(12)
+         if(ir.le.0.or.ir.ge.100) ir=10
+         do j=1,nthhere,it
+            do i=1,nrhere,max(nrhere/ir,1)
+               vri=vrsum(i,j)/(psum(i,j)+1.e-5)
+               vti=vtsum(i,j)/(psum(i,j)+1.e-5)
+               size=basesize/v1*sqrt(vri**2+vti**2)
+               angle=atan2(vti,vri)+acos(tcc(j))
+               call charsize(size,0.3*size)
+               call charangl(180.*angle/3.141593)
+               call jdrwstr(wx2nx(zrho(i,j)),wy2ny(xrho(i,j)),
+     $              '!A_!@',0.)
+            enddo
          enddo
-      enddo
-      call charangl(0.)
-      size=basesize
-      call charsize(size,0.3*size)
-      call legendline(0.8,0.95,258,'!A_!@'//char(0))
-      call charsize(0.,0.)
-      write(cstring,'(''  v='',f4.1)') v1
-      call color(15)
-      call legendline(0.8,0.95,258,cstring(1:8)//char(0))
-c      call pltend()
+         call charangl(0.)
+         size=basesize
+         call charsize(size,0.3*size)
+         call legendline(0.8,0.95,258,'!A_!@'//char(0))
+         call charsize(0.,0.)
+         write(cstring,'(''  v='',f4.1)') v1
+         call color(15)
+         call legendline(0.8,0.95,258,cstring(1:8)//char(0))
+      endif
+c     call pltend()
       end
 
 c***************************************************************************

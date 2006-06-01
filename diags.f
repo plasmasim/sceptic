@@ -28,7 +28,6 @@ c Common data:
 
 c This allows us to restart with nstepsave .ne. 1 if rhoinf is set.
       if(riave.eq.0)riave=rhoinf
-
 c Calculate rhoplot,diagphi,diagrho,rho1theta,rhomidtheta
       do i=1,nr
  510     format(10f8.1)
@@ -44,14 +43,16 @@ c     rhoplot is unnormalized. All others are normalized.
          rhoplot(i)=rhoplot(i)/nrp
          phiave(i)=phiave(i)/nrp
 c This needs to be fixed for Debye code.
-         diagphi(i)=(diagphi(i)*(nstepsave-1)+phiave(i))/nstepsave
+         diagphi(i)=(diagphi(i)*(nstepsave-1)+
+     $        phiave(i))/nstepsave
 c old quasineutral way:
-c         log(rhoplot(i)/rhoinf))/nstepsave
+c     $        log(rhoplot(i)/rhoinf))/nstepsave
          diagrho(i)=(diagrho(i)*(nstepsave-1) + (rhoplot(i)))/nstepsave
       enddo
 
 c Calculate diagchi (outer potential as a function of nth normalized
-c to the ion thermal velocity) Necessay for the reinjection (Not here)
+c to the ion thermal velocity)
+c Necessay for the reinjection and fcalc
       do j=1,NTHUSED
         diagchi(j)=(diagchi(j)*(nstepsave-1)+phi(NRUSED,j)/Ti)/nstepsave
       enddo
@@ -64,7 +65,20 @@ c New rhoinf calculation.
 c estimate of the rhoinf based on flux from this step.
 
 c Trial of different scheme. Combination equivalent to phihere usage.
-         averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
+c PROVIS. Only use the potentials not perturbed by the magnetic field to
+c     calculate averein
+
+        averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
+c        averein=spotrein/float(nrein)
+
+c PROVIS
+c         averein=0
+c         nrp=0
+c         do j=NTHUSED/2,3*NTHUSED/4
+c            averein=averein+phi(NRUSED,j)
+c            nrp=nrp+1.
+c         enddo
+c         averein=averein/nrp
 
          if(averein.gt.0.5*Ti)then
 c This is necessary to prevent smaxflux errors. smaxflux is not correct
@@ -74,28 +88,31 @@ c            write(*,*)'Excessive averein',averein,' capped'
          endif
 
 c     We have to calculate rhoinf consistently with the reinjection
+
          if (bcr.eq.0) then
             riest=(nrein/dt) /
-     $           (sqrt(2*Ti)*
+     $           (sqrt(Ti)*
+     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
+     $           *r(NRFULL)**2 )
+
+         elseif (bcr.eq.1) then
+            riest=(nrein/dt) /
+     $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
      $           *r(NRFULL)**2 )
             
-         elseif (bcr.eq.1) then
-c     Smaxflux(chi) calculates the (1+chi) flux. For a simple maxwellian,
-c     simply compute smaxflux2(0) smaxflux2(chi) actually gives the same result
-c     as smaxflux(0,chi)
-            riest=(nrein/dt) /
-     $           (sqrt(2*Ti)*
-c     $           smaxflux2(-averein/Ti)
-     $           smaxflux2(0.)
-     $           *r(NRFULL)**2 )
-
          elseif (bcr.eq.2) then
-c     Adiabatic reinjection
-            riest=(nrein/dt) /
-     $           (sqrt(2*Ti)*
-     $           smaxflux3()
+c     Adiabatic reinjection PROVIS
+c            riest=(nrein/dt) /
+c     $           (sqrt(2*Ti)*
+c     $           smaxflux2(-averein/Ti)
+c     $           *r(NRFULL)**2 )
+c            write(*,*) riest
+            riest=(nreintry/dt) /
+     $           (sqrt(Ti)*
+     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
      $           *r(NRFULL)**2 )
+c            write(*,*) riest
          endif
 
 c         write(*,*)'nrein=',nrein,'  psum=',psu,
@@ -544,56 +561,24 @@ c     having a value on the sphere normalized to Ti of minus
          erfbyu=erf/uc
       endif
 
-      smaxflux=pi*(uc*erf + (0.5+chi)*erfbyu + exp(-uc**2)/sqpi)
+      smaxflux=pi*sqrt(2.)*(uc*erf +(0.5+chi)*erfbyu + exp(-uc**2)/sqpi)
       end
 c*******************************************************************
       real function smaxflux2(chi)
-c     Return the total flux to a unit radius sphere from a unit density
-c     slightly shifted maxwellian (Valid to 1st order in vd)
-c     normalized to sqrt(2T/m)=vtion, in a low potential non necessary
-c     symmetric, with whatever B field, having a value on the sphere
-c     normalized to Ti of minus
-      real chi
+c     Returns the total flux to a unit radius sphere from a unit density
+c     Maxwellian accelerated adiabatiquely in the z direction.
+
+      real flux,chi
       real pi
       data pi/3.1415927/
       sqpi=sqrt(pi)
 
-      smaxflux2=sqpi*2*(1+chi)
-
-      end
-c*******************************************************************
-      real function smaxflux3()
-c     Returns the total flux to a unit radius sphere from a unit density
-c     Maxwellian accelerated adiabatiquely in the z direction.
-c     fluxadiab is a table of precalculated values of the differential flux
-c     fluxadiab(a,b)=diff flux at costheta=a, and  chi=0.5*10^(b/50)
-      include 'piccom.f'
-      real flux,chi,s
-      flux=0.
-      sqpi=sqrt(pi)
-      do i=1,NTHUSED
-         chi=diagchi(i)
-         s=1+50*log(-2*chi+1.)/log(10.)
-         if (chi.gt.0) s=1
-         ss=int(s)
-         Qth=1.-2.*(i-1.)/(NTHUSED-1.)
-         sss=int(1+50*abs(Qth))
-         fluxadd=fluxadiab(sss,ss)*(ss+1-s)+fluxadiab(sss,ss+1)*(s-ss) 
-         if (i.eq.1.or.i.eq.NTHUSED) then
-            flux=flux+0.5*fluxadd
-         else
-            flux=flux+fluxadd
-         endif
-      enddo
-c    write(*,*) (diagchi(j),j=1,NTHUSED)
-      flux=flux/(NTHUSED-1)
+      flux=1-sqpi/2*sqrt(chi)*exp(chi)*erfcc(sqrt(chi))
+c      write(*,*) "flux",flux
 c    Seems not to converge if the potential is not prescribed in advance
-      if (flux.le.0.5) then
-         flux=0.5
-         write(*,*) (diagchi(j),j=1,NTHUSED)
-      endif
-c      write(*,*) flux
-      smaxflux3=sqpi*2*flux
+
+
+      smaxflux2=sqpi*2*flux
       end
 
 c*******************************************************************
