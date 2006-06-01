@@ -26,24 +26,27 @@ c     Data tables to be collected for the plotting
       real gamma(40)
       real temp1,temp2,randflux
       integer oaverage,temp
-      real outdens(250,40),outphi(250,40),inphi1(250,40),thcos(250,40)
-      real thflux(250,40),inphi2(250,40),indens1(250,40),indens2(250,40)
-      real tempt1(250),tempt2(250),inphi3(250,40),indens3(250,40)
+      real outdens(350,40),outphi(350,40)
+      real cendens(350,40),cenphi(350,40)
+
+      real inphi1(350,40),thcos(350,40)
+      real thflux(350,40),inphi2(350,40),indens1(350,40),indens2(350,40)
+      real tempt1(350),tempt2(350),tempt3(350),inphi3(350,40)
+      real indens3(350,40)
 
 
 c     Tables for the sheath calculation. Doesn't make sense
 c     for high B field
-      real xsheath(250,40)
-      real ysheath(250,40)
-      real sheathrho(250,250)
-      real sheathr(250)
-
+      real xsheath(350,40)
+      real ysheath(350,40)
+      real sheathrho(350,350)
+      real sheathr(350)
 
       data lpcic/.false./
       data lreaddiag/.false./
       data ledge/.false./
       data output/.false./
-      data oaverage/10/
+      data oaverage/1/
       data sh/.false./
 c     Temporary data, for the bubble sort or the plotting
       temp=1.
@@ -55,7 +58,6 @@ c Deal with arguments, and store all the values in the table for each B
       if (iargc().eq.0) goto 51
       do i=1,narg
  11      call getarg(i,string)
-
          if(string(1:1) .eq. ' ') then
             goto 3
          endif
@@ -126,6 +128,25 @@ c     Creating a list of the outer potential as a function of theta
             outphi(k,i)=outphi(k,i)/(oaverage)
          enddo
 
+c     Creating a list of the center density as a funtion of theta
+         do k=1,nthhere
+            cendens(k,i)=0.
+            do l=1,oaverage
+               cendens(k,i)=cendens(k,i)+rholocal(l,k)
+            enddo
+            cendens(k,i)=cendens(k,i)/(oaverage)
+            thcos(k,i)=tcc(k)
+         enddo
+
+c     Creating a list of the center potential as a function of theta
+         do k=1,nthhere
+            cenphi(k,i)=0.
+            do l=1,oaverage
+               cenphi(k,i)=cenphi(k,i)+phi(l,k)
+            enddo
+            cenphi(k,i)=cenphi(k,i)/(oaverage)
+         enddo
+
 c     Creating a list of the potential and density as a function of r
          do k=1,nrhere
             inphi1(k,i)=phi(k,1)
@@ -136,6 +157,39 @@ c     Creating a list of the potential and density as a function of r
             indens3(k,i)=rho(k,nthhere)
          enddo
 
+c    Trial
+         if (.false.) then
+         call multiframe(2,1,3)
+         call pltinit(0.,rcc(nrhere)+0.,0.,2.)
+         call axis()
+         call axis2()
+         call axlabels('r','phi !Aq!@=0')
+         
+         do k=1,nrhere
+            tempt1(k)=exp(phi(k,1))
+            tempt2(k)=rho(k,1)
+            tempt3(k)=rcc(k)
+         enddo
+         call winset(.true.)
+         call polyline(tempt3,tempt1,nrhere)
+         call polyline(tempt3,tempt2,nrhere)
+         call winset(.false.)
+         
+         call pltinit(0.,rcc(nrhere)+0.,0.,2.)
+         call axis()
+         call axis2()
+         call axlabels('r','phi !Aq!@=PI/2')
+         do k=1,nrhere
+            tempt1(k)=exp(phi(k,nthhere/2))
+            tempt2(k)=rho(k,nthhere/2)
+            tempt3(k)=rcc(k)
+         enddo
+         call winset(.true.)
+         call polyline(tempt3,tempt1,nrhere)
+         call polyline(tempt3,tempt2,nrhere)
+         call winset(.false.)
+         call pltend()
+         endif
 
 c     calculates the sheath size
          ptaverage=1.
@@ -173,13 +227,11 @@ c     calculates the sheath size
 3       continue
       enddo
 
-
 c     We sort all the lists to have them in rising B order
 c     We do a simple bubble sort
 
       temp=1
  900  if(Blist(temp).gt.Blist(temp+1)) then
-
 
          temp1=Blist(temp+1)
          Blist(temp+1)=Blist(temp)
@@ -209,6 +261,14 @@ c     We do a simple bubble sort
             temp1=outphi(k,temp+1)
             outphi(k,temp+1)=outphi(k,temp)
             outphi(k,temp)=temp1
+
+            temp1=cenphi(k,temp+1)
+            cenphi(k,temp+1)=cenphi(k,temp)
+            cenphi(k,temp)=temp1
+
+            temp1=cendens(k,temp+1)
+            cendens(k,temp+1)=cendens(k,temp)
+            cendens(k,temp)=temp1
 
             temp1=xsheath(k,temp+1)
             xsheath(k,temp+1)=xsheath(k,temp)
@@ -244,15 +304,13 @@ c     We do a simple bubble sort
             indens3(k,temp+1)=indens3(k,temp)
             indens3(k,temp)=temp1
          enddo
-
          temp=0
       endif
+
       if (temp.eq.(narg-1)) goto 901
       temp=temp+1
       goto 900
  901  continue
-
-
 
 
 c Writes on the output file if necessary
@@ -276,8 +334,6 @@ c Change the B scale for the sake of plotting
       enddo
 
       call pfset(3)
-
-
       call multiframe(0,0,0)
 
 c     Plot floating potential as a function of B
@@ -323,7 +379,6 @@ c     Plot flux ratio as a function of B
       call axlabels('B','Flux ratio')
       call pltend()
 
-
 c     Plot outer density as a function of cos(theta) for all B
       call axptset(0.,0.)
 
@@ -346,6 +401,7 @@ c     Plot outer density as a function of cos(theta) for all B
      $        charin)
       enddo
       call pltend()
+
 
 c     Plot flux as a funtion of theta
       call minmax(thflux(1,1),nthhere*narg,outmin,outmax)
@@ -373,15 +429,14 @@ c     Plot flux as a funtion of theta
             close(15)
          endif
       enddo
-      
       call pltend()
 
-c     Plot outer potential as a function of cos(theta)
+c     Plot outer phi as a function of cos(theta)
       call minmax(outphi(1,1),nthhere*narg,outmin,outmax)
       call pltinit(-1.0,1.0,outmin-0.1,outmax+0.1)
       call axis()
       call axis2()
-      call axlabels('cos(!Aq!@)','phi boundary')
+      call axlabels('cos(!Aq!@)','phi outer')
       do j=1,narg
          call color(mod(j,15)+1)
          do k=1,nthhere
@@ -396,15 +451,58 @@ c     Plot outer potential as a function of cos(theta)
      $        charin)
       enddo
       call pltend()
-      
-      call multiframe(2,1,3)
 
+c     Plot center potential as a function of cos(theta)
+      call minmax(cenphi(1,1),nthhere*narg,cenmin,cenmax)
+      call pltinit(-1.0,1.0,cenmin-0.1,cenmax+0.1)
+      call axis()
+      call axis2()
+      call axlabels('cos(!Aq!@)','phi center')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nthhere
+            tempt1(k)=cenphi(k,j)
+            tempt2(k)=thcos(k,j)
+         enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nthhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+
+      enddo
+      call pltend()
+      
+c     Plot center density as a function of cos(theta)
+      call minmax(cendens(1,1),nthhere*narg,cenmin,cenmax)
+      call pltinit(-1.0,1.0,cenmin-0.1,cenmax+0.1)
+      call axis()
+      call axis2()
+      call axlabels('cos(!Aq!@)','density center')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nthhere
+            tempt1(k)=cendens(k,j)
+            tempt2(k)=thcos(k,j)
+         enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nthhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+      enddo
+      call pltend()
+
+
+      call multiframe(2,2,3)
 c     Plot potential at theta=0 and Pi/2 as function of r
       call minmax(inphi1(1,1),nrhere*narg,outmin,outmax)
       call pltinit(0.,rcc(nrhere)+0.,outmin-0.1,0.2)
       call axis()
       call axis2()
-      call axlabels('r','phi !Aq!@=Pi/2')
+      call axlabels('r','phi !Aq!@=0')
       do j=1,narg
          call color(mod(j,15)+1)
          do k=1,nrhere
@@ -423,11 +521,30 @@ c     Plot potential at theta=0 and Pi/2 as function of r
       call pltinit(0.,rcc(nrhere)+0.,outmin,outmax)
       call axis()
       call axis2()
-      call axlabels('r','phi !Aq!@=0')
+      call axlabels('r','phi !Aq!@=Pi/2')
       do j=1,narg
          call color(mod(j,15)+1)
          do k=1,nrhere
             tempt1(k)=inphi2(k,j)
+            tempt2(k)=rcc(k)
+         enddo
+         call winset(.true.)
+         call polyline(tempt2,tempt1,nrhere)
+         call winset(.false.)
+         write(charin,'(f4.2)') Blist(j)
+         call legendline(-.48,0.05*(j-1),0,
+     $        charin)
+      enddo
+
+      call color(15)
+      call pltinit(0.,rcc(nrhere)+0.,outmin,outmax)
+      call axis()
+      call axis2()
+      call axlabels('r','phi !Aq!@=Pi')
+      do j=1,narg
+         call color(mod(j,15)+1)
+         do k=1,nrhere
+            tempt1(k)=inphi3(k,j)
             tempt2(k)=rcc(k)
          enddo
          call winset(.true.)
@@ -478,8 +595,8 @@ c     Plot density at theta=0 and Pi/2 as function of r
      $        charin)
       enddo
       call pltend()
-      call multiframe(0,0,0)
 
+      call multiframe(0,0,0)
 c     Plot sheaths
       if (sh) then
          call minmax(xsheath(1,1),nthhere*narg,outmin,outmax)
@@ -497,7 +614,6 @@ c     Plot sheaths
             write(charin,'(f4.2)') Blist(j)
             call legendline(-.48,0.05*(j-1),0,
      $           charin)
-            
          enddo
          call pltend()
       endif
@@ -513,6 +629,7 @@ c Help section
       write(*,*) 'f(false) Writes output file'
 
  52   end
+
 
 c Data reading subroutine
       subroutine readoutput(lreaddiag,lpcic,ledge,
