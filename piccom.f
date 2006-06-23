@@ -42,6 +42,7 @@ c These correspond to nrfull and nthfull.
       parameter (nrsize=200,nthsize=201)
 c Positions and velocities of particles (6-d phase-space).
       real xp(ndim,npartmax+npartadd)
+      real dtprec(npartmax+npartadd)
 
 c Flag of particle slot status (e.g. in use or not)
       integer ipf(npartmax+npartadd)
@@ -75,7 +76,7 @@ c Highest occupied particle slot.
       logical lfixedn
       integer myid,numprocs
       real rmtoz
-      common /piccom/xp,npart,psum,
+      common /piccom/xp,npart,psum,dtprec,
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,

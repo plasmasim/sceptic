@@ -93,6 +93,8 @@ c End of setup. Start Cycling through particles.
       else
          ido=npart
       endif
+
+
       do i=1,ido
          if(ipf(i).gt.0) then
 c     Is this an active slot?
@@ -112,9 +114,6 @@ c               if(mod(i,1000).eq.0) write(*,*)isubcycle
             else
                isubcycle=1
             endif
-c     Parameters for the Lorentz force
-            cosomdt=cos(Bz*dt)
-            sinomdt=sin(Bz*dt)
 
             do 81 ic=1,isubcycle
 
@@ -143,10 +142,15 @@ c     write(*,501)accel,(xp(j,i),j=1,3)
                   rn0=sqrt(rn2)
                endif
                
+c     Parameters for the Lorentz force
+c     Fixings for the subcycling
+               dtnow=0.5*(dt+dtprec(i))
+               cosomdt=cos(Bz*dtnow)
+               sinomdt=sin(Bz*dtnow)
+
 c     AccelPhi/2+AccelBz+AccelPhi/2
-c               vzbefore=abs(xp(6,i))/xp(6,i)
                do j=4,6
-                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
+                  xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
                enddo
 
                temp=xp(4,i)
@@ -154,8 +158,10 @@ c               vzbefore=abs(xp(6,i))/xp(6,i)
                xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
 
                do j=4,6
-                  xp(j,i)=xp(j,i)+accel(j-3)*dt/2
+                  xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
                enddo
+
+               dtprec(i)=dt
 
                rn2=0.
                xdv=0.
@@ -754,7 +760,7 @@ c     Boundary at rshield
                      phi(i,j)=phi(i,j)+delta
                   endif
 
-               enddo
+               enddo           
             enddo
 
             if(abs(deltamax).lt.dconverge.and.k.ge.2) goto 11

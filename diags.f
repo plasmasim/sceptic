@@ -65,8 +65,16 @@ c New rhoinf calculation.
 c estimate of the rhoinf based on flux from this step.
 
 c Trial of different scheme. Combination equivalent to phihere usage.
+
         averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
 c        averein=spotrein/float(nrein)
+c         averein=0
+c         nrp=0
+c         do j=NTHUSED/2,3*NTHUSED/4
+c            averein=averein+phi(NRUSED,j)
+c            nrp=nrp+1.
+c         enddo
+c         averein=averein/nrp
 
          if(averein.gt.0.5*Ti)then
 c This is necessary to prevent smaxflux errors. smaxflux is not correct
