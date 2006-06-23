@@ -88,26 +88,12 @@ c     We have to calculate rhoinf consistently with the reinjection
      $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
      $           *r(NRFULL)**2 )
-<<<<<<< diags.f
             
          elseif (bcr.eq.2) then
 
             riest=(nreintry/dt) /
      $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-=======
-            
-         elseif (bcr.eq.2) then
-c     Adiabatic reinjection PROVIS
-c            riest=(nrein/dt) /
-c     $           (sqrt(2*Ti)*
-c     $           smaxflux2(-averein/Ti)
-c     $           *r(NRFULL)**2 )
-c            write(*,*) riest
-            riest=(nreintry/dt) /
-     $           (sqrt(Ti)*
-     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
->>>>>>> 1.5
      $           *r(NRFULL)**2 )
 c            write(*,*) riest
          endif
