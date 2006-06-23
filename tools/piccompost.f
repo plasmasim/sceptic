@@ -1,6 +1,5 @@
       integer npartmax,npart,nr,nth,ndim,np
       parameter (npartmax=200000,nr=1001,nth=401,np=1,ndim=6)
-
 c NGP definitions
       logical LCIC
       integer NRUSED,NTHUSED,NRFULL,NTHFULL
@@ -70,7 +69,6 @@ c Lower limit of averaging range. 0.6 by default
 
       integer nvmax,nrein,ninner,nstepmax
       parameter (nvmax=60,nstepmax=30000)
-
       real nvdiag(nvmax),nvdiagave(nvmax),vdiag(nvmax)
       real vrange
       real diagrho(nr),diagphi(nr)

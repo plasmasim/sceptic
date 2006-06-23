@@ -65,20 +65,8 @@ c New rhoinf calculation.
 c estimate of the rhoinf based on flux from this step.
 
 c Trial of different scheme. Combination equivalent to phihere usage.
-c PROVIS. Only use the potentials not perturbed by the magnetic field to
-c     calculate averein
-
         averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
 c        averein=spotrein/float(nrein)
-
-c PROVIS
-c         averein=0
-c         nrp=0
-c         do j=NTHUSED/2,3*NTHUSED/4
-c            averein=averein+phi(NRUSED,j)
-c            nrp=nrp+1.
-c         enddo
-c         averein=averein/nrp
 
          if(averein.gt.0.5*Ti)then
 c This is necessary to prevent smaxflux errors. smaxflux is not correct
@@ -100,6 +88,14 @@ c     We have to calculate rhoinf consistently with the reinjection
      $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
      $           *r(NRFULL)**2 )
+<<<<<<< diags.f
+            
+         elseif (bcr.eq.2) then
+
+            riest=(nreintry/dt) /
+     $           (sqrt(Ti)*
+     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
+=======
             
          elseif (bcr.eq.2) then
 c     Adiabatic reinjection PROVIS
@@ -111,6 +107,7 @@ c            write(*,*) riest
             riest=(nreintry/dt) /
      $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
+>>>>>>> 1.5
      $           *r(NRFULL)**2 )
 c            write(*,*) riest
          endif

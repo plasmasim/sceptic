@@ -106,8 +106,8 @@ c     Here we do need half quantities.
 
 c     Now we know where we are in radius rp. We decide the level of subcycling.
             if(lsubcycle) then
-               isubcycle=4*(r(nrfull)-rp)/(r(nrfull)-1)+2
-c               if(mod(i,1000).eq.0) write(*,*)isubcycle,
+               isubcycle=r(nrfull)/rp
+c               if(mod(i,1000).eq.0) write(*,*)isubcycle
                dt=dtin/isubcycle
             else
                isubcycle=1
