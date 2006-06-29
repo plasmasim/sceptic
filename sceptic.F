@@ -390,7 +390,7 @@ c Plot at some subset of steps.
 c         write(*,*)mod(i-1,ipstep),i,ipstep
          lplot=lpstore.and.(mod(i-1,ipstep).eq.0)
 c Acceleration for first 1/3rd of steps.
-         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.)+1.)
+         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
          dt=bdtnow*dtf
          ninjcomp=bdtnow*ninjcomp0
 c     Here there is a problem if we have ipstep!=1 because it is

@@ -144,6 +144,7 @@ c     write(*,501)accel,(xp(j,i),j=1,3)
                
 c     Parameters for the Lorentz force
 c     Fixings for the subcycling
+               if(dtprec(i).eq.0.)dtprec(i)=dt
                dtnow=0.5*(dt+dtprec(i))
                cosomdt=cos(Bz*dtnow)
                sinomdt=sin(Bz*dtnow)
