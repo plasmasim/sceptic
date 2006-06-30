@@ -23,7 +23,7 @@ c     For now, put maxsteps in piccom
       character*100 string
       logical readpart,writepart
       logical lsmooth,lcolcont,lpstore
-      logical rmaxauto
+      logical rmaxauto,lfcalcl
 
 c Communicator and id for the sor communicator
 c In the case of sorparallel=false, myid2=0 only
@@ -40,6 +40,7 @@ c Common storage
       data readpart/.false./
       data writepart/.false./
       data sorparallel/.false./
+      data lfcalcl/.false./
       data rmaxauto/.false./
 c Parallel processing MPI options.
 #ifdef MPI
@@ -133,6 +134,7 @@ c Deal with arguments
  259        ipstep=1
  260        continue
          endif
+         if(string(1:7) .eq. '--fcalc') lfcalcl=.true.
          if(string(1:2) .eq. '-f') finaldiags=.false.
          if(string(1:3) .eq. '-er') then
             read(string(4:),*)ierad
@@ -527,9 +529,11 @@ c     Calculate the potential field, unless it is fixed.
             elseif (myid2.eq.0.and.debyelen.eq.0) then
                call fcalc(dt)
             elseif (myid2.ge.0)then
-c     Run fcalc_lambda to compare with older versions
-c               call fcalc_lambda(dt)
-               call fcalc_shielding(dt,sor_comm,myid2)
+               if(lfcalcl.and.(.not.sorparallel)) then
+                  call fcalc_lambda(dt)
+               else
+                  call fcalc_shielding(dt,sor_comm,myid2)
+               endif
             endif
          endif
 
@@ -698,14 +702,15 @@ c Help section
       write(*,*)' --localinj use local potential for injection.',
      $     ' --smooth symmetrize in angle.'
       write(*,*)' --fextccccc.. use symmetric potential read from file.'
+      write(*,*)' --fcalc use old potential solver (for validation etc)'
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
       write(*,*)' --rhoinf.ff specify constant injection rate, rather',
      $     ' than particle number.'
       write(*,*)' --bz.ff Bz (0),--ds subdivide the domain, --sp use',
      $     'parallel bloc solver'
-      write(*,*)'--bcphi(0) bc potential (0:spherical sym, 1: Quasi',
+      write(*,*)' --bcphi(0) bc potential (0:spherical sym, 1: Quasi',
      $     ' neutrality on outer crone, 2: Phiout=0, 3: dPhiout/dr=0)'
-      write(*,*)'--bcr(0) bc reinject (0:spherical sym, 1: Simple',
+      write(*,*)' --bcr(0) bc reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
 
       end
