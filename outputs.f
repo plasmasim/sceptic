@@ -102,7 +102,7 @@ c -log(rhoinf)
       nastep=0
       do k=1,i
          write(10,*)(ninthstep(j,k),j=1,NTHUSED)
-         if(k.gt.3*i/4)then
+         if(k.gt.i/2)then
             nastep=nastep+1
             do j=1,NTHUSED
                ninth(j)=ninth(j)+ninthstep(j,k)
