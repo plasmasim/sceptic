@@ -50,10 +50,10 @@ c Parallel processing MPI options.
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, numprocs, ierr )
-
 #else
       myid=0
       numprocs=1
+      sor_comm=0
 #endif
 
 c Full size arrays by default. Can be changed later by switches.
@@ -529,14 +529,17 @@ c     Calculate the potential field, unless it is fixed.
             elseif (myid2.eq.0.and.debyelen.eq.0) then
                call fcalc(dt)
             elseif (myid2.ge.0)then
+#ifdef MPI
                if(lfcalcl.and.(.not.sorparallel)) then
+#endif
                   call fcalc_lambda(dt)
+#ifdef MPI
                else
                   call fcalc_shielding(dt,sor_comm,myid2)
                endif
+#endif
             endif
          endif
-
 
 c     Broadcast back to the slaves.
 #ifdef MPI

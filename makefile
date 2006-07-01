@@ -24,13 +24,14 @@ REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o
 # Local versions. 
 
 MPICOMPILE-SWITCHES = -Wall  -Wno-globals -DMPI -O2 -I.
-OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o chargefield.o  sor2dmpi.o mpibbdy.o $(REINJECT) damp.o
+OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o
+MPIOBJECTS=sor2dmpi.o mpibbdy.o shielding.o
 
 sceptic : sceptic.F piccom.f  ./accis/libaccisX.a $(OBJECTS) makefile
 	$(G77) $(COMPILE-SWITCHES) -o sceptic sceptic.F $(OBJECTS) $(LIBRARIES)
 
-scepticmpi : sceptic.F piccom.f bbdydecl.f ./accis/libaccisX.a $(OBJECTS) makefile
-	$(G77) $(MPICOMPILE-SWITCHES) -o scepticmpi  sceptic.F $(OBJECTS) $(LIBRARIES)
+scepticmpi : sceptic.F piccom.f bbdydecl.f ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
+	$(G77) $(MPICOMPILE-SWITCHES) -o scepticmpi  sceptic.F $(OBJECTS) $(MPIOBJECTS) $(LIBRARIES)
 
 ./accis/libaccisX.a : ./accis/*.f
 	make -C accis
