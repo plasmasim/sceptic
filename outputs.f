@@ -17,91 +17,7 @@ c***********************************************************************
 c Version 2.6 outputs two files. T...frc traces the force evolution.
 
 
-c     Writes a txt file with the orbits of the traced particules
-      subroutine orbitoutput()
-
-c     Common data
-      include 'piccom.f'
-
-
-      character*30 filename
-      integer iti,it2
-
-c Construct a filename that contains many parameters
-
-      write(filename,'(a)')'T'
-      iti=nint(alog10(Ti)-0.49)
-      it2=nint(Ti/10.**iti)
-      write(filename(2:2),'(i1.1)')it2
-      if(iti.lt.0) then
-         filename(3:3)='m'
-         iti=-iti
-      else
-         filename(3:3)='e'
-      endif
-      write(filename(4:4),'(i1.1)')iti
-
-      filename(5:5)='v'
-      write(filename(6:8),'(i3.3)')nint(100*vd)
-      filename(9:9)='r'
-      write(filename(10:11),'(i2.2)')ifix(r(nr))
-      filename(12:12)='P'
-      write(filename(13:14),'(i2.2)')ifix(abs(Vprobe))
-
-      filename(15:15)='L'
-      if(debyelen.gt.1.e-10)then
-         iti=nint(alog10(debyelen)-0.49)
-         it2=nint(debyelen/10.**iti)
-      else
-         it2=0
-         iti=0
-      endif
-      write(filename(16:16),'(i1.1)')it2
-      if(iti.lt.0) then
-         filename(17:17)='m'
-         iti=-iti
-      else
-         filename(17:17)='e'
-      endif
-      write(filename(18:18),'(i1.1)')iti
-
-      filename(19:19)='B'
-      if(Bz.gt.1.e-10)then
-         iti=nint(alog10(Bz)-0.49)-1
-         it2=nint(Bz/10.**iti)
-      else
-         it2=0
-         iti=0
-      endif
-      write(filename(20:21),'(i2.2)')it2
-      if(iti.lt.0) then
-         filename(22:22)='m'
-         iti=-iti
-      else
-         filename(22:22)='e'
-      endif
-      write(filename(23:23),'(i1.1)')iti
-
-      filename(24:27)='.orb'
-
-
-
-      open(15,file=filename)
-      write(15,*) 'Number of orbits'
-      write(15,*) norbits
-      do k=1,norbits
-         write(15,*) k,'th orbit'
-         write(15,*) iorbitlen(k)
-         do i=1,iorbitlen(k)
-            write(15,590) xorbit(i,k),yorbit(i,k),zorbit(i,k),
-     $      vxorbit(i,k),vyorbit(i,k),vzorbit(i,k)
-         enddo
-      enddo
- 590  format(6f9.4)
-      close(15)
-      end
-
-
+c*********************************************************************
 c     Writes the main output file
       subroutine output(dt,damplen,i,fave)
 c Common data:
@@ -229,6 +145,86 @@ c End of output file.
       close(10)
       filename(24:27)='.frc'
       call outforce(filename,i)
+      end
+c************************************************************************
+c     Writes a txt file with the orbits of the traced particles
+      subroutine orbitoutput()
+c     Common data
+      include 'piccom.f'
+
+      character*30 filename
+      integer iti,it2
+
+c Construct a filename that contains many parameters
+
+      write(filename,'(a)')'T'
+      iti=nint(alog10(Ti)-0.49)
+      it2=nint(Ti/10.**iti)
+      write(filename(2:2),'(i1.1)')it2
+      if(iti.lt.0) then
+         filename(3:3)='m'
+         iti=-iti
+      else
+         filename(3:3)='e'
+      endif
+      write(filename(4:4),'(i1.1)')iti
+
+      filename(5:5)='v'
+      write(filename(6:8),'(i3.3)')nint(100*vd)
+      filename(9:9)='r'
+      write(filename(10:11),'(i2.2)')ifix(r(nr))
+      filename(12:12)='P'
+      write(filename(13:14),'(i2.2)')ifix(abs(Vprobe))
+
+      filename(15:15)='L'
+      if(debyelen.gt.1.e-10)then
+         iti=nint(alog10(debyelen)-0.49)
+         it2=nint(debyelen/10.**iti)
+      else
+         it2=0
+         iti=0
+      endif
+      write(filename(16:16),'(i1.1)')it2
+      if(iti.lt.0) then
+         filename(17:17)='m'
+         iti=-iti
+      else
+         filename(17:17)='e'
+      endif
+      write(filename(18:18),'(i1.1)')iti
+
+      filename(19:19)='B'
+      if(Bz.gt.1.e-10)then
+         iti=nint(alog10(Bz)-0.49)-1
+         it2=nint(Bz/10.**iti)
+      else
+         it2=0
+         iti=0
+      endif
+      write(filename(20:21),'(i2.2)')it2
+      if(iti.lt.0) then
+         filename(22:22)='m'
+         iti=-iti
+      else
+         filename(22:22)='e'
+      endif
+      write(filename(23:23),'(i1.1)')iti
+
+      filename(24:27)='.orb'
+
+      open(15,file=filename)
+      write(15,*) 'Number of orbits'
+      write(15,*) norbits
+      do k=1,norbits
+         write(15,*) k,'th orbit'
+         write(15,*) iorbitlen(k)
+         do i=1,iorbitlen(k)
+            write(15,590) xorbit(i,k),yorbit(i,k),zorbit(i,k),
+     $      vxorbit(i,k),vyorbit(i,k),vzorbit(i,k)
+         enddo
+      enddo
+ 590  format(6f9.4)
+      close(15)
       end
 c*********************************************************************
 c Write a second file with the force data as a function of step
