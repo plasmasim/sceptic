@@ -76,12 +76,11 @@ c Zero the sums now these are assigned here.
             vtp2sum(i,j)=0.
          enddo
       enddo
-
 c      if(lfixedn)then
-c Fixed number of particles. The ninjcomp is already=npartmax.
+cc  Fixed number of particles. The ninjcomp is already=npartmax.
 c         ipmax=npart
 c      else
-c Fixed flux. Rely on ninjcomp to terminate the particle slot treatment.
+cc Fixed flux. Rely on ninjcomp to terminate the particle slot treatment.
 c         ipmax=npartmax
 c      endif
 c      write(*,*)'Starting cycle',ipmax,ninjcomp
@@ -109,7 +108,7 @@ c     Here we do need half quantities.
 c     Now we know where we are in radius rp. We decide the level of subcycling.
             if(lsubcycle) then
                isubcycle=r(nrfull)/rp
-c               if(mod(i,1000).eq.0) write(*,*)isubcycle
+c     if(mod(i,1000).eq.0) write(*,*)isubcycle
                dt=dtin/isubcycle
             else
                isubcycle=1
@@ -142,10 +141,10 @@ c     write(*,501)accel,(xp(j,i),j=1,3)
                   rn0=sqrt(rn2)
                endif
                
-c     Parameters for the Lorentz force
 c     Fixings for the subcycling
                if(dtprec(i).eq.0.)dtprec(i)=dt
                dtnow=0.5*(dt+dtprec(i))
+c     Parameters for the Lorentz force
                cosomdt=cos(Bz*dtnow)
                sinomdt=sin(Bz*dtnow)
 
@@ -186,86 +185,84 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                endif
 
 c     Handling boundaries for 'real particles' :
-               if(i.le.npart) then
-                  if(rn.le.r(1)) then
-                     ninner=ninner+1
-                     nrealin=nrealin-1
+            if(i.le.npart) then
+               if(rn.le.r(1)) then
+                  ninner=ninner+1
+                  nrealin=nrealin-1
 c     Solve for sphere crossing step fraction, s.
-                     a=0.
-                     b=0.
-                     c=0.
-                     do j=1,3
-                        a=a+(dt*xp(j+3,i))**2
-                        b=b-2.*xp(j,i)*(dt*xp(j+3,i))
-                        c=c+xp(j,i)**2
-                     enddo
-                     c=c-r(1)**2
-                     s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
-                     xc=xp(1,i)-s*dt*xp(4,i)
-                     yc=xp(2,i)-s*dt*xp(5,i)
-                     zc=xp(3,i)-s*dt*xp(6,i)
-                     ctc=zc/sqrt(xc**2+yc**2+zc**2)
+                  a=0.
+                  b=0.
+                  c=0.
+                  do j=1,3
+                     a=a+(dt*xp(j+3,i))**2
+                     b=b-2.*xp(j,i)*(dt*xp(j+3,i))
+                     c=c+xp(j,i)**2
+                  enddo
+                  c=c-r(1)**2
+                  s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
+                  xc=xp(1,i)-s*dt*xp(4,i)
+                  yc=xp(2,i)-s*dt*xp(5,i)
+                  zc=xp(3,i)-s*dt*xp(6,i)
+                  ctc=zc/sqrt(xc**2+yc**2+zc**2)
 c     Interpolate onto the theta mesh as in ptomesh               
-                     ithc=interpth(ctc,tfc)
+                  ithc=interpth(ctc,tfc)
 c     
-                     if(LCIC)then
-                        icell=nint(ithc+tfc)
-                     else
-                        icell=ithc
-                     endif
-                     ninth(icell)=ninth(icell)+1
-                     zmomprobe=zmomprobe+xp(6,i)
-                  elseif(rn.ge.r(nr))then
-                     zmout=zmout-xp(6,i)
+                  if(LCIC)then
+                     icell=nint(ithc+tfc)
+                  else
+                     icell=ithc
+                  endif
+                  ninth(icell)=ninth(icell)+1
+                  zmomprobe=zmomprobe+xp(6,i)
+               elseif(rn.ge.r(nr))then
+                  zmout=zmout-xp(6,i)
 c     We did not leave the grid inside.
-                  elseif(dsub) then
+               elseif(dsub) then
 c     Check if the particule entered the inner domain, and if yes
 c     store it. We also update nrealin
-                     if ((rn0.ge.rsp) .and. (rn.lt.rsp)) then
-                        xpstonum(nread)=xpstonum(nread)+1
-                        do k=1,6
-                           xpstorage(k,xpstonum(nread),nread)=xp(k,i)
-                        enddo  
-                        nrealin=nrealin+1
-                     elseif ((rn.gt.rsp) .and. (rn0.le.rsp)) then
-                        nrealin=nrealin-1
-                     endif
-                     goto 81
-                  else
-                     goto 81
+                  if ((rn0.ge.rsp) .and. (rn.lt.rsp)) then
+                     xpstonum(nread)=xpstonum(nread)+1
+                     do k=1,6
+                        xpstorage(k,xpstonum(nread),nread)=xp(k,i)
+                     enddo  
+                     nrealin=nrealin+1
+                  elseif ((rn.gt.rsp) .and. (rn0.le.rsp)) then
+                     nrealin=nrealin-1
                   endif
-c     We left. 
-c     If we haven't exhausted complement, restart particle i.
-                  if(nrein.lt.ninjcomp) then
-                     call reinject(i,dtin,icolntype,bcr)
-                     ipf(i)=1
-                     zmout=zmout+xp(6,i)
-                     if(i.le.norbits) then
-                        if (.not.(orbinit))
-     $                       iorbitlen(i)=0
-                     endif
-                  else
-                     ipf(i)=0
-c     if(i.gt.190000) write(*,*)'Leaving empty slot',i
+                  goto 81
+               else
+                  goto 81
+               endif
+c We left. 
+c If we haven't exhausted complement, restart particle i.
+               if(nrein.lt.ninjcomp) then
+                  call reinject(i,dtin,icolntype,bcr)
+                  ipf(i)=1
+                  zmout=zmout+xp(6,i)
+                  if(i.le.norbits) then
+                     if (.not.(orbinit))
+     $                    iorbitlen(i)=0
                   endif
+               else
+                  ipf(i)=0
+c                  if(i.gt.190000) write(*,*)'Leaving empty slot',i
+               endif
 c     Break from subcycles.
-                  goto 82
+               goto 82
 c     Now we care about the add particles. If they leave the domain, we
 c     just reinject them, since we don't use them for diagnostics
 c     as fluxes
-               else
-                  if((rn.le.r(1)).or.(rn.ge.rsp)) then
-                     a=nint(ran0(idum)*(addhist-1))+1
-                     b=nint(ran0(idum)*(xpstonum(a)-1))+1
-                     do k=1,6
-                        xp(k,i)=xpstorage(k,b,a)
-                     enddo
-                  endif
+            else
+               if((rn.le.r(1)).or.(rn.ge.rsp)) then
+                  a=nint(ran0(idum)*(addhist-1))+1
+                  b=nint(ran0(idum)*(xpstonum(a)-1))+1
+                  do k=1,6
+                     xp(k,i)=xpstorage(k,b,a)
+                  enddo
                endif
- 81            continue
- 82            continue
-
-
+            endif
+ 81         continue
+ 82         continue
             if(ldist) then
                rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c     Diagnostics of f_r(rmax):
@@ -296,13 +293,12 @@ c     write(*,502)rn,ithc,vr
                   endif
                endif
             endif
-
 c     Orbit diagnostics
             if(i.le.norbits) then
                iorbitlen(i)=iorbitlen(i)+1
                xorbit(iorbitlen(i),i)=xp(1,i)
                yorbit(iorbitlen(i),i)=xp(2,i)
-               rorbit(iorbitlen(i),i)=sqrt(xp(2,i)**2+xp(1,i)**2)
+               rorbit(iorbitlen(i),i)=sqrt(xp(1,i)**2+xp(2,i)**2)
                zorbit(iorbitlen(i),i)=xp(3,i)
                vxorbit(iorbitlen(i),i)=xp(4,i)
                vyorbit(iorbitlen(i),i)=xp(5,i)
@@ -453,7 +449,6 @@ c     $        .or. ih.eq.NRFULL)then
          endif
       endif
       end
-
 c***********************************************************************
 c Calculate potential phi from rho.
       subroutine fcalc_lambda(dt)
@@ -461,9 +456,7 @@ c Calculate potential phi from rho.
 c Common data:
       include 'piccom.f'
       real relax
-
       real phislopeconst(nth),phislopefac(nth)
-
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
       rjac=1.-4./max(10,NRUSED)**2
       omega=1.
@@ -535,7 +528,6 @@ c SOR iteration.
       do k=1,maxits
 c Use over-relaxation if debyelen is large, or straight newton otherwise.
          relax=(omega*debyelen**2+1.)/(debyelen**2+1.)
-
          deltamax=0.
 c Alternate iteration directions
          if(mod(k/2,2).eq.0)then
@@ -590,14 +582,13 @@ c     Outer boundary.
             omega=1./(1.-0.25*rjac**2*omega)
         endif
       enddo
-c     write(*,*)'SOR not converged. deltamax=',deltamax
+c      write(*,*)'SOR not converged. deltamax=',deltamax
  11   continue
       write(*,'('':'',i3,$)')k
-c write(*,201)k,deltamax,relax
+c      write(*,201)k,deltamax,relax
  201  format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4)
 c Calculate electric force on probe. Moved to main.
 c Inner Boundary values
-
       do j=1,NTHUSED
          phi(0,j)=2.*phi(imin,j)-phi(imin+1,j)
       enddo
@@ -607,17 +598,14 @@ c Inner Boundary values
       enddo
 c      write(*,*)'phi(rmax)=',phi(NRFULL,NTHUSED/2)
       end
-
 c*******************************************************************
       subroutine innerbc(imin,dt)
       include 'piccom.f'
       real flogfac
       real fluxofangle(nthsize)
-   
       if(linsulate.or.lfloat) then
          flogfac=0.5*alog(2.*pi/(rmtoz*1837.))
          totflux=0.
-
          do j=1,nthused
             if(lcic)then
                fluxofangle(j)=finthave(j)*(nthused-1.)/
@@ -808,7 +796,6 @@ c     The exponentiation costs about 8.
          endif
       enddo
       end
-
 c*******************************************************************
       subroutine fcalc_infdbl(dt)
       include 'piccom.f'
