@@ -38,15 +38,11 @@ c         V2=2.*RAN0(idum)-1.
 c**********************************************************************
       FUNCTION RAN0(IDUM)
       save
-c      integer*2 iseed
+c Version of July 06 that removes the argument dependence.
       DIMENSION V(97)
       DATA IFF /0/
-      IF(IDUM.LT.0.OR.IFF.EQ.0)THEN
+      IF(IFF.EQ.0)THEN
         IFF=1
-        ISEED=ABS(IDUM)
-c Don't do this here because I call it explicitly elsewhere.
-c        call srand(iseed)
-        IDUM=1
         DO 11 J=1,97
           DUM=RANd()
 11      CONTINUE

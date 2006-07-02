@@ -682,9 +682,11 @@ c       ichoose=starting particle icycle=particle-number step.
       include 'piccom.f'
       include 'colncom.f'
 
+      write(*,*)'nucollide',dt,cnu,icolntype
 c Don't attempt if collision freq is zero.
       if(cnu.le.0.) return
       ncollide=0
+      idum=1
       tisq=sqrt(Ti)
 
 c     Here we need to invert a poisson distribution to tell if we had
@@ -768,6 +770,7 @@ c       ichoose=starting particle icycle=particle-number step.
       include 'piccom.f'
 
       icycle=10
+      idum=1
 c Decide which subset of particles to collide.
       ichoose=ran0(idum)*icycle+1
       if(ichoose.gt.icycle)ichoose=icycle

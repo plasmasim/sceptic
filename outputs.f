@@ -19,9 +19,10 @@ c Version 2.6 outputs two files. T...frc traces the force evolution.
 
 c*********************************************************************
 c     Writes the main output file
-      subroutine output(dt,damplen,i,fave)
+      subroutine output(dt,damplen,i,fave,icolntype,colnwt)
 c Common data:
       include 'piccom.f'
+      include 'colncom.f'
       character*30 filename
       integer iti,it2
 c Construct a filename that contains many parameters
@@ -137,9 +138,10 @@ c Particle units nTr^2, Electric nT lambda_D^2.
       write(10,*)(zmom(nstepmax,j,1),j=1,4),total1
       write(10,*)(zmom(nstepmax,j,2),j=1,4),total2
       if(rmtoz.ne.1.) write(10,'(''rmtoz='',f10.4)')rmtoz
-      if(icolntype.ne.0) write(10,
-     $     '(''Collisions: type='',i4,'' weight='',f10.5)')
-     $     icolntype,colnwt
+      if(icolntype.ne.0) write(10,701)
+     $     icolntype,colnwt,Eneutral,vneutral,Tneutral
+ 701  format('Collisions: type=',i4,' weight=',f8.4,' Eneutral=',
+     $     f10.5,' vneutral=',f8.4,' Tneutral=',f8.4)
 
 c End of output file.
       close(10)

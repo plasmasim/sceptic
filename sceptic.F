@@ -392,8 +392,10 @@ c Plot at some subset of steps.
 c         write(*,*)mod(i-1,ipstep),i,ipstep
          lplot=lpstore.and.(mod(i-1,ipstep).eq.0)
 c Acceleration for first 1/3rd of steps.
-         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
+         bdtnow=max(1.,(bdt-1.)*(maccel-i+2)/(maccel+1.)+1.)
+c         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
          dt=bdtnow*dtf
+         write(*,*)'bdtnow,btd,maccel,dt,dtf=',bdtnow,bdt,maccel,dt,dtf
          ninjcomp=bdtnow*ninjcomp0
 c     Here there is a problem if we have ipstep!=1 because it is
 c     essential that right after changing pfset one should call
@@ -582,7 +584,6 @@ c     Plot radial average velocity and temperatures.
          endif
 c     Main particle advance.
          call padvnc(dt,icolntype,i)
-c         call padvnc(dt,icolntype)
 c     Collide the particles. See routine in advancing.f.
          if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
 c     Reduce back the flux and distribution data from the particle advance.
@@ -656,7 +657,7 @@ c Draw some final diagnostic figures, if flag set.
       endif
       if(myid.eq.0)then
 c Write the output file.
-         call output(dt,damplen,i-1,fave)
+         call output(dt,damplen,i-1,fave,icolntype,colnwt)
          if (norbits.ge.1) call orbitoutput()
       endif
 

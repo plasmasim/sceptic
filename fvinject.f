@@ -32,6 +32,7 @@ c A really small number
       eps=1.e-20
 c___________________________________________________________________
 c Pick a random th: pth
+      idum=1
  1    y1=ran0(idum)*qthfv(nthfvsize)
       call f1invtfunc(qthfv,nthfvsize,y1,pth)
       ipth=pth
@@ -359,7 +360,7 @@ c Do the outer flux accumulation.
       nrein=nrein+1
 c Reject particles that are already outside the mesh.
       if(.not.rp.le.r(nr)*r(nr).or. rp.le.1.)then
-c         write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
+c        write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
          goto 1
       else
 c Needs th to be initialized, I think.

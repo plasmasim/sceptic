@@ -133,7 +133,8 @@ c diagnostic data
       real vrdiagin(nvmax),vtdiagin(nvmax)
       real vrange
       real diagrho(nrsize),diagphi(nrsize)
-      real diagchi(nthsize)
+cIHH      real diagchi(nthsize)
+      real diagchi(0:nthsize)
       real diagvr(nrsize,nthsize)
       integer partz,fieldz,epressz,enccharge
       parameter(enccharge=1,fieldz=2,epressz=3,partz=4)
