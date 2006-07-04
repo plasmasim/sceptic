@@ -682,7 +682,6 @@ c       ichoose=starting particle icycle=particle-number step.
       include 'piccom.f'
       include 'colncom.f'
 
-      write(*,*)'nucollide',dt,cnu,icolntype
 c Don't attempt if collision freq is zero.
       if(cnu.le.0.) return
       ncollide=0
