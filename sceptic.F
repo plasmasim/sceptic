@@ -33,6 +33,7 @@ c does the potential calculation
 c Common storage
       include 'piccom.f'
       include 'colncom.f'
+      include 'fvcom.f'
       data maxsteps/500/
       data rmax/5./
       data dtf/0.025/bdt/1./
@@ -107,6 +108,8 @@ c     bcr : BC on reinjection
       Bz=0.
       infdbl=.false.
       orbinit=.false.
+c Signal that fvcom is not initialized. After initialization it is .ne.0
+      qthfv(nthfvsize)=0.
 
 c Deal with arguments
       if(iargc().eq.0) goto 51
@@ -395,7 +398,7 @@ c Acceleration for first 1/3rd of steps.
          bdtnow=max(1.,(bdt-1.)*(maccel-i+2)/(maccel+1.)+1.)
 c         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
          dt=bdtnow*dtf
-         write(*,*)'bdtnow,btd,maccel,dt,dtf=',bdtnow,bdt,maccel,dt,dtf
+c         write(*,*)'bdtnow,btd,maccel,dt,dtf=',bdtnow,bdt,maccel,dt,dtf
          ninjcomp=bdtnow*ninjcomp0
 c     Here there is a problem if we have ipstep!=1 because it is
 c     essential that right after changing pfset one should call

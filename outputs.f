@@ -39,8 +39,8 @@ c Using the routines in strings_names.f
 
 c Write out averaged results.
       open(10,file=filename)
-      write(10,'(a,a)')'  dt       vd       Ti  steps    rhoinf  
-     $          phiinf   fave  debyelen Vp damplen / nr/ phi  Bz'
+      write(10,'(a,a)')'  dt       vd       Ti  steps    rhoinf ' ,
+     $       '   phiinf   fave  debyelen Vp damplen / nr/ phi  Bz'
       write(10,'(2f8.5,f8.4,i6,f12.4,f11.5,f8.4,2f14.5,f8.3,f8.4)')
      $     dt,vd,Ti,i,rhoinf,log(rhoinf),fave,debyelen,vprobe,damplen,Bz
       write(10,*)NRUSED

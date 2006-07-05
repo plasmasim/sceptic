@@ -219,6 +219,8 @@ c     $      costheta*vz+sintheta*vx
      $        ,y3,qz(nzfva),y3/qz(nzfva),izfv,fzfv,vz
          write(*,*)'i,i+1,qz(i),qz(i+1)',izfv,izfv+1,
      $        qz(izfv),qz(izfv+1)
+c Don't try to plot here. Just try again.
+         goto 2
          ldiaginj=.true.
       endif
 c End of solving for the reinjection th,vx,vz.
@@ -408,9 +410,6 @@ c to the mesh.
          vzfv(i)=vzfvi*i/float(nzfvi)
       enddo
 c
-c Iterate over the cosine(theta) range which is set up in meshinitcic as
-c follows. We assume this has already been done. 
-c Notice th goes from +1. to -1. Nthused may be odd or even.
       do i=1,nthfvsize
 c theta array including poles
 c Uniform in cos theta

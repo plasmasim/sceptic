@@ -653,8 +653,8 @@ c Constant nu collisions. The Eneutral must be consistent with vd:
          Eneutral=colnwt*(vd-vneutral)
 c Testing
 c         Eneutral=0.
-         write(*,*)'colnwt,vd,vneutral=',colnwt,vd,vneutral
-     $        ,' Eneutral calculated as',Eneutral
+         if(myid .eq.0) write(*,*)'colnwt,vd,vneutral=',colnwt,vd
+     $        ,vneutral,' Eneutral=',Eneutral
      $        
       else
 c Need more code here for other types. Not yet implemented.

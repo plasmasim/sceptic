@@ -20,6 +20,7 @@ c***********************************************************************
       integer istep
 c Common data:
       include 'piccom.f'
+      include 'fvcom.f'
       real rhoplot(nrsize),rho1theta(nthsize),rhomidtheta(nthsize)
       real rhomidave(nthsize),rho1ave(nthsize)
       real phiave(nrsize)
@@ -85,7 +86,17 @@ c            write(*,*)'Excessive averein',averein,' capped'
 
 c     We have to calculate rhoinf consistently with the reinjection
 
-         if (bcr.eq.0) then
+         if(qthfv(nthfvsize).ne.0.) then
+c Using general fvinject. qthfv(nthfvsize) contains the one-way flux density
+c integrated dcos(theta) in 2Ti-normalized units.
+c We hack up the effect of attracting edge potential.
+            riest=(nrein/dt) /
+     $           (sqrt(2.*Ti)*
+     $           qthfv(nthfvsize)*2.*3.141593*(1-averein/(Ti+0.*vd**2))
+     $           *r(NRFULL)**2 )
+
+         elseif (bcr.eq.0) then
+c smaxflux returns total flux in units of Ti (not 2Ti)
             riest=(nrein/dt) /
      $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
@@ -542,7 +553,6 @@ c     having a value on the sphere normalized to Ti of minus
 
       real eps,pi
       data eps/1.e-3/pi/3.1415927/
-
 
       erf=1.-erfcc(uc)
       sqpi=sqrt(pi)
