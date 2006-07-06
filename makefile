@@ -6,7 +6,7 @@
 # g77 default case:
 LIBRARIES = -L/usr/X11R6/lib/ -L./accis/ -laccisX -lXt -lX11 
 G77=mpif77
-COMPILE-SWITCHES = -Wall -O2  -I. 
+COMPILE-SWITCHES = -Wall -O2  -I.
 #not necessary -fno-backslash
 # For debugging.
 #  -g  -ffortran-bounds-check
@@ -35,6 +35,12 @@ scepticmpi : sceptic.F piccom.f bbdydecl.f ./accis/libaccisX.a $(OBJECTS) $(MPIO
 
 ./accis/libaccisX.a : ./accis/*.f
 	make -C accis
+
+orbitint : orbitint.f coulflux.o $(OBJECTS) ./accis/libaccisX.a makefile
+	$(G77) $(COMPILE-SWITCHES) -o orbitint orbitint.f $(OBJECTS) coulflux.o $(LIBRARIES)
+
+coulflux.o : tools/coulflux.f
+	$(G77) -c $(COMPILE-SWITCHES) tools/coulflux.f
 
 fvinjecttest : fvinjecttest.F makefile fvinject.o initiate.o advancing.o chargefield.o randf.o fvcom.f
 	$(G77)  -o fvinjecttest $(COMPILE-SWITCHES) fvinjecttest.F fvinject.o initiate.o advancing.o chargefield.o randf.o  $(LIBRARIES)
