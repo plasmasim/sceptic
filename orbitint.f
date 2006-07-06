@@ -69,6 +69,8 @@ c Don't make much smaller. Messes up normalization:
       cftot=0
       debyelen=1.
       adeficit=0.
+      icolntype=0
+      bcr=0
 
 c Initialize the mesh and poisson coefficients
       if(LCIC)then
@@ -94,6 +96,7 @@ c         if(string(1:2) .eq. '-x') read(string(3:),*)rmax
          if(string(1:2) .eq. '-v') read(string(3:),*)vd
          if(string(1:2) .eq. '-p') read(string(3:),*)vprobe
          if(string(1:2) .eq. '-l') read(string(3:),*)debyelen
+         if(string(1:3) .eq. '-kt') read(string(4:),*)icolntype
          if(string(1:1) .ne. '-' ) then
 c Try to read file:
             write(*,*)'Trying to read file',string
@@ -160,13 +163,13 @@ c            stop
       venr=6.+abs(vd)
 c r(nr) is needed by reinject.
       r(nr)=rmax
-      write(*,*)'Initializing injection, orbitint'
-      call injinit(0,0)
+      write(*,*)'Initializing injection, icolntype=',icolntype
+      call injinit(icolntype,bcr)
       call finit()
 c      write(*,'(2f8.4)')(rcc(i),phi(i,1),i=1,NRUSED)
       if(diagrho(1).eq.999.)then
 c         initialize to set averein
-         call reinject(1,dt,0,0)
+         call reinject(1,dt,icolntype,bcr)
       else
          averein=vprobe/rmax
       endif
@@ -188,7 +191,7 @@ c         vdist(i)=0.
       ntrapped=0
       do k=1,ninjects
          kp=1+mod(k-1,npartmax)
-         call reinject(kp,dt,0,0)
+         call reinject(kp,dt,icolntype,bcr)
 c         write(*,501)(xp(j,kp),j=1,6)
 c 501  format('Pos=',3f10.4,' Vel=',3f10.4)
          ct=xp(3,kp)/sqrt(xp(1,kp)**2+xp(2,kp)**2+xp(3,kp)**2)

@@ -18,7 +18,7 @@ COMPILE-SWITCHES = -Wall -O2  -I.
 #REINJECT=reinject.o
 #REINJECT=orbitinject.o extint.o
 # Current: To allow both collisional and collision free:
-REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o
+REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 
 # MPI version needs the beowulf libraries. Edit the MPILIBS to point to your
 # Local versions. 

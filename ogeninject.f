@@ -14,43 +14,10 @@ c
 c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c***********************************************************************
-c General version allows choice of reinjection scheme.
-c***********************************************************************
-      subroutine reinject(i,dt,icolntype,bcr)
-
-      integer bcr 
-
-      if(bcr.ne.0) then
-         call maxreinject(i,dt,bcr)
-      elseif(icolntype.eq.1) then
-         call fvreinject(i,dt)
-      elseif(icolntype.eq.2)then
-c     Here one should put other options but for now         
-         call ogenreinject(i,dt)
-      else
-         call oreinject(i,dt)
-      endif
-      end
-c***********************************************************************
-      subroutine injinit(icolntype,bcr)
-
-      integer bcr
-
-      if(bcr.ne.0) then
-         call maxinjinit(bcr)
-      elseif(icolntype.eq.1) then
-         call fvinjinit(icolntype)
-      elseif(icolntype.eq.2)then
-c Here one should put other options but for now         
-         call ogeninjinit()
-      else
-         call oinjinit()
-      endif
-      end
-c***********************************************************************
+c Orbit injection for general gyrotropic distribution function.
 c***********************************************************************
 c Other versions are in other source files.
-      subroutine oreinject(i,dt)
+      subroutine ogenreinject(i,dt)
       integer i
       real dt
 c Common data:
@@ -63,7 +30,6 @@ c Testing
       real tdist(nthsize)
       real crdist(nthsize),cidist(nthsize)
       common/rtest/crdist,cidist,tdist,vdist
-
 
 c In this routine we work in velocity units relative to ion thermal till end.
       vscale=sqrt(2.*Ti)
@@ -236,7 +202,7 @@ c crt,czt,ceta,cosal
       end
 c********************************************************************
 c Initialize the distributions describing reinjected particles
-      subroutine oinjinit()
+      subroutine ogeninjinit()
 c Common data:
       include 'piccom.f'
 
@@ -274,213 +240,12 @@ c***********************************************************************
 c***********************************************************************
 c Calculate the cumulative probability for velocity index iu such that
 c         u= vspread*(iu-1.)/(nvel-1.)   as per injinit
-      real function pu(iu)
+      real function pugen(iu)
       integer iu
 c     averein is the average potential of reinjected particles, which is
 c     used as an estimate of the potential at the reinjection boundary.
 c     It is expressed in units of Te so needs to be scaled to Ti.
       include 'piccom.f'
       pudenom=pu1(1)-pu2(1)*averein/Ti
-      pu=1.- (pu1(iu)-pu2(iu)*averein/Ti)/pudenom
+      pugen=1.- (pu1(iu)-pu2(iu)*averein/Ti)/pudenom
       end
-c********************************************************************
-c Given a monotonic (increasing?) 
-c function Q(x) on a 1-D grid x=1..nq, solve Q(x)=y for x.
-c That is, invert Q to give x=Q^-1(y).
-      subroutine finvtfunc(Q,nq,y,x)
-c Somehow this breaks the passing of a function reference.
-c      implicit none
-c      real external Q
-      integer nq
-      real y,x
-c
-      integer iqr,iql,iqx
-      real Qx,Qr,Ql
-      Ql=Q(1)
-      Qr=Q(nq)
-      iql=1
-      iqr=nq
-      if((y-Ql)*(y-Qr).gt.0.) then
-c Value is outside the range.
-         x=0
-         return
-      endif
- 200  if(iqr-iql.eq.1)goto 210
-      iqx=(iqr+iql)/2
-      Qx=Q(iqx)
-c      write(*,*)y,Ql,Qx,Qr,iql,iqr
-c Formerly .lt. which is an error.
-      if((Qx-y)*(Qr-y).le.0.) then
-         Ql=Qx
-         iql=iqx
-      else
-         Qr=Qx
-         iqr=iqx
-      endif
-      goto 200
- 210  continue
-c Now iql and iqr, Ql and Qr bracket Q
-      x=(y-Ql)/(Qr-Ql)+iql
-      end
-c**********************************************************************
-C Inverse square law (phi\propto 1/r) injection functions:
-c**********************************************************************
-      subroutine alcossin(s,c,cosal,sinal)
-      real s,c,cosal,sinal
-      cosal=alcos(s,c)
-      sinal=alsin(s,c)
-      end
-c**********************************************************************
-      real function alcos(s,c)
-      real s,c
-      if(s.le.1.e-12*c)then
-         alcos=-1.
-         return
-      else
-         r=c/(2.*s)
-         alcos=-(sqrt(1.+c-s**2)-(s-r)*r)/(1+r**2)
-      endif
-      end
-c**********************************************************************
-      real function alsin(s,c)
-      real s,c
-      if(s.le.1.e-12*c)then
-         alsin=0.
-         return
-      else
-         r=c/(2.*s)
-         alsin=(sqrt(1.+c-s**2)*r+(s-r))/(1+r**2)
-      endif
-      end
-c**********************************************************************
-c**********************************************************************
-c Return the angle cosine and sine for impact of a particle calculated
-c by integrating the angle formula for a general central force.
-c We integrate in the variable q=1/r from 0 to 1, provided that we don't
-c encounter a barrier. If we do encounter one, we return an error.
-c
-c This version designed to work with uneven spacing if
-c necessary, and trapezoidal integration. And uses init2ext
-      subroutine alphaint(p2,b2,cosal,sinal,ierr)
-c     The angular momentum and impact parameter squared
-c     in units such that injection radius is 1.
-      real p2, b2
-c     The angle values returned.
-      real cosal, sinal
-c     The error return signal if non-zero.
-      integer ierr
-c Common data:
-      include 'piccom.f'
-      integer iqsteps
-c This choice ensures iqsteps is large enough to accommodate a profile
-c read in for processing with orbitint, but might not be the best choice for
-c regular use.
-c      parameter (iqsteps=nrsize+1)
-      parameter (iqsteps=100+1)
-      real phibye(iqsteps),phiei(iqsteps)
-      real qp(iqsteps),pp(iqsteps)
-      logical uninitialized
-      data uninitialized/.true./
-      save
-c Statement function
-c Inverse square law potential.
-      extpot(q)=averein*q
-c Not currently in use.
-
-c First time through, do the initialization.
-      if(uninitialized)then
-         iqs=iqsteps
-         uninitialized=.false.
-c Screening length accounting for both ions and electrons.
-         xlambda=debyelen/sqrt(1.+1./Ti)
-         if(xlambda.lt.1.e-6)xlambda=1.e-6
-         if(diagrho(1).eq.999.)then
-c Special case to use the read in data.
-c Some common data used in abnormal ways.
-            qp(1)=0.
-            phibye(1)=0.
-            if(ninner.gt.iqsteps)stop 'Alphaint Too many r-cells read.'
-            do i=1,ninner
-               qp(i+1)=1./rcc(ninner+1-i)
-               phibye(i+1)=diagphi(ninner+1-i)
-            enddo
-            iqs=ninner+1
-            if(qp(iqs).ne.1.)then
-               iqs=iqs+1
-               qp(iqs)=1.
-c Extrapolate linearly in q.
-               phibye(iqs)=phibye(iqs-1)+
-     $              (phibye(iqs-1)-phibye(iqs-2))*
-     $              (qp(iqs)-qp(iqs-1))/(qp(iqs-1)-qp(iqs-2))
-            endif
-c The read-in case just uses phibye not phiei. And scales phibye(iqs) to 1
-c putting the absolute edge value into averein.
-            averein=phibye(iqs)
-            adeficit=0.
-            do i=1,iqs
-               phibye(i)=phibye(i)/phibye(iqs)
-            enddo
-c End of read-in potential special case.
-         else
-c Specify the q-array. It goes from 0 to 1.
-            do i=1,iqs
-               qp(i)=((i-1.)/(iqs-1.))
-            enddo
-c            write(*,*)iqs,r(nr),xlambda,averein,adeficit
-c     Since phi is specified in real space units, we tell the initialization
-c     function what the rmax really is, and it does the transformation.
-            call initext(iqs,qp,phibye,phiei,r(nr),xlambda)
-         endif
-c         write(*,'(2f8.4)')(qp(j),phibye(j),j=1,iqs)
-c Hack to ignore outside:
-c         do i=1,iqs
-c            phibye(i)=0.
-c            phiei(i)=phiei(i)*0.5
-c         enddo
-c Diagnostics
-c         write(*,'(3f8.4)')(qp(j),phibye(j),phiei(j),j=1,iqs)
-         if(averein.ne.0)then
-c     When used by SCEPTIC averein is zero the first time, so this will
-c     not be called.
-            do i=1,iqs
-               pp(i)=averein*phibye(i)-adeficit*phiei(i)
-            enddo
-            write(*,*)'adeficit=',adeficit
-            call autoplot(qp,pp,iqs)
-            call axlabels('q','potential')
-            call pltend()
-         endif
-      endif
-c End of initialization section.
-c Do the integration for the orbit.
-      ierr=0
-      b2i=1./b2
-      p2i2=2./p2
-      sa=b2i - qp(1)**2 - p2i2*(averein*phibye(1)-adeficit*phiei(1))
-      d1=(1./sqrt(sa))
-c Inverse square case.
-c      d1=1./sqrt(b2i)
-      alpha=0.
-c Trapezoidal rule.
-      do i=2,iqs
-         d2=d1
-         sa=b2i - qp(i)**2 - p2i2*(averein*phibye(i)-adeficit*phiei(i))
-c Inverse square case.
-c         sa=b2i - qp(i)**2 - p2i2*extpot(qp(i))
-         if(sa .le. 0.) goto 2
-         d1=(1./sqrt(sa))
-         alpha=alpha+(qp(i)-qp(i-1))*(d1+d2)*.5
-      enddo
-c      write(*,*)'alpha=',alpha
-c Negative sign for definition of alpha relative to the forward direction.
-      cosal=-cos(alpha)
-      sinal=sin(alpha)
-      return
- 2    ierr=i
-c      write(*,101)i,b2,p2,averein,adeficit
- 101  format('Barrier: i=',i3,' b2=',f8.1,
-     $     ' p2=',f8.4,' averein=',f8.4,' adeficit=',f8.4)
-      end
-c********************************************************************
-
-
