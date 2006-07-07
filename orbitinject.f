@@ -23,11 +23,13 @@ c***********************************************************************
       if(bcr.ne.0) then
          call maxreinject(i,dt,bcr)
       elseif(icolntype.eq.1) then
+c Injection from fv distribution at the boundary.
          call fvreinject(i,dt)
       elseif(icolntype.eq.2)then
-c     Here one should put other options but for now         
+c Injection from a general gyrotropic distribution at infinity
          call ogenreinject(i,dt)
       else
+c Injection from a shifted maxwellian at infinity
          call oreinject(i,dt)
       endif
       end
@@ -37,13 +39,16 @@ c***********************************************************************
       integer bcr
 
       if(bcr.ne.0) then
+c Injection from a maxwellian at boundary?
          call maxinjinit(bcr)
       elseif(icolntype.eq.1) then
+c Injection from fv distribution at the boundary.
          call fvinjinit(icolntype)
       elseif(icolntype.eq.2)then
-c Here one should put other options but for now         
-         call ogeninjinit()
+c Injection from a general gyrotropic distribution at infinity
+         call ogeninjinit(icolntype)
       else
+c Injection from a shifted maxwellian at infinity
          call oinjinit()
       endif
       end

@@ -23,7 +23,7 @@ c Other versions are in other source files.
 c Common data:
       include 'piccom.f'
       parameter (eup=1.e-10)
-      external pu
+      external pugen
       logical istrapped
 c Testing
       real vdist(nvel)
@@ -44,37 +44,26 @@ c In this routine we work in velocity units relative to ion thermal till end.
       endif
 c Pick normal velocity from cumulative Pu
       y=ran0(idum)
-      call finvtfunc(pu,nvel,y,u)
+      call finvtfunc(pugen,nvel,y,u)
       iv=u
       dv=u-iv
       u=dv*Vcom(iv+1)+(1.-dv)*Vcom(iv)
       if(dv.gt.1)write(*,*)'Error in u calculation',iv,dv
       vdist(iv)=vdist(iv)+1.
-c Pick angle from cumulative Pc.
+c Pick angle from cumulative Pc based on numerical distributions.
       y=ran0(idum)
-c Here the drift velocity is scaled to the ion temperature.
-      Uc=vd/vscale
-      uu2=2.*Uc*u
-      if(uu2.gt.50.) then
-         crt=1.+alog(y)/uu2
-      elseif(uu2.lt.-50.) then
-         crt=-1.+alog(1-y)/uu2
-      elseif(abs(uu2).lt.1.e-5)then
-         crt=2.*y -1.
-      else
-         expuu2=exp(uu2)
-c This expression is evaluated very inaccurately if expuu2 is nearly 1.
-c That is why such a large limit on abs(uu2) is adopted.
-         crt=alog(y*expuu2 + (1-y)/expuu2)/uu2
-c The following do not do any better at solving this problem.
-c         crt=alog( (y*expuu2 + (1-y)/expuu2)**(1./uu2))
-c         crt=-1.+alog(1.+(expuu2**2-1.)*y)/uu2
+      y=y*( (1.-dv)*Pc(nQth,iv) + dv*Pc(nQth,iv+1))
+      call f2invtfunc(Pc(1,iv),Pc(1,iv+1),nQth,y,xc,(1.-dv),dv)
+      ixc=xc
+      if(xc.lt.1.) then
+         write(*,*) 'Theta choice error:',
+     $        xc,y,iv,dv
+         call autoplot(Qcom,Pc(1,iv),nQth)
+         call polyline(Qcom,Pc(1,iv+1),nQth)
+         call pltend()
       endif
-      if(.not. abs(crt).le.1)then
-c         write(*,*)'Strange crt:',crt,y,expuu2,uu2
-c It seems impossible to avoid occasional strange results when uu2 is small.
-         crt=2.*y-1.
-      endif
+      fxc=xc-ixc
+      crt=(1.-fxc)*Qcom(ixc)+ fxc*Qcom(ixc+1)
 c Testing angular distribution.
       if(LCIC)then
          icr=(1.+crt)*0.5*(NTHUSED-1) + 1.5
@@ -201,42 +190,6 @@ c crt,czt,ceta,cosal
       endif
       end
 c********************************************************************
-c Initialize the distributions describing reinjected particles
-      subroutine ogeninjinit()
-c Common data:
-      include 'piccom.f'
-
-c Here the drift velocity is scaled to the ion temperature.
-c And U's are in units of sqrt(2T/m), unlike vd.
-      Uc=abs(vd)/sqrt(2.*Ti)
-c Range of velocities (times (Ti/m_i)^(1/2)) permitted for injection.
-      vspread=5.+abs(Uc)
-
-c Can't use these formulas for Uc exactly equal to zero.
-      if(abs(Uc).lt.1.e-4)then
-         if(Uc.lt.1.e-20) Uc=1.e-20
-         do i=1,nvel
-            u0= vspread*(i-1.)/(nvel-1.)
-            Vcom(i)=u0
-            expu0=exp(-u0**2)
-            pu2(i)=2.*Uc*expu0
-            pu1(i)=0.5*(4.*u0**2*Uc + 2.*Uc)*expu0
-     $           +(Uc**2 +0.5)*pu2(i)
-         enddo
-      else
-         do i=1,nvel
-            u0= vspread*(i-1.)/(nvel-1.)
-            Vcom(i)=u0
-            uplus=u0+Uc
-            uminus=u0-Uc
-            pu2(i)=0.5*sqrt(pi)*(erfcc(uminus)-erfcc(uplus))
-            pu1(i)=0.5*(-uminus*exp(-uplus**2)+uplus*exp(-uminus**2))
-     $           +(Uc**2 +0.5)*pu2(i)
-         enddo
-      endif
-      call srand(myid)
-      end
-c***********************************************************************
 c***********************************************************************
 c Calculate the cumulative probability for velocity index iu such that
 c         u= vspread*(iu-1.)/(nvel-1.)   as per injinit
@@ -248,4 +201,90 @@ c     It is expressed in units of Te so needs to be scaled to Ti.
       include 'piccom.f'
       pudenom=pu1(1)-pu2(1)*averein/Ti
       pugen=1.- (pu1(iu)-pu2(iu)*averein/Ti)/pudenom
+      end
+c********************************************************************
+c Initialize the distributions describing reinjected particles
+      subroutine ogeninjinit(icolntype)
+      integer icolntype
+c Common data:
+      include 'piccom.f'
+c Passing the drift velocity to fv.
+      common /distfunc/ud
+c Velocity in this routine is normalized to a nominal ion thermal velocity
+c which for a Maxwellian-related form is sqrt(2T_i/m).
+      ud=vd/sqrt(2.*Ti)
+c Range of velocities permitted for injection.
+      vspread=5.+3.*abs(ud)
+
+      do i=1,nQth
+c Qcom is here used as 
+c the cosine angle of the ith angle interpolation position. 
+c         Qcom(i)=1.-2.*(i-1.)/(nQth-1.)
+c Perhaps we want this going from -1 to +1 not +1 to -1.
+         Qcom(i)=-1.+2.*(i-1.)/(nQth-1.)
+      enddo
+c As a function of radial velocity index j
+      do j=1,nvel
+c on the mesh Vcom
+         Vcom(j)=vspread*(j-1.)/(nvel-1.)
+         Pc(1,j)=0.
+c Integrate fv with respect to costheta.
+         do i=2,nQth
+            ci=0.5*(Qcom(i)+Qcom(i-1))
+            si=sqrt(1-ci**2)
+            vx=Vcom(j)*si
+            vz=Vcom(j)*ci
+            Pc(i,j)=Pc(i-1,j)+(Qcom(i)-Qcom(i-1))*
+     $           fv(vx,vz)
+c Pc is the integral in cos(angle) Qcom(i) at velocity Vcom(j) of fv
+         enddo
+      enddo
+c Initialize integrations
+      pu1(1)=0.
+      pu2(1)=0.
+      do j=2,nvel
+c Integrate along the velocity to get the interpolation functions.
+         du=(Vcom(j)-Vcom(j-1))
+         p1=(Pc(nQth,j)*Vcom(j)+Pc(nQth,j-1)*Vcom(j-1))*0.5
+         p3=(Pc(nQth,j)*Vcom(j)**3+Pc(nQth,j-1)*Vcom(j-1)**3)*0.5
+         pu1(j)=pu1(j-1)+du*p3
+         pu2(j)=pu2(j-1)+du*p1
+      enddo
+c Renormalize?
+      do j=1,nvel
+c Make pu1,2 monotonically decreasing to zero for orbitinject:
+         pu1(j)=pu1(nvel) -pu1(j)
+         pu2(j)=pu2(nvel) -pu2(j)
+         do i=1,nQth
+            
+         enddo
+      enddo
+c For angular comparisons only, not used for actual reinjection here,
+c we want the integral over velocity of the flux at angle Qcom.
+c We store this in Gcom's first two rows. 
+c (The second is to be chi_b weighted).
+      do i=1,nQth
+         Gcom(1,i)=0.
+         Gcom(2,i)=0.
+         ci=-Qcom(i)
+         si=sqrt(1-ci**2)
+         fvp=0.
+         do j=2,nvel
+            du=(Vcom(j)-Vcom(j-1))
+            fvn=fv(Vcom(j)*si,Vcom(j)*ci)
+            Gcom(1,i)=Gcom(1,i)+du*(Vcom(j)**3*fvn+Vcom(j-1)**3*fvp)/2.
+            Gcom(2,i)=Gcom(2,i)+du*(Vcom(j)*fvn+Vcom(j-1)*fvp)/2.
+            fvp=fvn
+         enddo
+      enddo
+c We store the integral over theta of Gcoms in G(3,1 and 2)
+      Gcom(3,1)=0.
+      Gcom(3,2)=0.
+      do i=2,nQth
+         dth=Qcom(i)-Qcom(i-1)
+         Gcom(3,1)=Gcom(3,1)+dth*(Gcom(1,i)+Gcom(1,i-1))/2.
+         Gcom(3,2)=Gcom(3,2)+dth*(Gcom(2,i)+Gcom(2,i-1))/2.
+      enddo
+
+      call srand(myid)
       end

@@ -25,7 +25,7 @@ c vdanal analytic theory of ditto.
 c fventer velocity distribution entering at Boundary.
       real crdist(nthsize),cidist(nthsize)
       common/rtest/crdist,cidist,tdist,vdist
-      real vdanal(nvel)
+      real vdanal(nvel),vdnumer(nvel),cndist(nQth)
       real Iu2
       real venter(nvel),fventer(nvel)
       logical istrapped
@@ -41,18 +41,14 @@ c Full size arrays by default. Can be changed later by switches.
             write(*,*)'Too many theta points:',nth,'  Set to',nthsize-1
             nth=nthsize-1
          endif
-         NRUSED=nr
          NTHUSED=nth
-         NRFULL=nr
          NTHFULL=nth+1
       else
          if(nth.gt.nthsize)then
             write(*,*)'Too many theta points:',nth,'  Set to',nthsize
             nth=nthsize
          endif
-         NRUSED=nr-1
          NTHUSED=nth-1
-         NRFULL=nr
          NTHFULL=nth
       endif
 c Using more than 200000 seems to make the code hang. Don't know why.
@@ -71,6 +67,7 @@ c Don't make much smaller. Messes up normalization:
       adeficit=0.
       icolntype=0
       bcr=0
+      Pc(nQth,nvel)=0.
 
 c Initialize the mesh and poisson coefficients
       if(LCIC)then
@@ -160,13 +157,20 @@ c            stop
 
  1    continue
  3    continue
-      venr=6.+abs(vd)
 c r(nr) is needed by reinject.
       r(nr)=rmax
       write(*,*)'Initializing injection, icolntype=',icolntype
+c Testing new injinit
       call injinit(icolntype,bcr)
+      call autoplot(vcom,pu1,nvel)
+      call polyline(vcom,pu2,nvel)
+      call boxtitle('Velocity distribution functions pu1, pu2')
+      call pltend()
+      venr=Vcom(nvel)+2.
+c Testing.
+c      stop
+c
       call finit()
-c      write(*,'(2f8.4)')(rcc(i),phi(i,1),i=1,NRUSED)
       if(diagrho(1).eq.999.)then
 c         initialize to set averein
          call reinject(1,dt,icolntype,bcr)
@@ -183,12 +187,16 @@ c            write(*,*)acos(th(i)),(-averein/Ti),vd/sqrt(Ti)
             cftot=cftot+cflux(i)
          endif
       enddo
+      do i=1,nth
+         cflux(i)=cflux(i)/cftot
+      enddo
       do i=1,nvel
 c         vdist(i)=0.
          fventer(i)=0.
          venter(i)=i*venr/nvel
       enddo
       ntrapped=0
+      write(*,*)'Doing ',ninjects,' injections. Type=',icolntype
       do k=1,ninjects
          kp=1+mod(k-1,npartmax)
          call reinject(kp,dt,icolntype,bcr)
@@ -203,14 +211,13 @@ c 501  format('Pos=',3f10.4,' Vel=',3f10.4)
          fventer(ivdiag)=fventer(ivdiag)+1.
          if(istrapped(kp)) ntrapped=ntrapped+1
       enddo
-c      weight=cftot/(ninjects)
-      weight=cftot/(nrein)
 c      write(*,*)'venter,   fventer'
 c      write(*,'(f10.3,f10.1)')(venter(j),fventer(j),j=1,nvel)
+      ts=nthused/2.
       do i=1,NTHUSED
-         cidist(i)=Iu2(vd/sqrt(2.*Ti),(-th(i)),(-averein/Ti))
-         tdist(i)=tdist(i)*cftot/ninjects
-         crdist(i)=crdist(i)*weight
+         cidist(i)=ts*Iu2(vd/sqrt(2.*Ti),(-th(i)),(-averein/Ti))/cftot
+         tdist(i)=tdist(i)/ninjects
+         crdist(i)=ts*crdist(i)/nrein
       enddo
       if(LCIC)then
          crdist(NTHUSED)=2.*crdist(NTHUSED)
@@ -224,10 +231,6 @@ c      write(*,'(f10.3,f10.1)')(venter(j),fventer(j),j=1,nvel)
 c      write(*,'(3f10.4)')(th(j),tdist(j),cflux(j),j=1,nth-1)
 c      write(*,*)cidist
 c      write(*,'(2f10.4)')(cidist(j),crdist(j),j=1,nth-1)
-      call autoplot(vcom,pu1,nvel)
-      call polyline(vcom,pu2,nvel)
-      call boxtitle('Velocity distribution functions pu1, pu2')
-      call pltend()
 
       if(LCIC)then
 c adjust the tcc mesh to account for proper averaging.
@@ -235,7 +238,21 @@ c adjust the tcc mesh to account for proper averaging.
          tcc(NTHUSED)=tcc(NTHUSED)+0.25*(tcc(NTHUSED-1)-tcc(NTHUSED))
       endif
       call automark(tcc(1),crdist,NTHUSED,2)
-      call polyline(th(1),cidist,NTHUSED)
+      if(Pc(nQth,nvel).ne.0. .and. icolntype.eq.2)then
+c We are using the numerical integrations. Get the angular distrib
+c from the place they are stored, in Gcom (1 and 2)
+         do j=1,nQth
+            cndist(j)=(Gcom(1,j)-Gcom(2,j)*(averein/Ti))/
+     $           (Gcom(3,1)-Gcom(3,2)*(averein/Ti))
+c Adjust plot position:
+            Qcom(j)=Qcom(j)+1./nQth
+         enddo
+c          write(*,*)'Qcom(1)=',Qcom(1)
+         call polyline(Qcom,cndist,nQth-1)
+      else
+         write(*,*)'Comparing with cidist'
+         call polyline(th(1),cidist,NTHUSED)
+      endif
       call boxtitle('Angular distribution at infinity.')
       call axlabels('cos!Aq!@','')
       call pltend()
@@ -243,14 +260,28 @@ c adjust the tcc mesh to account for proper averaging.
       Uc=abs(vd)/sqrt(2.*Ti)
       do i=1,nvel
          vcd(i)=Vcom(i)+0.5*(Vcom(2)-Vcom(1))
-         vdist(i)=vdist(i)*((nvel-1)/(5.+abs(uc)))*
-     $        (pu1(1)-(averein/Ti)*pu2(1))
-     $        /float(nrein)
+c Old approach to normalization.
+c         vdist(i)=vdist(i)*((nvel-1)/(5.+abs(uc)))*
+c     $        (pu1(1)-(averein/Ti)*pu2(1))
+c     $        /float(nrein)
          vdanal(i)=(exp(-(Uc-Vcom(i))**2)-exp(-(Uc+Vcom(i))**2))*
      $        (Vcom(i)**2 - averein/Ti)
+c Normalization so that \int vdist dv = 1 :
+         vdist(i)=vdist(i)/Vcom(2)/float(nrein)
+c This is not the analytical approx but the numerical:
+         vdnumer(i)=Pc(nQth,i)*(Vcom(i)**2-averein/Ti)*Vcom(i)
+     $        /(pu1(1)-(averein/Ti)*pu2(1))
+
       enddo
       call automark(Vcd,vdist,nvel,1)
-      call polyline(Vcom,vdanal,nvel)
+      if(Pc(nQth,nvel).ne.0.)then
+         call polyline(Vcom,vdnumer,nvel)
+         call legendline(.6,.2,0,' numerical')
+      else
+         call polyline(Vcom,vdanal,nvel)
+         call legendline(.6,.2,0,' analytical')
+      endif
+      call legendline(.6,.15,1,' reinjects')
       call boxtitle('Velocity distribution at infinity.')
       call pltend()
 
@@ -280,6 +311,8 @@ c            write(*,*)j,ftdist(j)
       endif
       call legendline(.4,.05,3,' SCEPTIC')
       call legendline(.4,.1,1,' orbit integral')
+      call winset(.false.)
+      call jdrwstr(.05,.03,'(Agreement only when lambda is large)',1.)
       call pltend()
 
       call automark(venter,fventer,nvel,1)

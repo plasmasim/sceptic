@@ -119,12 +119,13 @@ c Random interpolate data.
       real Gcom(nvel,nQth)
       real Vcom(nvel)
       real pu1(nvel),pu2(nvel)
+      real Pc(nQth,nvel)
 c New BC
       integer bcphi,bcr
       logical infdbl
 c Reinjection flux as a function of cos(theta) (line) and chi (column,
 c from 0 to 9)
-      common /rancom/Gcom,Vcom,Qcom,pu1,pu2,infdbl,bcphi,bcr
+      common /rancom/Gcom,Vcom,Qcom,pu1,pu2,Pc,infdbl,bcphi,bcr
 c********************************************************************
 c diagnostic data
       integer nvmax,nrein,nreintry,ninner,nstepmax
