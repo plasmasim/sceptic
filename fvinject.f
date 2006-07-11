@@ -634,33 +634,38 @@ c with v_n = sqrt(2T_n/m). a is acceleration, nu_c collision freq.
          vd=ud
       endif
       if(vd.eq.0.)then
-         earg=100
+         carg=20.
+c         earg=100
       else
-         earg=(0.5/vd)**2-v/vd
+         carg=0.5/vd-v
+c         earg=(0.5/vd)**2-v/vd
       endif
-      if(earg.lt.50) then
-         fvcx=exp(earg)*erfcc(0.5/vd-v)*0.5/vd
+      if(carg.lt.10)then
+c      if(abs(earg).lt.50) then
+c         fvcx=exp(earg)*erfcc(carg)*0.5/vd
+         fvcx=exp(-v**2)*experfcc(carg)*0.5/vd
       else
-c asymptotic form exp(-v^2)/sqrt(\pi):
-         fvcx=exp(-v**2)/1.77245385
+c asymptotic form for large exp argument (small vd):
+c  exp(-v^2)/[sqrt(\pi)(1-2 v_d v)]:
+         fvcx=exp(-v**2)/1.77245385/(1.-2.*vd*v)
       endif
+c      write(*,*)'fvcx:vd,v,earg,fvcx',vd,v,earg,fvcx
       if(.not.fvcx.ge.0) then
          write(*,*)'fvcx error. u=',u,' ud=',ud,' f=',fvcx,earg
          fvcx=0.
       endif
       end
 c****************************************************************
-c erfc from NR: (is in randf.f)
-c      FUNCTION ERFCC(X)
-c      Z=ABS(X)      
-c      T=1./(1.+0.5*Z)
-c      ERFCC=T*EXP(-Z*Z-1.26551223+T*(1.00002368+T*(.37409196+
-c     *    T*(.09678418+T*(-.18628806+T*(.27886807+T*(-1.13520398+
-c     *    T*(1.48851587+T*(-.82215223+T*.17087277)))))))))
-c      IF (X.LT.0.) ERFCC=2.-ERFCC
-c      RETURN
-c      END
-c*****************************************************************
+c (ERFCC is in randf.f) this is exp*erfc
+      FUNCTION expERFCC(X)
+      Z=ABS(X)      
+      T=1./(1.+0.5*Z)
+      expERFCC=T*EXP(-1.26551223+T*(1.00002368+T*(.37409196+
+     *    T*(.09678418+T*(-.18628806+T*(.27886807+T*(-1.13520398+
+     *    T*(1.48851587+T*(-.82215223+T*.17087277)))))))))
+      IF (X.LT.0.) expERFCC=2.*exp(z**2)-expERFCC
+      END
+c*******************************************************************
 
 c********************************************************************
 c Given a monotonic (increasing?) 

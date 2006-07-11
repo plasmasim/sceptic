@@ -249,6 +249,9 @@ c Adjust plot position:
          enddo
 c          write(*,*)'Qcom(1)=',Qcom(1)
          call polyline(Qcom,cndist,nQth-1)
+c         write(*,'(8f8.5)')cndist
+c         write(*,'(8f8.5)')(Gcom(1,j),j=1,nQth)
+c         write(*,'(8f8.5)')(Gcom(2,j),j=1,nQth)
       else
          write(*,*)'Comparing with cidist'
          call polyline(th(1),cidist,NTHUSED)
@@ -266,6 +269,7 @@ c     $        (pu1(1)-(averein/Ti)*pu2(1))
 c     $        /float(nrein)
          vdanal(i)=(exp(-(Uc-Vcom(i))**2)-exp(-(Uc+Vcom(i))**2))*
      $        (Vcom(i)**2 - averein/Ti)
+     $        /(pu1(1)-(averein/Ti)*pu2(1))
 c Normalization so that \int vdist dv = 1 :
          vdist(i)=vdist(i)/Vcom(2)/float(nrein)
 c This is not the analytical approx but the numerical:

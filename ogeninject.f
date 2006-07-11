@@ -214,7 +214,7 @@ c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)
 c Range of velocities permitted for injection.
-      vspread=5.+3.*abs(ud)
+      vspread=3.+3.*abs(ud)
 
       do i=1,nQth
 c Qcom is here used as 
@@ -250,15 +250,15 @@ c Integrate along the velocity to get the interpolation functions.
          pu1(j)=pu1(j-1)+du*p3
          pu2(j)=pu2(j-1)+du*p1
       enddo
-c Renormalize?
       do j=1,nvel
 c Make pu1,2 monotonically decreasing to zero for orbitinject:
          pu1(j)=pu1(nvel) -pu1(j)
          pu2(j)=pu2(nvel) -pu2(j)
-         do i=1,nQth
-            
-         enddo
       enddo
+c Now pu1(1) = \int u   f(u,c) dc du and
+c     pu2(1) = \int u^3 f(u,c) dc du.
+c So the flux at infinity is 2\pi*(pu1(1)*u^2-pu2(1)*\chi_b).
+c
 c For angular comparisons only, not used for actual reinjection here,
 c we want the integral over velocity of the flux at angle Qcom.
 c We store this in Gcom's first two rows. 
@@ -268,7 +268,7 @@ c (The second is to be chi_b weighted).
          Gcom(2,i)=0.
          ci=-Qcom(i)
          si=sqrt(1-ci**2)
-         fvp=0.
+         fvp=fv(0.,0.)
          do j=2,nvel
             du=(Vcom(j)-Vcom(j-1))
             fvn=fv(Vcom(j)*si,Vcom(j)*ci)
@@ -285,6 +285,9 @@ c We store the integral over theta of Gcoms in G(3,1 and 2)
          Gcom(3,1)=Gcom(3,1)+dth*(Gcom(1,i)+Gcom(1,i-1))/2.
          Gcom(3,2)=Gcom(3,2)+dth*(Gcom(2,i)+Gcom(2,i-1))/2.
       enddo
+
+      write(*,*)'pu1(1),pu2(1)      ',pu1(1),pu2(1)
+      write(*,*)'Gcom(3,1),Gcom(3,2)',Gcom(3,1),Gcom(3,2)
 
       call srand(myid)
       end
