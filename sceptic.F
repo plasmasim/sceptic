@@ -467,13 +467,12 @@ c     Broadcast back to the slaves.
 
          if(myid.eq.0) then          
 c Plot the slices through the probe.
-
-
             if(lplot) call slices(jstepth,rhomin,rhomax,time)
 
-c Document charge accumulated; calculate diagrho.
-c This is where rhoinf and finthave get calculated.
-            call chargediag(dt,i)
+c Document charge accumulated; calculate diagrho, finthave.
+            call chargediag(dt,i,icolntype)
+c Calculate rhoinf
+            call rhoinfcalc(dt,icolntype)
          endif
 
 c If we use floating potential, the slaves may need rhoinf and fluxes

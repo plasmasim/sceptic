@@ -15,20 +15,17 @@ c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c Version 2.5; Aug 2004
 c***********************************************************************
-      subroutine chargediag(dt,istep)
+      subroutine chargediag(dt,istep,icolntype)
       real dt
-      integer istep
+      integer istep,icolntype
 c Common data:
       include 'piccom.f'
       include 'fvcom.f'
       real rhoplot(nrsize),rho1theta(nthsize),rhomidtheta(nthsize)
       real rhomidave(nthsize),rho1ave(nthsize)
       real phiave(nrsize)
-      real riave
+c      real riave
       save
-
-c This allows us to restart with nstepsave .ne. 1 if rhoinf is set.
-      if(riave.eq.0)riave=rhoinf
 c Calculate rhoplot,diagphi,diagrho,rho1theta,rhomidtheta
       do i=1,nr
  510     format(10f8.1)
@@ -43,89 +40,19 @@ c     rhoplot is unnormalized. All others are normalized.
          enddo
          rhoplot(i)=rhoplot(i)/nrp
          phiave(i)=phiave(i)/nrp
-c This needs to be fixed for Debye code.
          diagphi(i)=(diagphi(i)*(nstepsave-1)+
      $        phiave(i))/nstepsave
-c old quasineutral way:
-c     $        log(rhoplot(i)/rhoinf))/nstepsave
          diagrho(i)=(diagrho(i)*(nstepsave-1) + (rhoplot(i)))/nstepsave
       enddo
 
 c Calculate diagchi (outer potential as a function of nth normalized
 c to the ion thermal velocity)
-c Necessay for the reinjection and fcalc
+c Necessary for the reinjection and fcalc
       do j=1,NTHUSED
         diagchi(j)=(diagchi(j)*(nstepsave-1)+phi(NRUSED,j)/Ti)/nstepsave
       enddo
-
-      
-
-c*******
-c New rhoinf calculation.
-      if(nrein .gt. 0) then
-c estimate of the rhoinf based on flux from this step.
-
-c Trial of different scheme. Combination equivalent to phihere usage.
-         averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
-         if(averein.gt.0.5*Ti)then
-c This is necessary to prevent smaxflux errors. smaxflux is not correct
-c for repulsive potentials.
-c            write(*,*)'Excessive averein',averein,' capped'
-            averein=0.5*Ti
-         endif
-
-c     We have to calculate rhoinf consistently with the reinjection
-
-         if(qthfv(nthfvsize).ne.0.) then
-c Using general fvinject. qthfv(nthfvsize) contains the one-way flux density
-c integrated dcos(theta) in 2Ti-normalized units.
-c We hack up the effect of attracting edge potential.
-            riest=(nrein/dt) /
-     $           (sqrt(2.*Ti)*
-     $           qthfv(nthfvsize)*2.*3.141593*(1-averein/(Ti+0.*vd**2))
-     $           *r(NRFULL)**2 )
-
-         elseif (bcr.eq.0) then
-c smaxflux returns total flux in units of Ti (not 2Ti)
-            riest=(nrein/dt) /
-     $           (sqrt(Ti)*
-     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-     $           *r(NRFULL)**2 )
-
-         elseif (bcr.eq.1) then
-            riest=(nrein/dt) /
-     $           (sqrt(Ti)*
-     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-     $           *r(NRFULL)**2 )
-            
-         elseif (bcr.eq.2) then
-
-            riest=(nreintry/dt) /
-     $           (sqrt(Ti)*
-     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-     $           *r(NRFULL)**2 )
-c            write(*,*) riest
-         endif
-
-c         write(*,*)'nrein=',nrein,'  psum=',psu,
-c     $        '  averein=',averein,' riest=',riest
-      else
-c If no valid estimate, just keep it the same.
-c         write(*,*) 'nrein=0'
-         if(.not. rhoinf.gt.1.e-4)then
-            write(*,*)'rhoinf error in chargediag:',rhoinf,
-     $           ' approximated.'
-c estimate rhoinf approximately:
-            rhoinf=numprocs*npart/(4.*pi*r(NRFULL)**3/3.)
-         endif
-         averein=0.
-         riest=rhoinf
-      endif
-c      write(*,*)'riest,riave',riest,riave
-      riave=(riave*(nstepsave-1) + riest)/nstepsave 
-c*******
- 540  format(2f12.4,i6,3f12.4)
-      rhoinf=riave
+c Calculate rhoinf if it is not being done in main.
+c      call rhoinfcalc(dt,icolntype)
       rhoplotmax=1.
       do j=1,NTHUSED
          rho1theta(j)=rho(1,j)
@@ -134,7 +61,6 @@ c*******
          do k=nr/2,NRUSED
             icount=icount+1
             rhomidtheta(j)=rhomidtheta(j)+rho(k,j)
-c     $           psum(k,j)*volinv(k)*(nth-1.)*np/rhoinf
          enddo
 c Average flux, should use ninthstep which is partreduced.
 c         finthave(j)=((nstepsave-1)*finthave(j) + ninth(j))/nstepsave

@@ -606,7 +606,7 @@ c hack a straight line
       end
 c***************************************************************
 c The distribution function, normalized so that integral over 
-c normalized velocities is one.
+c normalized velocities is one. 2-d with y-coord ignorable.
       function fv(vx,vz)
 c Velocities normalized to thermal sqrt(2T/m)
       real vx,vz
@@ -614,9 +614,23 @@ c Parameters of the distribution function
 c At present this is a drift distribution corresponding to constant
 c collision frequency charge-exchange, which has just one parameter,
 c ud the normalized drift velocity.
-c The perpendicular distribution is exp(-vx^2)/sqrt(pi) a Maxwellian.
+c The perpendicular distribution is exp(-vx^2)/pi a Maxwellian.
       common /distfunc/ud
       fv=fvcx(vz,ud)*exp(-vx**2)/1.77245385
+      end
+c***************************************************************
+c The distribution function, normalized so that integral over 
+c normalized velocities is one. Gyrotropic
+      function fvgyro(vx,vz)
+c Velocities normalized to thermal sqrt(2T/m)
+      real vx,vz
+c Parameters of the distribution function
+c At present this is a drift distribution corresponding to constant
+c collision frequency charge-exchange, which has just one parameter,
+c ud the normalized drift velocity.
+c The perpendicular distribution is exp(-vx^2)/pi a Maxwellian.
+      common /distfunc/ud
+      fvgyro=fvcx(vz,ud)*exp(-vx**2)/3.1415926
       end
 c****************************************************************
 c FVCX function for 1-d drifting CX distribution.
@@ -635,23 +649,24 @@ c with v_n = sqrt(2T_n/m). a is acceleration, nu_c collision freq.
       endif
       if(vd.eq.0.)then
          carg=20.
-c         earg=100
+         earg=100
       else
          carg=0.5/vd-v
-c         earg=(0.5/vd)**2-v/vd
+         earg=(0.5/vd)**2-v/vd
       endif
-      if(carg.lt.10)then
-c      if(abs(earg).lt.50) then
-c         fvcx=exp(earg)*erfcc(carg)*0.5/vd
-         fvcx=exp(-v**2)*experfcc(carg)*0.5/vd
-      else
+      if(carg.gt.10)then
 c asymptotic form for large exp argument (small vd):
 c  exp(-v^2)/[sqrt(\pi)(1-2 v_d v)]:
          fvcx=exp(-v**2)/1.77245385/(1.-2.*vd*v)
+      elseif(carg.gt.-5.)then
+         fvcx=exp(-v**2)*experfcc(carg)*0.5/vd
+      else
+c         fvcx=exp(earg)*erfcc(carg)*0.5/vd
+         fvcx=exp(earg)/vd
       endif
 c      write(*,*)'fvcx:vd,v,earg,fvcx',vd,v,earg,fvcx
       if(.not.fvcx.ge.0) then
-         write(*,*)'fvcx error. u=',u,' ud=',ud,' f=',fvcx,earg
+         write(*,*)'fvcx error. u=',u,' ud=',ud,' f=',fvcx,carg
          fvcx=0.
       endif
       end

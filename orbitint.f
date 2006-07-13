@@ -162,11 +162,12 @@ c r(nr) is needed by reinject.
       write(*,*)'Initializing injection, icolntype=',icolntype
 c Testing new injinit
       call injinit(icolntype,bcr)
+
+
       call autoplot(vcom,pu1,nvel)
       call polyline(vcom,pu2,nvel)
       call boxtitle('Velocity distribution functions pu1, pu2')
       call pltend()
-      venr=Vcom(nvel)+2.
 c Testing.
 c      stop
 c
@@ -176,6 +177,15 @@ c         initialize to set averein
          call reinject(1,dt,icolntype,bcr)
       else
          averein=vprobe/rmax
+      endif
+      venr=sqrt(2.*Ti)*Vcom(nvel)-2.*averein
+      if(icolntype.eq.2.)then
+         smaxcomp=sqrt(2.)*2.*3.141593**2*(pu1(1)-pu2(1)*averein/Ti)
+         write(*,*)'Ti,averein,vd=',Ti,averein,vd
+         write(*,*)'The following numerical vs analytic values ',
+     $        'should agree for zero drift'
+         write(*,*)'smaxcomp=',smaxcomp
+         write(*,*)'smaxflux=',smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
       endif
 
       do i=1,nth
@@ -244,14 +254,12 @@ c from the place they are stored, in Gcom (1 and 2)
          do j=1,nQth
             cndist(j)=(Gcom(1,j)-Gcom(2,j)*(averein/Ti))/
      $           (Gcom(3,1)-Gcom(3,2)*(averein/Ti))
-c Adjust plot position:
-            Qcom(j)=Qcom(j)+1./nQth
+c Adjust plot position Not any more:
+c            if(j.lt.nQth) Qcom(j)=(Qcom(j)+Qcom(j+1))/2.
          enddo
-c          write(*,*)'Qcom(1)=',Qcom(1)
-         call polyline(Qcom,cndist,nQth-1)
-c         write(*,'(8f8.5)')cndist
-c         write(*,'(8f8.5)')(Gcom(1,j),j=1,nQth)
-c         write(*,'(8f8.5)')(Gcom(2,j),j=1,nQth)
+c          write(*,*)'Qcom(1:nQth)=',Qcom(1),Qcom(nQth)
+         call polyline(Qcom,cndist,nQth)
+c         call polymark(Qcom,cndist,nQth,3)
       else
          write(*,*)'Comparing with cidist'
          call polyline(th(1),cidist,NTHUSED)

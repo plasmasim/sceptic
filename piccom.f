@@ -114,7 +114,7 @@ c********************************************************************
 c Random interpolate data.
       integer nvel,nQth
       parameter (nvel=50)
-      parameter (nQth=50)
+      parameter (nQth=200)
       real Qcom(nQth) 
       real Gcom(nvel,nQth)
       real Vcom(nvel)

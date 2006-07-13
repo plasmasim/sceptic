@@ -214,14 +214,16 @@ c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)
 c Range of velocities permitted for injection.
-      vspread=3.+3.*abs(ud)
+      vspread=3.+5.*abs(ud)
 
       do i=1,nQth
 c Qcom is here used as 
 c the cosine angle of the ith angle interpolation position. 
 c         Qcom(i)=1.-2.*(i-1.)/(nQth-1.)
 c Perhaps we want this going from -1 to +1 not +1 to -1.
-         Qcom(i)=-1.+2.*(i-1.)/(nQth-1.)
+c         Qcom(i)=-1.+2.*(i-1.)/(nQth-1.)
+c But it is better for this to be uniform in theta not cos(theta)
+         Qcom(i)=cos(3.141593*(1-(i-1.)/(nQth-1.)))
       enddo
 c As a function of radial velocity index j
       do j=1,nvel
@@ -235,7 +237,7 @@ c Integrate fv with respect to costheta.
             vx=Vcom(j)*si
             vz=Vcom(j)*ci
             Pc(i,j)=Pc(i-1,j)+(Qcom(i)-Qcom(i-1))*
-     $           fv(vx,vz)
+     $           fvgyro(vx,vz)
 c Pc is the integral in cos(angle) Qcom(i) at velocity Vcom(j) of fv
          enddo
       enddo
@@ -268,10 +270,10 @@ c (The second is to be chi_b weighted).
          Gcom(2,i)=0.
          ci=-Qcom(i)
          si=sqrt(1-ci**2)
-         fvp=fv(0.,0.)
+         fvp=fvgyro(0.,0.)
          do j=2,nvel
             du=(Vcom(j)-Vcom(j-1))
-            fvn=fv(Vcom(j)*si,Vcom(j)*ci)
+            fvn=fvgyro(Vcom(j)*si,Vcom(j)*ci)
             Gcom(1,i)=Gcom(1,i)+du*(Vcom(j)**3*fvn+Vcom(j-1)**3*fvp)/2.
             Gcom(2,i)=Gcom(2,i)+du*(Vcom(j)*fvn+Vcom(j-1)*fvp)/2.
             fvp=fvn

@@ -24,7 +24,7 @@ REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 # Local versions. 
 
 MPICOMPILE-SWITCHES = -Wall  -Wno-globals -DMPI -O2 -I.
-OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o
+OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
 MPIOBJECTS=sor2dmpi.o mpibbdy.o shielding.o
 
 sceptic : sceptic.F piccom.f  ./accis/libaccisX.a $(OBJECTS) makefile
