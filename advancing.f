@@ -25,7 +25,7 @@ c Common data:
 
       real accel(3)
       real dt
-      logical lsubcycle
+c moved to piccom.f      logical lsubcycle
       real cosomdt,sinomdt
 c temp data:
       real temp
@@ -33,7 +33,6 @@ c temp data:
 
 c Data for the domain sub
       real rn0
-
 
 c Place to read/write on the add particule injection
       integer nread
@@ -46,10 +45,8 @@ c Reset the number of particles that enter the inner domain
       rn0=1.
 c Xp is the three x-coordinates followed by the 3 v coordinates.
 c Use a leapfrog scheme, so interpret the v-coords as half a step
-c behind the x-coords. If lsubcycle, use multiple fractional steps near
-c inner boundary.
-c      lsubcycle=.true.
-      lsubcycle=.false.
+c behind the x-coords. 
+c If lsubcycle, use multiple fractional steps near inner boundary.
       dt=dtin
       rp2=r(1)**2
 c Zero the sums now these are assigned here.
@@ -218,7 +215,7 @@ c
                   zmout=zmout-xp(6,i)
 c     We did not leave the grid inside.
                elseif(dsub) then
-c     Check if the particule entered the inner domain, and if yes
+c     Check if the particle entered the inner domain, and if yes
 c     store it. We also update nrealin
                   if ((rn0.ge.rsp) .and. (rn.lt.rsp)) then
                      xpstonum(nread)=xpstonum(nread)+1

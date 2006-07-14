@@ -51,16 +51,19 @@ c Pick normal velocity from cumulative Pu
       if(dv.gt.1)write(*,*)'Error in u calculation',iv,dv
       vdist(iv)=vdist(iv)+1.
 c Pick angle from cumulative Pc based on numerical distributions.
-      y=ran0(idum)
+ 2    y=ran0(idum)
       y=y*( (1.-dv)*Pc(nQth,iv) + dv*Pc(nQth,iv+1))
       call f2invtfunc(Pc(1,iv),Pc(1,iv+1),nQth,y,xc,(1.-dv),dv)
       ixc=xc
       if(xc.lt.1.) then
-         write(*,*) 'Theta choice error:',
+         write(*,*) 'Theta choice error xc,y,iv,dv=',
      $        xc,y,iv,dv
-         call autoplot(Qcom,Pc(1,iv),nQth)
-         call polyline(Qcom,Pc(1,iv+1),nQth)
-         call pltend()
+         write(*,*)'Pc(1,iv),Pc(1,iv+1),Pc(nQth,iv),Pc(nQth,iv+1)',
+     $        Pc(1,iv),Pc(1,iv+1),Pc(nQth,iv),Pc(nQth,iv+1)
+c         call autoplot(Qcom,Pc(1,iv),nQth)
+c         call polyline(Qcom,Pc(1,iv+1),nQth)
+c         call pltend()
+         goto 2
       endif
       fxc=xc-ixc
       crt=(1.-fxc)*Qcom(ixc)+ fxc*Qcom(ixc+1)
@@ -287,9 +290,9 @@ c We store the integral over theta of Gcoms in G(3,1 and 2)
          Gcom(3,1)=Gcom(3,1)+dth*(Gcom(1,i)+Gcom(1,i-1))/2.
          Gcom(3,2)=Gcom(3,2)+dth*(Gcom(2,i)+Gcom(2,i-1))/2.
       enddo
-
-      write(*,*)'pu1(1),pu2(1)      ',pu1(1),pu2(1)
-      write(*,*)'Gcom(3,1),Gcom(3,2)',Gcom(3,1),Gcom(3,2)
-
+      if(myid.eq.0)then 
+         write(*,*)'pu1(1),pu2(1)      ',pu1(1),pu2(1)
+         write(*,*)'Gcom(3,1),Gcom(3,2)',Gcom(3,1),Gcom(3,2)
+      endif
       call srand(myid)
       end

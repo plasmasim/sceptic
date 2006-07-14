@@ -30,8 +30,11 @@ c Number of stored particules at a certain time step
       real xpstonum(addhist)
 c Number of real particles in the inner domain
       integer nrealin
-c Do we really subdivide the domain ?
+c Use of inner region with particles injected at its boundary sampled from
+c prior crossings.
       logical dsub
+c Use of particle advance subcycling in inner regions for accuracy.
+      logical lsubcycle
 
 c CIC definitions
       logical LCIC
@@ -81,7 +84,7 @@ c Highest occupied particle slot.
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
      $     myid,numprocs,rmtoz,ipf,iocprev,Bz,xpstorage,
-     $     xpstonum,nrealin,dsub,rsplit
+     $     xpstonum,nrealin,dsub,rsplit,lsubcycle
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)

@@ -108,6 +108,7 @@ c     bcr : BC on reinjection
       Bz=0.
       infdbl=.false.
       orbinit=.false.
+      lsubcycle=.false.
 c Signal that fvcom is not initialized. After initialization it is .ne.0
       qthfv(nthfvsize)=0.
 
@@ -136,6 +137,9 @@ c Deal with arguments
             goto 260
  259        ipstep=1
  260        continue
+         endif
+         if(string(1:8) .eq. '--subcyc')then
+            lsubcycle=.true.
          endif
          if(string(1:7) .eq. '--fcalc') lfcalcl=.true.
          if(string(1:2) .eq. '-f') finaldiags=.false.
@@ -268,6 +272,7 @@ c         write(*,*)'Command line and defaults:'
  505     format(' Mesh: ',i3,' x',i3,'  Particles:',i7,' Bz:',f4.2)
  502     format('l_d=',f10.3,' Ti=',f7.3,' Steps=',i4,
      $        ' dt=',f6.4,' rmax=',f4.1,' vd=',f6.3,' vp=',f8.4)
+         if(lsubcycle)write(*,*)'Subcycling on!'
       endif
       if(maxsteps.gt.nstepmax-1) Stop 'Too many steps requested.'
       lplot=diags.and.(myid.eq.0)

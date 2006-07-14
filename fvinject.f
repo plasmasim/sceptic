@@ -339,7 +339,6 @@ c Convert to units of sqrt(T_e/m_i) using Ti value in units of Te.
       xp(6,i)=vscale*vz
       xp(4,i)=vscale*(cosphi*vx-sinphi*vy)
       xp(5,i)=vscale*(sinphi*vx+cosphi*vy)
-
 c The reinjection position. The surface normal for flux across
 c surface element is the angle corresponding to costheta,
 c which is therefore the inward normal.
@@ -347,6 +346,23 @@ c which is therefore the inward normal.
       xp(3,i)=rs*costheta
       xp(2,i)=(rs*sintheta)*sinphi
       xp(1,i)=(rs*sintheta)*cosphi
+c
+c Obtain angle coordinate and map back to th for phihere.
+      ct=xp(3,i)/rs
+      call invtfunc(th(1),nth,ct,x)
+      ic1=x
+      ic2=ic1+1
+      dc=x-ic1
+c This expression should work for CIC And NGP.
+      phihere=(phi(NRUSED,ic1)+phi(NRFULL,ic1))*0.5*(1.-dc)
+     $        +(phi(NRUSED,ic2)+phi(NRFULL,ic2))*0.5*dc
+c Kludge up addition of external energy.
+c      v2=xp(6,i)**2+xp(5,i)**2+xp(4,i)**2
+c      vhfac=sqrt((v2+max(0.,-2.*averein))/v2)
+c      xp(6,i)=vhfac*xp(6,i)
+c      xp(5,i)=vhfac*xp(5,i)
+c      xp(4,i)=vhfac*xp(4,i)
+      
 c Increment the position by a random amount of the velocity.
 c This is equivalent to the particle having started at an appropriately
 c random position prior to reentering the domain.
@@ -354,8 +370,8 @@ c random position prior to reentering the domain.
       do j=1,3
          xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
       enddo
-c Deal with possibly non-zero potential. Not yet done.      
-      phihere=0.
+c Deal with possibly non-zero potential. Not yet done. Done above Jul06     
+c      phihere=0.
       rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
 c Do the outer flux accumulation.
       spotrein=spotrein+phihere
@@ -433,7 +449,8 @@ c Integrate to give qthfv (th runs from 1 to -1 so we change sign).
       enddo
 c The final result should be 1/sqrt(\pi)=.5641 for a Maxwellian. 
 c This might be a good check.
-      if(ud.eq.0.) write(*,*)'qthfv(nthfvsize)=',qthfv(nthfvsize),
+      if(ud.eq.0. .and. myid.eq.0)
+     $     write(*,*)'qthfv(nthfvsize)=',qthfv(nthfvsize),
      $     ' c.f. 0.5641 at ud=0'
 
 c Calculate fqvxvz, the perpendicular cumulative distibution.
