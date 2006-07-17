@@ -44,7 +44,7 @@ c Deal with arguments.
  1    continue
  3    continue
 
-      vrange=max(4.,4.+5.*vd/sqrt(2.*Ti))
+      vrange=max(4.,4.+5.*vd/sqrt(2.*Ti))*sqrt(2.*Ti)
       do j=-nv,nv
          v(j)=j*vrange/nv
          fv1(j)=0.
@@ -72,25 +72,38 @@ c Deal with arguments.
       vmean=vmean/npart
       write(*,*)'Mean vz=',vmean,' cf vd=',vd
 
+c Don't plot the bottom end if there's no data.
+      do i=-nv,nv
+         nvmin=i
+         if(fv3(nvmin).ne.0 .or. fv1(nvmin).ne.0) goto 50
+      enddo
+ 50   continue
+      nvtot=nv+1-nvmin
+
       call pfset(3)
-      call minmax(fv1(-nv),2*nv+1,vmin,vmax)
+      call minmax(fv1(nvmin),nvtot,vmin,vmax)
       do j=-nv,nv
          fmaxwell(j)=exp(-v(j)**2/(2.*Ti))*vmax
       enddo
-      call autoplot(v(-nv),fv1(-nv),2*nv+1)
+      call autoplot(v(nvmin),fv1(nvmin),nvtot)
       call axlabels('v','f(v)')
+      call legendline(.6,.91,0,'f(v1)')
       call color(2)
-      call polyline(v(-nv),fv2(-nv),2*nv+1)
+      call polyline(v(nvmin),fv2(nvmin),nvtot)
+      call legendline(.6,.86,0,'f(v2)')
       call color(3)
-      call polyline(v(-nv),fv3(-nv),2*nv+1)
+      call polyline(v(nvmin),fv3(nvmin),nvtot)
+      call legendline(.6,.81,0,'f(v3)')
       call dashset(1)
       call color(4)
-      call polyline(v(-nv),fmaxwell(-nv),2*nv+1)
+      call polyline(v(nvmin),fmaxwell(nvmin),nvtot)
+      call legendline(.6,.76,0,'fmaxwell')
       do j=-nv,nv
          fz(j)=1.77*vmax*fvcx(v(j)/sqrt(2.*Ti),vd/sqrt(2.*Ti))
       enddo
       call color(5)
-      call polyline(v(-nv),fz(-nv),2*nv+1)
+      call polyline(v(nvmin),fz(nvmin),nvtot)
+      call legendline(.6,.71,0,'fz [analytic]')
       call pltend()
 
       call exit(0)

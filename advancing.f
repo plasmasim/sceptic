@@ -102,7 +102,8 @@ c     Here we do need half quantities.
             call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
      $           ,zetap,ih,hf)
 
-c     Now we know where we are in radius rp. We decide the level of subcycling.
+c  Now we know where we are in radius rp. 
+c  We decide the level of subcycling.
             if(lsubcycle) then
                isubcycle=r(nrfull)/rp
 c     if(mod(i,1000).eq.0) write(*,*)isubcycle
@@ -145,31 +146,29 @@ c     Parameters for the Lorentz force
                cosomdt=cos(Bz*dtnow)
                sinomdt=sin(Bz*dtnow)
 
-c     AccelPhi/2+AccelBz+AccelPhi/2
+c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
                do j=4,6
                   xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
                enddo
-
+c B-field rotation
                temp=xp(4,i)
                xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
                xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
-
+c Second half of velocity advance
                do j=4,6
                   xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
                enddo
-
                dtprec(i)=dt
-
                rn2=0.
                xdv=0.
                v2=0.
+c Position advance (and accumulate coordinate terms).
                do j=1,3
                   xp(j,i)=xp(j,i)+xp(j+3,i)*dt
                   rn2=rn2+xp(j,i)**2
                   xdv=xdv+xp(j,i)*xp(j+3,i)
                   v2=v2+xp(j+3,i)**2
                enddo
-
                tm=xdv/v2
                rn=sqrt(rn2)
 c     Test if we went through the probe and came back out.
@@ -645,7 +644,7 @@ c Initialization for Collisions
       include 'piccom.f'
       include 'colncom.f'
 c      write(*,*)'Initialized collisions',colnwt,icolntype
-      if(icolntype.eq.1)then
+      if(icolntype.eq.1 .or. icolntype.eq.2)then
 c Constant nu collisions. The Eneutral must be consistent with vd:
          Eneutral=colnwt*(vd-vneutral)
 c Testing
@@ -665,9 +664,9 @@ c Master Collision subroutine.
       real dt,colnwt
       integer icolntype
 c Call the appropriate collision routine.
-      if(icolntype.eq.1)then
+      if(icolntype.eq.1 .or. icolntype.eq.2)then
          call nucollide(dt,colnwt,icolntype)
-      elseif(icolntype.eq.2)then
+      elseif(icolntype.gt.2)then
          call mfpcollide(dt,colnwt,icolntype)
       endif
       end
@@ -678,6 +677,7 @@ c Input dt=timestep, colnwt=cnu=collision freq (\propto target density)
 c       ichoose=starting particle icycle=particle-number step.
       include 'piccom.f'
       include 'colncom.f'
+      real accel(3)
 
 c Don't attempt if collision freq is zero.
       if(cnu.le.0.) return
@@ -688,10 +688,12 @@ c Don't attempt if collision freq is zero.
 c     Here we need to invert a poisson distribution to tell if we had
 c     a collision. The cumulative poisson distribution is 
 c         P(<t)=1-exp(-nu.t)
-c     Consequently, the time of collision is t=-(1/nu)ln(1-y)
-c     for a random number y, and if this is less than dt we collided.
+c     Consequently, the time after the start of the last step,
+c     of a collision is t=-(1/nu)ln(1-y) for a random number y, 
+c     and if this is less than dt we collided.
 c     If nu.dt is small, this is approximately t=y/nu, but if not, we
-c     still get a correct answer with the full solution.
+c     still get a correct answer with the full solution, by repeating
+c     until we have used up the whole time-step.
 c     When nu.dt is very small we gain efficiency by only treating a
 c     subset of the particles. And multiplying the nu by icycle.
       icycle=1./(20.*cnu*dt)
@@ -702,6 +704,7 @@ c     We keep icycle.nu.dt < 20  if possible to avoid bias by the cycle.
       ytestfull=1.-exp(-cnu*icycle*dt)
 c      write(*,*)'nucollide: icycle,ichse,dt,ytstf='
 c     $     ,icycle,ichoose,dt,ytestfull
+c Cycle through all the particles, skipping if necessary.
       do i=ichoose,iocprev,icycle
          if(ipf(i).gt.0)then
 c This is an active particle slot.
@@ -710,22 +713,37 @@ c This is an active particle slot.
 c Start of multiple collision loop           
  1          y=ran0(idum)
             if(y.lt.ytest)then
+c A collision occured at a time dtc during the last [partial] step
                ncollide=ncollide+1
-c A collision occured at a time dtc during the last step
+c at a time dtc after its start.
                dtc=-alog(1.-y)/(cnu*icycle)
+c Adjust the step duration to that remaining after collision.
                dtd=dtd-dtc
 c               write(*,*)i,ytest,y,ytest,dtc,dtd
 c Calculate the probability of a collision in remaining partial step.
                ytest=1.-exp(-cnu*icycle*dtd)
-c Save this position inside the grid
+c Get the current acceleration, needed below.
+c We don't bother about the place we calculate this being correct,
+c because that would need more elaborate testing for being inside
+c the computational region, and is a second order effect.
+               ih=1
+               hf=66.
+               call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
+     $              ,zetap,ih,hf)
+               call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
+     $              sp,cp,rp,zetap,ih,hf)
+               accel(3)=accel(3)+Eneutral
+c Save the position at end of step (inside the grid)
                xpi1=xp(1,i)
                xpi2=xp(2,i)
                xpi3=xp(3,i)
-c Back track the position to the point of collision
+c Back track the position to the point of last collision
+c [None of this is correct for finite magnetic field. For that we would
+c need a rotation of the perpendicular position/velocity.]
                xp(1,i)=xp(1,i)-dtd*xp(4,i)
                xp(2,i)=xp(2,i)-dtd*xp(5,i)
                xp(3,i)=xp(3,i)-dtd*xp(6,i)
-c New velocity reflects neutral maxwellian shifted by vneutral.
+c Get new velocity; reflects neutral maxwellian shifted by vneutral.
                xp(4,i)=tisq*gasdev(idum)
                xp(5,i)=tisq*gasdev(idum)
                xp(6,i)=tisq*gasdev(idum)+ vneutral
@@ -747,13 +765,15 @@ c be to reinject without a collision possibility.
 c                  rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c                  if(rn.le.1.)write(*,*)'Collide inside error',rn
                endif
+c Apply acceleration for the forward step duration. This is always
+c starting from a newly collided particle. Fixes drift bias at high
+c collisionality.
+               xp(4,i)=xp(4,i)+dtd*accel(1)
+               xp(5,i)=xp(5,i)+dtd*accel(2)
+               xp(6,i)=xp(6,i)+dtd*accel(3)
 c Test for another collision
                goto 1
-            endif            
-c We probably also ought to shift velocity by minus the amount of 
-c acceleration that would correspond to the time already expended 
-c in this step up to the last collision. Then the next acceleration
-c will apply effectively for a correspondingly shorter time.
+            endif 
          endif
       enddo
 c      write(*,*)'ncollide=',ncollide
