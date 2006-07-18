@@ -102,14 +102,27 @@ c Some switches require being before the filenames.
       open(10,file=filename,status='old',err=105)
       call pfset(3)
 
+      icolntype=0
+      colnwt=0.
       numv(i)=0
       do j=1,imax
          read(10,*,end=101,err=101)charin
-         read(10,*)dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
+c         write(*,*)charin
+         if(charin(1:2).eq.'Bz') then
+c            write(*,*)'Reading Bz-type'
+            read(10,*)Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,
+     $           debyelen,vprobe
+         else
+c            write(*,*)'Reading non-Bz-type'
+            read(10,*)dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
+         endif
+         write(*,*)'Read:',
+     $        dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
          read(10,*)charin
-         read(10,*)nrhere,nthhere
-c         write(*,*)nrhere,nthhere
-         write(*,901)dt,vd,Ti,isteps,fave,debyelen,vprobe
+         read(10,*,err=201,end=201)nrhere,nthhere,icolntype,colnwt
+         write(*,'(a,i4,i4,i2,f7.3)')'nr,nth,icolntype,colnwt=',
+     $        nrhere,nthhere,icolntype,colnwt
+ 201     write(*,901)dt,vd,Ti,isteps,fave,debyelen,vprobe
  901     format('dt=',f5.3,' vd=',f5.2,' Ti=',f4.1,' Steps=',i4,
      $        ' Flux=',f7.4,' Lambda=',e7.2,' Vp=',f5.1,$)
          write(*,*)j,i
@@ -151,13 +164,13 @@ c            cx=sqrt((1.7+Ti)/(2.*3.14159))
          enddo
          if(mod(j,iskip).eq.0 .and. lcos)then
             call color(mod(j-1,15)+1)
-            call fwrite(-vprobe,iwidth,1,charin)
+            if(icolntype.ne.0.)then
+               call fwrite(colnwt,iwidth,1,charin)
+            else
+               call fwrite(-vprobe,iwidth,1,charin)
+            endif
             call labeline(cost,flux,nthhere,charin,iwidth)
             
-c     call charsize(.0,.0)
-c     call polyline(cost,flux,nthhere)
-c     call vecw(-0.999,cx*exp(upx*vd),0)
-c     call vecw(.999,cx*exp(downx*vd),1)
             call dashset(5)
             if(lfitplot)call polyline(cost,fit,nthhere)
             call dashset(0)

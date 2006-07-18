@@ -90,14 +90,14 @@ c Read the outputfile
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
      $     dt,rmax,fave,debyelen,vprobe,
+     $     icolntype,colnwt,Eneutral,vneutral,Tneutral,
      $     ierr)
       if(ierr.eq.101) goto 101
 
 
 c Set arrow scale
       v1=max(1.,vd)
-
-C Start of Plotting:
+c Start of Plotting:
 
       call pfset(3)
       if(lgraph)then
@@ -156,7 +156,7 @@ c Ti=0 quasineutral case:
 C End of stuff dependent on Ti file reading.
       open(13,status='unknown',file='phiout.dat')
       write(13,*)'dt,      vd,      Ti,      rmax,',
-     $     '   fave, debyelen,    Vp'
+     $     '   fave, debyelen,    Vp [icoln,colnwt]'
       write(13,'(2f8.5,f8.4,f8.3,f8.3,f12.5,f10.5)')
      $     dt,vd,Ti,rmax,fave,debyelen,vprobe
       write(13,*)nrhere
@@ -288,8 +288,8 @@ c         write(*,*)rhoinf,dt,nastep,ninth(j)
          cunnorm=coulflux(cthang,-vprobe/Ti,vd/sqrt(Ti))
          cflux(j)=cunnorm
      $        /sqrt(2.*3.14159/Ti)
-c         write(*,'(4f10.5)')tcc(j),fluxofangle(j)
-c     $        ,cflux(j),cunnorm
+         if(.not.lgraph) write(*,'(4f10.5)')tcc(j),fluxofangle(j)
+     $        ,cflux(j),cunnorm
 c     $        ,cthang
       enddo
 
@@ -1231,6 +1231,7 @@ c Data reading subroutine
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
      $     dt,rmax,fave,debyelen,vprobe,
+     $     icolntype,colnwt,Eneutral,vneutral,Tneutral,
      $     ierr)
       logical lreaddiag,lpcic,ledge
       character*100 string,filename
@@ -1238,10 +1239,9 @@ c Data reading subroutine
       real rpic(1000),rpicleft(1000),phicos(1000)
       include 'piccompost.f'
       real rholocal(0:NRFULL,0:NTHFULL)
-      character*100 charin
+      character*256 charin
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
-
 
       ierr=0
 c Read the data file:
@@ -1250,12 +1250,22 @@ c__________________________________________________________________
       open(10,file=filename,status='old',err=101)
 c Line for nothing.
       read(10,*)charin
-      read(10,'(2f8.5,f8.4,i6,f12.4,f12.6,f7.4,2f14.5,f8.4)',err=201)
-     $     dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe,Bz
+      read(10,'(a)')charin
+c      write(*,*)charin
+      read(charin,*,err=201,end=201)
+     $     dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe,damplen,Bz
+     $     ,icolntype,colnwt
  201  continue
-      write(*,*)'Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,Vp'
-      write(*,*)Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
-      read(10,*,err=202)nrTi
+      write(*,'(a,a)')'  dt    vd     Ti     steps  rhoinf ' ,
+     $       'phiinf  fave  debyelen Vp damplen  Bz...'
+      write(*,'(2f7.4,f7.3,i5,f8.1,f7.3,f8.4,f8.3,f8.3,f6.2,f7.3,$)')
+     $     dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe,damplen,Bz
+      if(icolntype.gt.0)then
+         write(*,'(i2,f7.3)',err=212)icolntype,colnwt
+      else
+         write(*,*)
+      endif
+ 212  read(10,*,err=202)nrTi
       nrhere=nrTi
 c      write(*,*)'nrTi=',nrTi
       do i=1,nrTi
@@ -1313,7 +1323,7 @@ c Read in  summed results.
          open(10,file=filename,err=210,status='old')
       endif
       read(10,'(a)')string
-      read(10,'(2f8.5,f8.4,i6,f8.3,f12.3,2f14.5)',err=200)
+      read(10,*,err=200)
      $     dt,vd,Ti,i,rmax,rhoinf,debyelen,vprobe
  200  continue
       read(10,*)nrhere,nthhere,nphere
@@ -1348,9 +1358,12 @@ c Read in  summed results.
       read(10,*,err=402,end=402)string
       read(10,*)charge1,ffield1,felec1,fion1,ftot1
       read(10,*)charge2,ffield2,felec2,fion2,ftot2
+      read(10,*,err=402,end=402)string
+      read(10,*,err=402,end=402)
+     $     icolntype,colwt,Eneutral,vneutral,Tneutral
  402  close(10)
-      write(*,*)'nrhere,nthhere'
-      write(*,*)nrhere,nthhere
+      write(*,*)'nrhere,nthhere,icolntype,colwt'
+      write(*,*)nrhere,nthhere,icolntype,colwt
       if(lreaddiag)then
          write(*,*)'Finished reading'
          write(*,*)'vrsum(1)'
