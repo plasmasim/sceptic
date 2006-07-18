@@ -34,15 +34,21 @@ c Using the routines in strings_names.f
       call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
       call nameappendexp(filename,'L',debyelen,1)
       if(Bz.ne.0.) call nameappendexp(filename,'B',Bz,2)
-      if(icolntype.ne.0) call nameappendexp(filename,'C',colnwt,1)
+      if(icolntype.eq.1) call nameappendexp(filename,'c',colnwt,1)
+      if(icolntype.eq.2) call nameappendexp(filename,'C',colnwt,1)
       idf=nbcat(filename,'.dat')
 
 c Write out averaged results.
       open(10,file=filename)
-      write(10,'(a,a)')'  dt       vd       Ti  steps    rhoinf ' ,
-     $       '   phiinf   fave  debyelen Vp damplen / nr/ phi  Bz'
-      write(10,'(2f8.5,f8.4,i6,f12.4,f11.5,f8.4,2f14.5,f8.3,f8.4)')
+      write(10,'(a,a)')'  dt    vd     Ti     steps  rhoinf ' ,
+     $       'phiinf  fave  debyelen Vp damplen  Bz...'
+      write(10,'(2f7.4,f7.3,i5,f8.1,f7.3,f8.4,f8.3,f8.3,f6.2,f7.3,$)')
      $     dt,vd,Ti,i,rhoinf,log(rhoinf),fave,debyelen,vprobe,damplen,Bz
+      if(icolntype.gt.0)then
+         write(10,'(i2,f7.3)')icolntype,colnwt
+      else
+         write(10,*)
+      endif
       write(10,*)NRUSED
       do j=1,NRUSED
          write(10,*)rcc(j),diagphi(j),diagrho(j)
@@ -94,10 +100,12 @@ c Particle units nTr^2, Electric nT lambda_D^2.
       write(10,*)(zmom(nstepmax,j,1),j=1,4),total1
       write(10,*)(zmom(nstepmax,j,2),j=1,4),total2
       if(rmtoz.ne.1.) write(10,'(''rmtoz='',f10.4)')rmtoz
+      write(10,*)'Collisions: Type,Weight,Eneutral,vneutral,Tneutral'
       if(icolntype.ne.0) write(10,701)
      $     icolntype,colnwt,Eneutral,vneutral,Tneutral
- 701  format('Collisions: type=',i4,' weight=',f8.4,' Eneutral=',
-     $     f10.5,' vneutral=',f8.4,' Tneutral=',f8.4)
+ 701  format(10x,i3,4f10.5)
+c     701  format('Collisions: type=',i4,' weight=',f8.4,' Eneutral=',
+c     $     f10.5,' vneutral=',f8.4,' Tneutral=',f8.4)
 
 c End of output file.
       close(10)
