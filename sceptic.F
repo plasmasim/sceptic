@@ -21,6 +21,7 @@ c     For now, put maxsteps in piccom
       logical success,finaldiags
       real rmax
       character*100 string
+      character*10 cfinal
       logical readpart,writepart
       logical lsmooth,lcolcont,lpstore
       logical rmaxauto,lfcalcl
@@ -490,13 +491,18 @@ c If we use floating potential, the slaves may need rhoinf and fluxes
 #endif
          if(myid.eq.0) then
 c  Write step information.
+            cfinal=' ReinjFrac'
+            if(icolntype.gt.0)cfinal=' ColnFreq'
+            if(linsulate.or.lfloat)cfinal=' Vprobe'
             if(mod(i,5).eq.1) then
                if(i.gt.1)then
                   mtrap=mtrapped()
                   if(linsulate.or.lfloat)then
                      yvpre=vprobe
                   else
-                     if(lfixedn)then
+                     if(icolntype.gt.0 .and. debyelen.ne.0.) then
+                        yvpre=NCneutral/(dt*npart)
+                     elseif(lfixedn)then
 c                        yvpre=fluxrein/nrein
                         yvpre=float(nrein)/npart
                      else
@@ -517,7 +523,8 @@ c                        yvpre=fluxrein/nrein
                   write(*,*)
      $              'Step:SOR Step:SOR Step:SOR',
      $              ' Step:SOR Step:SOR',
-     $              '  Flux, Phiedge, Trap, Vp or Rein'
+     $              '  Flux, Phiedge, Trap,', cfinal
+c     $              '  Flux, Phiedge, Trap, Vp or Rein'
                endif
             endif
             write(*,'(i5,$)')i
@@ -541,10 +548,10 @@ c     Calculate the potential field, unless it is fixed.
 #ifdef MPI
                if(lfcalcl.and.(.not.sorparallel)) then
 #endif
-                  call fcalc_lambda(dt)
+                  call fcalc_lambda(dt,icolntype)
 #ifdef MPI
                else
-                  call fcalc_shielding(dt,sor_comm,myid2)
+                  call fcalc_shielding(dt,icolntype,sor_comm,myid2)
                endif
 #endif
             endif
@@ -723,6 +730,7 @@ c Help section
      $     ' neutrality on outer crone, 2: Phiout=0, 3: dPhiout/dr=0)'
       write(*,*)' --bcr(0) bc reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
+      write(*,*)' --subcyc use step subcycling near probe.'
 
       end
 

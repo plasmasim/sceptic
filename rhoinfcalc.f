@@ -46,7 +46,6 @@ c Using general fvinject, injecting at the computational boundary.
 c  qthfv(nthfvsize) contains the one-way flux density
 c integrated dcos(theta) in 2Ti-normalized units.
 c We hack up the effect of attracting edge potential.
-c I'm not sure if the pi's are right here.
             riest=(nrein/dt) /
      $           (sqrt(2.*Ti)*
      $           qthfv(nthfvsize)*2.*3.141593*(1-averein/(Ti+0.*vd**2))

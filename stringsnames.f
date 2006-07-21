@@ -80,3 +80,22 @@ c Construct an exp-formatted value with ip significant figures.
       endif
       write(string(2+ip:2+ip),'(i1.1)')iti
       end
+c******************************************************************
+c Return the position (not pointer) of match in string
+c Trailing blanks are ignored in either string.
+      function istrstr(string,match)
+      integer istrstr
+      character*(*) string,match
+      ls=lentrim(string)
+      lm=lentrim(match)
+      istrstr=0
+      do i=1,ls
+         do j=1,lm
+            if(string(i+j-1:i+j-1).ne.match(j:j)) goto 101
+         enddo
+c Here when matched.
+         istrstr=i
+         goto 102
+ 101  enddo
+ 102  return
+      end

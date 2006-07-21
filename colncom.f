@@ -20,4 +20,6 @@ c Temperature of neutral distribution
       real Tneutral
 c Required acceleration to give rise to specified ion average drift.
       real Eneutral
-      common /colcom/vneutral,Tneutral,Eneutral
+c Number of collisions this time step
+      integer NCneutral
+      common /colcom/vneutral,Tneutral,Eneutral,NCneutral

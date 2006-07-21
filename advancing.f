@@ -447,7 +447,7 @@ c     $        .or. ih.eq.NRFULL)then
       end
 c***********************************************************************
 c Calculate potential phi from rho.
-      subroutine fcalc_lambda(dt)
+      subroutine fcalc_lambda(dt,icolntype)
       real dt
 c Common data:
       include 'piccom.f'
@@ -496,6 +496,12 @@ c Screening k-number combines electrons and ions.
       rxl=el*redge
       expE1=(alog(1.+1./rxl) - 0.56/(1.+4.1*rxl+0.9*rxl**2))
       rindex=alpha*(redge*el+1.)+ (1.-alpha)*2.
+c      if(icolntype.eq.2)then
+c Remove the deficit term
+c         expE1=0.
+c Simplistic 1/r trial.
+c         rindex=1.
+c      endif
       adeficit=0
 c Boundary slope factor calculations:
       do j=1,NTHUSED
@@ -776,7 +782,7 @@ c Test for another collision
             endif 
          endif
       enddo
-c      write(*,*)'ncollide=',ncollide
+      NCneutral=ncollide
       end
 c******************************************************************
       subroutine mfpcollide(dt,colnwt,icolntype)
