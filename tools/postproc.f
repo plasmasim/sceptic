@@ -164,7 +164,7 @@ C End of stuff dependent on Ti file reading.
 
       if(lphip)then
          call minmax2(phi(1,1),nr+1,nrhere,nthhere,pmin,pmax)
-         write(*,*)'minmax',nr,nrhere,nthhere,pmin,pmax
+c         write(*,*)'minmax',nr,nrhere,nthhere,pmin,pmax
          cscale=0.02
          if(abs(phipic(1)) .lt. 5.)cscale=0.1
          ppmax=1.2
@@ -178,8 +178,8 @@ c Linearized shielding length corrected for finite size.
          slambda=sqrt(debyelen**2*vt2/(3.+vt2) + 1.)
 c         slambda=8.5
 c         slambda=debyelen
-         write(*,*)'vt2,slambda,vprobe,phipic(1)'
-     $        ,vt2,slambda,vprobe,phipic(1)
+c         write(*,*)'vt2,slambda,vprobe,phipic(1)'
+c     $        ,vt2,slambda,vprobe,phipic(1)
          if(slambda.eq.0.) slambda=1.e-4
          do kk=1,nrhere
             phiyukawa(kk)=(vprobe*rpic(1)/exp(-rpic(1)/slambda))
@@ -271,7 +271,7 @@ c Contouring:
       endif
 
       if(lreaddiag)write(*,*)'tcc, fluxofangle'
-      write(*,*)'cos(theta), flux, coulflux'
+      if(.not.lgraph)write(*,*)'cos(theta), flux, coulflux'
 c Calculate the flux as a function of angle.
       do j=1,nthhere
 c Seems to be an error here for the ngp version.
@@ -431,7 +431,7 @@ c     $              rhomax,fac10,first,delta
             icl=(ncont-1)
             call contourl(rholocal(1,0),cworka,NRFULL+1,nrhere,
      $           nthhere+2,zclv,icl,zrho,xrho,ntype)
-            write(*,*)'Density Contours=',zclv
+            write(*,'(a,30f5.2)')'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
             tstring=' contour spacing: '//cstring
 c            call legendline(-.1,-.22,258,tstring)
@@ -765,7 +765,7 @@ c     New positive contours.
                enddo
                zclv(ncont)=0.
             endif
-            write(*,*)'Contours=',zclv
+            write(*,'(a,30f6.2)')'Contours=',zclv
             ntype=2
             icl=(ncont-1)
 c            write(*,'(2f8.4)')

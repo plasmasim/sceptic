@@ -165,7 +165,7 @@ c            cx=sqrt((1.7+Ti)/(2.*3.14159))
          if(mod(j,iskip).eq.0 .and. lcos)then
             call color(mod(j-1,15)+1)
             if(icolntype.ne.0.)then
-               call fwrite(colnwt,iwidth,1,charin)
+               call fwrite(colnwt,iwidth,2,charin)
             else
                call fwrite(-vprobe,iwidth,1,charin)
             endif
