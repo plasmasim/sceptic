@@ -18,24 +18,26 @@ c Version 2.5; Aug 2004
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
       parameter (npartmax=200000,np=1,ndim=6)
-c Number of additional particules in the inner domain
+c Start of inner domain additions ----------------
+c Number of additional particles in the inner domain
       parameter (npartadd=100000)
 c History size for the additional part inejection
       parameter (addhist=100)
 c nr where the domain is split
       integer rsplit
-c Storage of incoming particules in the inner domain
+c Storage of incoming particles in the inner domain
       real xpstorage(ndim,2000,addhist)
-c Number of stored particules at a certain time step
+c Number of stored particles at a certain time step
       real xpstonum(addhist)
 c Number of real particles in the inner domain
       integer nrealin
 c Use of inner region with particles injected at its boundary sampled from
 c prior crossings.
       logical dsub
+c End of inner domain additions -----------------
+
 c Use of particle advance subcycling in inner regions for accuracy.
       logical lsubcycle
-
 c CIC definitions
       logical LCIC
       integer NRUSED,NTHUSED,NRFULL,NTHFULL
@@ -45,8 +47,8 @@ c These correspond to nrfull and nthfull.
       parameter (nrsize=200,nthsize=201)
 c Positions and velocities of particles (6-d phase-space).
       real xp(ndim,npartmax+npartadd)
-      real dtprec(npartmax+npartadd)
 
+      real dtprec(npartmax+npartadd)
 c Flag of particle slot status (e.g. in use or not)
       integer ipf(npartmax+npartadd)
 c The particle number

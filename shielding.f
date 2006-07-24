@@ -62,12 +62,15 @@ c     Screening k-number combines electrons and ions.
          rxl=el*redge
          expE1=(alog(1.+1./rxl) - 0.56/(1.+4.1*rxl+0.9*rxl**2))
          rindex=alpha*(redge*el+1.)+ (1.-alpha)*2.
-         if(icolntype.eq.2)then
+c         if(icolntype.eq.2)then
 c Remove the deficit term
-            expE1=0.
-c Simplistic trial.
-            rindex=(redge*el+1.)
-         endif
+c            expE1=0.
+c Simplistic trials.
+c            rindex=(redge*el+1.)
+c            rindex=1.
+c            rindex=4.
+c            rindex=10.
+c         endif
          adeficit=0
 c     Boundary slope factor calculations:
          do j=0,NTHUSED+1

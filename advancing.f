@@ -488,7 +488,7 @@ c Screening k-number combines electrons and ions.
       if(debyelen.gt. 1.e-10) then
          el2=(1.+1./Ti)/debyelen**2
       else
-         el2=2.e20
+ 2       el2=2.e20
       endif
       el=sqrt(el2)
       afactor=0.02

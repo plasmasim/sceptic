@@ -16,9 +16,10 @@ c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c***********************************************************************
 c Calculate the density at infinity based on the number of injections
 c per step. 
-      subroutine rhoinfcalc(dt,icolntype)
+      subroutine rhoinfcalc(dt,icolntype,colnwt)
       real dt
       integer icolntype
+      real colnwt
       include 'piccom.f'
       include 'fvcom.f'
       real riave
@@ -26,6 +27,7 @@ c per step.
 
 c This allows us to restart with nstepsave .ne. 1 if rhoinf is set.
       if(riave.eq.0)riave=rhoinf
+      if(finnerave.eq.0)finnerave=ninner
 
       if(nrein .gt. 0) then
 c Combination equivalent to phihere usage.
@@ -50,6 +52,9 @@ c We hack up the effect of attracting edge potential.
      $           (sqrt(2.*Ti)*
      $           qthfv(nthfvsize)*2.*3.141593*(1-averein/(Ti+0.*vd**2))
      $           *r(NRFULL)**2 )
+c Correction for collisional drag solution in outer region.
+            riest=riest
+     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
          elseif(icolntype.eq.2)then
 c ogeninject from infinity with a general distribution numerically
 c Flux/(2\pi riest v_n rmax^2) = pu1(1) - averein*pu2(1)
@@ -57,6 +62,10 @@ c Flux/(2\pi riest v_n rmax^2) = pu1(1) - averein*pu2(1)
      $           (sqrt(2.*Ti)*
      $           2.*3.1415926**2*(pu1(1)-pu2(1)*averein/Ti)
      $           *r(NRFULL)**2 )
+c Correction for collisional drag solution in outer region.
+            riest=riest
+     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
+c last is correction for diffusion.
          elseif (bcr.eq.0) then
 c smaxflux returns total flux in units of Ti (not 2Ti)
             riest=(nrein/dt) /
@@ -90,8 +99,14 @@ c estimate rhoinf approximately:
          averein=0.
          riest=rhoinf
       endif
-c      write(*,*)'riest,riave',riest,riave
+c Average the flux of particles to the inner, because it's a small number.
+      finnerave=(finnerave*(nstepsave-1) + float(ninner))/nstepsave 
+c Use an averaging process to calculate rhoinf (=riave)
       riave=(riave*(nstepsave-1) + riest)/nstepsave 
+c      if(myid.eq.0) write(*,'(a,2f9.2,a,i6,f8.1,f8.1)')
+c     $     'riest,riave',riest,riave,
+c     $     '  ninner,finave,adj',ninner,finnerave,
+c     $     finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
 c*******
       rhoinf=riave
       end

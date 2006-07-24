@@ -52,7 +52,7 @@ c Necessary for the reinjection and fcalc
         diagchi(j)=(diagchi(j)*(nstepsave-1)+phi(NRUSED,j)/Ti)/nstepsave
       enddo
 c Calculate rhoinf if it is not being done in main.
-c      call rhoinfcalc(dt,icolntype)
+c      call rhoinfcalc(dt,icolntype,colnwt)
       rhoplotmax=1.
       do j=1,NTHUSED
          rho1theta(j)=rho(1,j)

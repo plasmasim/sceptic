@@ -478,7 +478,7 @@ c Plot the slices through the probe.
 c Document charge accumulated; calculate diagrho, finthave.
             call chargediag(dt,i,icolntype)
 c Calculate rhoinf
-            call rhoinfcalc(dt,icolntype)
+            call rhoinfcalc(dt,icolntype,colnwt)
          endif
 
 c If we use floating potential, the slaves may need rhoinf and fluxes
@@ -919,6 +919,7 @@ c         write(*,*)'zmomstep=',zmomstep(i),'  zoutstep=',zmoutstep(i)
          spotrein=spotreintot
          fluxrein=fluxreintot
          fluxprobe(i)=nintot
+         ninner=nintot
          end
 c***************************************************************
       subroutine aveupstep()
