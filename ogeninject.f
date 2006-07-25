@@ -35,12 +35,15 @@ c In this routine we work in velocity units relative to ion thermal till end.
       vscale=sqrt(2.*Ti)
       idum=1
       ilaunch=0
+      ilocalfail=0
  1    continue
       ilaunch=ilaunch+1
-      if(ilaunch.gt.1000)then
+      if(mod(ilaunch,1000).eq.0)then
          write(*,*)'ilaunch excessive. averein=',averein,' brcsq=',
-     $        brcsq,' ierr=',ierr,' rp=',rp
-         stop
+     $        brcsq,' ierr=',ierr,' ilocalfail=',ilocalfail
+         write(*,*)'Setting averein to zero artificially.'
+         averein=0.
+c         stop
       endif
 c Pick normal velocity from cumulative Pu
       y=ran0(idum)
@@ -141,6 +144,7 @@ c     This launch cannot penetrate at this angle. But it would have done
 c     if the potential were equal here to averein. Thus it probably
 c     should not be counted as part of the launch effort. So
             ilaunch=ilaunch-1
+            ilocalfail=ilocalfail+1
             goto 1
          endif
          chium2=-phihere/Ti/(u+eup)**2

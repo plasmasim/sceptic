@@ -144,12 +144,15 @@ c     We only go to rshield-1
 
 c     Boundary at rshield
                   if (i.eq.rshield) then
-                     delta=gpc(j,1)*phi(i-1,j)+gpc(j,2)*phi(i,j-1)+
-     $                    gpc(j,3)*phi(i,j+1)+gpc(j,4)+gpc(j,5)*phi(i,j)
-                     
-                     if(abs(delta).gt.abs(deltamax))deltamax=delta
-                     phi(i,j)=phi(i,j)+relax*delta
-
+                     if(Ezext.eq.0)then
+                        delta=gpc(j,1)*phi(i-1,j)+gpc(j,2)*phi(i,j-1)+
+     $                   gpc(j,3)*phi(i,j+1)+gpc(j,4)+gpc(j,5)*phi(i,j)
+                        if(abs(delta).gt.abs(deltamax))deltamax=delta
+                        phi(i,j)=phi(i,j)+relax*delta
+                     else
+c Implement edge-potential-control if set.
+                        phi(i,j)=Ezext*tcc(j)*r(i)
+                     endif
                   else
                      expphi=exp(phi(i,j))
                     dnum= apc(i)*phi(i+1,j)+bpc(i)*phi(i-1,j) + cpc(i,j)
