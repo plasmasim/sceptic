@@ -38,12 +38,23 @@ c In this routine we work in velocity units relative to ion thermal till end.
       ilocalfail=0
  1    continue
       ilaunch=ilaunch+1
+c Section for dealing with multiple launch failures
       if(mod(ilaunch,1000).eq.0)then
          write(*,*)'ilaunch excessive. averein=',averein,' brcsq=',
      $        brcsq,' ierr=',ierr,' ilocalfail=',ilocalfail
          write(*,*)'Setting averein to zero artificially.'
          averein=0.
-c         stop
+         if(ilaunch .gt. 10000)then
+c In extremis just dump the particle in the region.
+            write(*,*)'Desperation drop of particle in region'
+            xp(1,i)=r(nr/2)
+            xp(2,i)=0.
+            xp(3,i)=0.
+            xp(4,i)=0.
+            xp(5,i)=0.
+            xp(6,i)=0.
+            return
+         endif
       endif
 c Pick normal velocity from cumulative Pu
       y=ran0(idum)

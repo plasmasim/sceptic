@@ -726,9 +726,10 @@ c Help section
      $     ' than particle number.'
       write(*,*)' --bz.ff Bz (0),--ds subdivide the domain, --sp use',
      $     'parallel bloc solver'
-      write(*,*)' --bcphi(0) bc potential (0:spherical sym, 1: Quasi',
-     $     ' neutrality on outer crone, 2: Phiout=0, 3: dPhiout/dr=0)'
-      write(*,*)' --bcr(0) bc reinject (0:spherical sym, 1: Simple',
+      write(*,*)' --bcphi(0) BC potl (0:spherical sym, ',
+     $     '1 : Quasi neutrality on outer 15%,',
+     $     '    2: Phiout=0, 3: dPhiout/dr=0)'
+      write(*,*)' --bcr(0) BC reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
       write(*,*)' --subcyc use step subcycling near probe.'
 
