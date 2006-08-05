@@ -233,10 +233,11 @@ c         call multiframe(0,0,0)
      $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
          call winset(.true.)
          call dashset(4)
+         call polyline(rpicleft,phipic,nrhere)
          call polyline(rpic,phipic,nrhere)
          call winset(.false.)
          call legendline(-.48,-0.08,
-     $           0,'Average')
+     $           0,'Upstream angle/time Average')
          call dashset(0)
          call pltend()
 c Contouring

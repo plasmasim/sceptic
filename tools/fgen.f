@@ -13,7 +13,8 @@ c Update July 2006. Included in cvs.
       real fcolk(nptmax)
       real v(nptmax),vprbarr(nptmax)
       real phit1(nptmax),phit2(nptmax),vtheory(nptmax),qt1(nptmax)
-      real colnwtarr(nptmax)
+      real colnwtarr(nptmax),fluxarr(nptmax),chenlaflux(nptmax)
+      real chenline(nptmax),chencol(nptmax)
       logical ldecompose,ltheory,louter,lchargeplot,lpotplot
       logical lasymp,lliboff,lmason,lmason2,lstandard,lfcolk,lfcomp
       logical ldterm1
@@ -50,6 +51,7 @@ c     Defaults.
       finmax=0.
       tempmul=1.
       ipfnum=3
+      colnwtmin=1.e20
       
 c     Deal with arguments
       do 1 i=1,iargc()
@@ -142,27 +144,35 @@ c     summary.
      $              dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
                   if(icolntype.ne.0)then 
                      write(*,'(i4,f8.3)')icolntype,colnwt
-c Don't allow actually zero. We want to log plot.
-                     colnwtarr(i)=colnwt+1.e-4
+c     Find minimum:
+                     if(colnwt.lt.colnwtmin .and. colnwt.ne.0.)
+     $                    colnwtmin=colnwt
+                     colnwtarr(i)=colnwt
                   else
                      colnwtarr(i)=0.
                   endif
                   vprbarr(i)=vprobe
+                  fluxarr(i)=fave
                   read(10,'(a)')charin
                else
                   vprbarr(i)=0.
                   colnwtarr(i)=0.
+                  fluxarr(i)=fave
                endif
+c Chen and Laframboise collisional ion flux:
+               chenlaflux(i)=chenlaf(Ti,Vprobe,colnwt+1.e-4)
+               write(*,*)'colnwt,kappai,expion,chenlaflux(i)',
+     $              colnwt,kappai,expion,chenlaflux(i)
+c 
                read(charin,*,end=121)charge1(i),ffield1(i), felec1(i)
      $              ,fion1(i),ftot1(i)
  121           read(10,*)charge2(i),ffield2(i),felec2(i),fion2(i)
      $              ,ftot2(i)
                ffl1(i)=ffield1(i)*debye**2
-               ffl2(i)=ffield2(i)*debye**2
+               ffl2(i)=ffield2(i)*debye**2               
             else
                goto 11
             endif
-            
             fourpi=4.*3.14159
             
 c     This fits ok for lambda=5
@@ -310,6 +320,17 @@ c     fcoul(i)=phi2**2*(1./(2.*Ti))*fourpi*xlnlambda2*
  201     write(*,*)' End of file',jf,'   Contains',i-1,' cases.'
          close(10)
          i=i-1
+
+         if(colnwtmin.ne.1.e20)then
+            colmin=10.**(nint(alog10(colnwtmin)-2.49999))
+            do kk=1,i
+               if(colnwtarr(kk).lt. colnwtmin) then
+                  colnwtarr(kk)=colmin
+               endif
+            enddo
+            colnwtmin=colmin
+         endif
+
          
          if(lchargeplot)then
 c     Plotting of Charge
@@ -408,8 +429,9 @@ c     call polyline(v,vprbarr,i)
      $           j=1,i)
             if(icolntype.ne.0)then
             write(*,*
-     $           )'Velocity  Sceptic-Inner  -Outer  Colnwt'
-               write(*,'(4f10.4)')(v(j),ftot1(j),ftot2(j),colnwtarr(j)
+     $           )'Velocity    Flux    Sceptic-Inner  -Outer  Colnwt'
+               write(*,'(5f10.4)')(v(j),fluxarr(j),
+     $           ftot1(j),ftot2(j),colnwtarr(j)
      $              ,j=1,i)
             endif
 c     Plotting
@@ -418,7 +440,56 @@ c     Plotting
             if(cmin.ne.cmax)then
 c We have a number of different collisionalities.
                call lautomark(colnwtarr,ftot1,i,.true.,.false.,1)
-               call axlabels('Collision frequency','Force(inner)')
+               call axlabels(
+     $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
+     $           'Drag Force /[r!dp!d!u2!un!de!dT!de!d]')
+               call pltend()
+               call lautomark(colnwtarr,fluxarr,i,.true.,.false.,1)
+               call axlabels(
+     $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
+     $    'Flux /[n!di!A;!@!d(ZT!de!d/m!di!d)!u1/2!u4!Ap!@r!dp!d!u2!u]')
+c Compare with Chen and Laframboise.
+               call color(5)
+               call polymark(colnwtarr,chenlaflux,i,5)
+               colmax=10.
+               colmin=.1
+               do kk=1,nptmax
+                  chencol(kk)=colmin*
+     $                exp((log(colmax)-log(colmin))*(kk-1.)/(nptmax-1.))
+                  chenline(kk)=chenlaf(Ti,Vprobe,chencol(kk))
+               enddo
+               call winset(.true.)
+               call polyline(chencol,chenline,nptmax)
+               call color(15)
+c Compare with heuristic collisional effects.
+c Zero drift form.
+c               foml=sqrt(Ti)*(1.-Vprobe/Ti)/sqrt(2.*3.14159)
+c               write(*,*)'foml(0)=',foml
+c Finite drift form.
+               foml=sqrt(2.*Ti)*omlux(vd/sqrt(2.*Ti),-Vprobe/Ti)/4.
+               write(*,*)Vprobe,Ti,'  OML flux=',foml
+c               write(*,*)'OML Flux(0,Ti)',
+c     $              sqrt(2.*Ti)*omlux(0.*vd/sqrt(2.*Ti),-Vprobe/Ti)/4.
+               colleft=colnwtmin
+               call vecw(colleft,foml,0)
+               call vecw(colleft*5.,foml,1)
+               call drcstr(' OML')
+c Overload chencol/line
+               colmax=.1
+               colmin=colnwtmin
+               slambda=sqrt(1+debyelen**2/(1+1/(Ti+vd**2)))
+               rt=slambda*log(1.-2.*Vprobe/(3.*Ti*(1+slambda)))
+               write(*,*)'debyelen,slambda,rt=',debyelen,slambda,rt
+c               rt=debyelen
+               do kk=1,nptmax
+                  chencol(kk)=colmin*
+     $                exp((log(colmax)-log(colmin))*(kk-1.)/(nptmax-1.))
+                  chenline(kk)=foml+sqrt(1./(4.*3.14159))*
+     $                 rt*(rt+1)**2*chencol(kk)
+               enddo
+               call polyline(chencol,chenline,nptmax)
+c work around accis bug:
+               call vecw(1.,1.,0)
                call pltend()
             endif
             call minmax(ftot2,i,fmin,fmax)
@@ -616,7 +687,8 @@ c*********************************************************************
       function omlux(Ui,x)
 c The functional dependence of OML collection vs drift U, and potl x.
       U=Ui
-      if(U.lt.1.e-5) U=1.e-5
+c More accurate to make the cut-off lower 1.e-2 vs 1.e-5
+      if(U.lt.1.e-2) U=1.e-2
       omlux=( (1.+(1.+2.*x)/(2.*U**2))*(1.-erfcc(U))
      $     + exp(-U**2)/(sqrt(3.14159)*U) )*U
       end
@@ -746,4 +818,14 @@ c Obtain the length of a string omitting trailing blanks.
       enddo
       i=0
  101  lentrim=i
+      end
+c********************************************************************
+c Chen and Laframboise collisional ion flux:
+c Need to fix vti ambiguity there's a factor of order unity.
+      function chenlaf(Ti,Vprobe,colnwt)
+      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
+      expion=exp(Vprobe/Ti)
+      fluxii=(1.+kappai)*(-Vprobe)/
+     $     (Ti*(1.-(1.+kappai*Vprobe/Ti)*expion))
+      chenlaf=fluxii*Ti/(1+kappai)/(colnwt)
       end
