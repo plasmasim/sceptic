@@ -1,5 +1,6 @@
 c Version of July 2005 changes in tempmul.
 c Update July 2006. Included in cvs.
+c fcol Aug 2006 for collisional use.
       program forcegen
       integer nptmax,nsmax
       parameter (nptmax=100,nsmax=100,nfilemax=20)
@@ -9,18 +10,21 @@ c Update July 2006. Included in cvs.
      $     ,ftot1(nptmax),ffl1(nptmax)
       real charge2(nptmax),ffield2(nptmax),felec2(nptmax), fion2(nptmax)
      $     ,ftot2(nptmax),ffl2(nptmax)
-      real fcol(nptmax),fcoul(nptmax),fcombined(nptmax),fcomb2(nptmax)
-      real fcolk(nptmax)
+      real fcombined(nptmax),fcomb2(nptmax)
+c      real fcolk(nptmax),fcol(nptmax),fcoul(nptmax),
       real v(nptmax),vprbarr(nptmax)
       real phit1(nptmax),phit2(nptmax),vtheory(nptmax),qt1(nptmax)
       real colnwtarr(nptmax),fluxarr(nptmax),changlaflux(nptmax)
+      real collampe(nptmax),fluxbyoml(nptmax),debyearr(nptmax)
       real chenline(nptmax),chencol(nptmax)
-      logical ldecompose,ltheory,louter,lchargeplot,lpotplot
-      logical lasymp,lliboff,lmason,lmason2,lstandard,lfcolk,lfcomp
+c      logical ldecompose,ltheory,
+      logical louter,lchargeplot,lpotplot
+c      logical lasymp,lliboff,lmason,lmason2,lstandard,
+      logical lfcolk,lfcomp
       logical ldterm1
-c Data from Lampe et al POP03 for Ti=.01, a/lambda=.015
+c Data from Lampe et al POP03 for Ti=.01, a/lambda_s=.015
       parameter (nflampe=14)
-      real flampe(nflampe),colflampe(nflampe)
+      real flampe(nflampe),colflampe(nflampe),flm(nflampe),clm(nflampe)
       data flampe/0.,-265.,-495.,-715.,-905.,-1195.,-1585.,
      $     -1925.,-2235.,-2535.,-2865.,-3215.,-3585.,-3955./
       data colflampe/0.,107.,207.,327.,437.,647.,967.,
@@ -40,13 +44,6 @@ c      data ulk/.1,.3,.6,1.,1.5,2.,3.,6.,10.,30./
 c      data xlk1/0.1,0.101,0.108,0.123,0.158,0.210,0.380,0.805,0.995,1./
 c      data xlk2/0.298,0.304,0.324,0.367,0.460,0.592,0.901,1.,1.,1./
 c     Defaults.
-      lstandard=.true.
-      lmason=.false.
-      lmason2=.false.
-      lliboff=.false.
-      lasymp=.false.
-      ldecompose=.true.
-      ltheory=.true.
       louter=.true.
       lchargeplot=.false.
       lpotplot=.false.
@@ -71,14 +68,7 @@ c     write(*,*)'Argument:',string(1:40)
             goto 3
          endif
          if(string(1:1) .eq. '-') then
-            if(string(1:2) .eq. '-j') lstandard=.false.
-            if(string(1:2) .eq. '-t') ltheory=.false.
-            if(string(1:2) .eq. '-d') ldecompose=.false.
             if(string(1:2) .eq. '-o') louter=.false.
-            if(string(1:2) .eq. '-m') lmason=.true.
-            if(string(1:2) .eq. '-s') lasymp=.true.
-            if(string(1:2) .eq. '-l') lliboff=.true.
-            if(string(1:2) .eq. '-2') lmason2=.true.
             if(string(1:2) .eq. '-c') lchargeplot=.true.
             if(string(1:2) .eq. '-p') lpotplot=.true.
             if(string(1:2) .eq. '-k') lfcolk=.true.
@@ -163,7 +153,15 @@ c     Find minimum:
                            ic0=i
                         endif
                      endif
+                     debyearr(i)=debyelen
                      colnwtarr(i)=colnwt
+                     collampe(i)=colnwt/(sqrt(2.*Ti)
+     $                 *sqrt(1+1./Ti)/debyelen)
+                     ZTei=1./Ti
+                     Zmepi=sqrt(4.*3.14159/(1837.*rmtoz))
+                     omlf=-omlfloat(0.,ZTei,Zmepi)
+                     foml=sqrt(Ti)*(1.-omlf/Ti)/sqrt(2.*3.14159)
+                     fluxbyoml(i)=fave/foml
                   else
                      colnwtarr(i)=0.
                   endif
@@ -189,53 +187,8 @@ c
             else
                goto 11
             endif
+c 
             fourpi=4.*3.14159
-            
-c     This fits ok for lambda=5
-c     vt2=v(i)**2+(8./3.14159)*Ti
-            if(lstandard) then 
-               vt2=tempmul*Ti +v(i)**2
-            else
-               vt2=tempmul*Ti +v(i)**2
-c Enhancement of transition to zero ion shielding.
-     $              +v(i)**2*(v(i)/(.5+0.05*alog(rmtoz)
-c Version of Orleans:
-c     $                  +.1*(Ti/.01)**.5))**3
-c it must be identical to 
-c                        +Ti**.5))**3
-c The following is a good fit from lambda=5 to 20 but there might be better
-c     $                  +.1*(Ti/.01)**(.3+.04*debye)
-c This is arguably as good but weights the upramp more than the peak.
-     $                  +.1 +(debye/5.)**1*(sqrt(Ti)-.1)
-     $              ))**3
-
-               
-            endif
-            dterm=debye**2*(vt2/(tempmul+vt2))
-            if(ldterm1)dterm=dterm+1
-            xls=sqrt(dterm)
-            
-c     The following model is used for the Yukawa form:
-c     phi_y = q_eff/4pi exp(-r/xls)/r.
-c     
-c     Then the first method of matching to the data is that
-c     q_eff is chosen to make the model charge inside r=1 equal to the
-c     measured charge (charge1). That leads to 
-c     qeff=charge1(i)*exp(1./xls)*xls/(1.+xls)
-c     charge1(i)=-4 pi r^2 d phi_y/dr
-c     =q_eff*exp(-r./xls)(1./r+1/xls)
-c     and that then gives the value of phi_y at r=1:
-c     phi_y(1) = q_eff/4pi exp(-1/xls) = phip:
-            phip=(charge1(i)/fourpi)*xls/(1.+xls)
-c     However, the above notwithstanding. if the information for the
-c     actual
-c     probe potential is available then use that potential itself for
-c     phip
-c     and determine q_eff by requiring the model potential to match at r
-c     =1,
-c     namely q_eff = phip exp(1/xls).
-c     For large lambda_d these agree quite closely.
-c     They should agree to first order in r_p/lambda for a Yukawa form.
             if(vprbarr(i).ne.0.)then
                write(*,*)'Using vprobe information ',vprbarr(i),
      $              ' not charge-based estimate',phip
@@ -244,99 +197,12 @@ c     They should agree to first order in r_p/lambda for a Yukawa form.
                
                phip=vprbarr(i)
             endif
-            
-            qeff=fourpi*phip*exp(1./xls)
-c     phi2 is the potential at r=1 from an _unshielded_ charge of
-c     magnitude qeff.
-            phi2=qeff/fourpi
-            
-            b90=-phip/vt2
-c            b90=-phip/(v(i)**2+2.*Ti+(v(i)/.5)**4*.008/(.03+Ti))
-c This is the form that most accords with Khrapak's work:
-            b90k=-phip/(v(i)**2+2.*Ti)
-            bc2=1 - 2.*phip/vt2
-            b902=b90*b90
-c This is an obsolete form.
-c     b90k=-phi2/(v(i)**2+2.*Ti)
-c This is for testing purposes when we want the b90 to fall quickly.
-c            b90k=b90
-c            bc3=1 - 2.*phip/(v(i)**2+3.*Ti)
-c            if(sqrt(bc3).gt.b90k .and. lstandard)then
-c Abrupt jump transition for illustration purposes.
-c               write(*,*)'sqrt(bc3),b90k',sqrt(bc3),b90k
-c               bc2=1.
-c               b902=0.
-c               dterm=debye**2
-c            endif
-            
-c Effective potential for collection (superceded).
-            phicol=-phip/Ti
-c Use the calculated OML value of potential at low lambda.
-c It happens to give a better result.
-            phicol=omlfloat(v(i)/sqrt(2.*Ti),1./Ti,
-     $           sqrt(4.*3.14159/(1837.*rmtoz)))/Ti
-c            phicol=0.
-            fcol(i)=sqrt(3.14159)*Ti*colforce(v(i)/sqrt(2.*Ti),phicol)
-c     $        -charge1(i)/(fourpi*Ti))
-            
-c     Asymptotics
-c     Standard form 
-            xlnlambda2=max(log((b902+dterm)/(b902+bc2)),0.)
-c This modified form is the same as Khrapak but with modified b90/bc2.
-            if(.not.lstandard)
-c     $           xlnlambda2=2.*max(log((b90+xls)/sqrt(b90**2+bc2)),0.)
-     $           xlnlambda2=2.*max(log((xls+b90)/(1.+b90)),0.)
-c This modified form shows that it is the bc change that is most important.
-c            xlnlambda2=2.*max(log((b90+xls)/sqrt(b90**2+bc3)),0.)
-C     Forms moved into functions.
-c My asymptotic form
-            if(lasymp)xlnlambda2=2.*
-     $           xlnmasymp(Ti,v(i),xls,sqrt(bc2),phip)
-c     Liboff form
-            if(lliboff)xlnlambda2=2.*xlnmliboff(Ti,v(i),xls,sqrt(bc2)
-     $           ,phip)
-c     Mason form
-            if(lmason)xlnlambda2=2.*xlnmmason(Ti,v(i),xls,sqrt(bc2),phip
-     $           )
-c     Alternate Mason form:
-            if(lmason2)xlnlambda2=2.*xlnmmason2(Ti,v(i),xls,sqrt(bc2)
-     $           ,phip)
-            
-c     fcoul(i)=phi2**2*(1./(2.*Ti))*fourpi*xlnlambda2*
-            fcoul(i)=phip**2*(1./(2.*Ti))*fourpi*xlnlambda2
-     $           * chandrafunc(v(i)/sqrt(2*Ti))
-            fcombined(i)=fcoul(i)+fcol(i)
-            
-c     xlnlambda2=max(log(1.+((dterm)/(b902+bc2))),0.)
-c     Kilgore approximate integrated form gives results about 10x too
-c     big:
-c     xlnlambda2=.898*(log(1.+7.8*xls/b90))**2
-c     Kilgore unintegrated approx is not so crazy, about factor 2 too
-c     big.
-c     xlnlambda2=.9369*(2./3.14159)*log(1+(61.32/4.)*dterm/b902)
-c     Khrapak integrated form:
-c            dtermk=debye**2/(1.+tempmul/(tempmul*Ti+v(i)**2))
-            dtermk=debye**2/(1.+1./(Ti+v(i)**2))
-c            dtermk=debye**2
-            if(ldterm1)dtermk=dtermk+1
-            xlnlambda3=2.*max(log((sqrt(dtermk)+b90k)/(1.+b90k)),0.)
-c     Here there is ambiguity between phip and phi2 in Khrapak's papers.
-c     phi2 gives larger drag values which are better at lower lambda but
-c     worse for higher.
-c     fcoul(i)=phi2**2*(1./(2.*Ti))*fourpi*xlnlambda2*
-            fcoul(i)=phip**2*(1./(2.*Ti))*fourpi*xlnlambda3
-     $           * chandrafunc(v(i)/sqrt(2*Ti))
-            fcomb2(i)=fcoul(i)+fcol(i)
-            fcolk(i)=colkforce(vd,phip,Ti,xlnlambda3)
-            write(*,'(''b90='',f7.4,''  bc='',f7.4,''  charge='',f7.2,'/
-     $           /'''  shield='',f7.4,''  xLm3='',f7.4)')b90,sqrt(bc2)
-     $           ,charge1(i),sqrt(dterm),xlnlambda3
-            if(lfcolk)write(*,*)'fcolk=',fcolk(i)
          enddo
  201     write(*,*)' End of file',jf,'   Contains',i-1,' cases.'
          close(10)
          i=i-1
-
+c--------------------------------------------------
+c Start of plotting etc.
          if(colnwtmin.ne.1.e20)then
             colmin=10.**(nint(alog10(colnwtmin)-2.49999))
             do kk=1,i
@@ -349,6 +215,7 @@ c     fcoul(i)=phi2**2*(1./(2.*Ti))*fourpi*xlnlambda2*
 
          
          if(lchargeplot)then
+c........................
 c     Plotting of Charge
             if(jf.eq.1)then
                call pfset(ipfnum)
@@ -394,6 +261,7 @@ c     write(string,'('' '',f4.0,'' '',f3.1,'' f'')')debye,Ti
             call winset(.false.)
             if(jf.eq.ifile)call pltend()
          elseif(lpotplot)then
+c........................
 c     Plotting of Potential
             xleg=.6
             yleg=.95
@@ -436,6 +304,8 @@ c     call polyline(v,vprbarr,i)
             call polymark(v,vprbarr,i,jf)
             if(jf.eq.ifile)call pltend()
          else
+c........................
+c Default Plotting
             write(*,*)'Debye=',debye
             write(*,*
      $           )'Velocity  Sceptic-Inner  -Outer  Analytic  Anal/Sc-I'
@@ -449,8 +319,26 @@ c     call polyline(v,vprbarr,i)
                write(*,'(5f10.4)')(v(j),fluxarr(j),
      $           ftot1(j),ftot2(j),colnwtarr(j)
      $              ,j=1,i)
+               ZTei=1./Ti
+               Zmepi=sqrt(4.*3.14159/(1837.*rmtoz))
+               omlf=-omlfloat(0.,ZTei,Zmepi)
+c Zero drift form.
+               foml=sqrt(Ti)*(1.-omlf/Ti)/sqrt(2.*3.14159)
+               write(*,*)'omlfloat,rmtoz',omlf,rmtoz
+               write(string2,'('' OML M/Z='',i2)')nint(rmtoz)
+               do kl=1,nflampe
+c Scale into Lampe's units:
+                  flampe(kl)=1.+flampe(kl)*flv1/fl1
+                  colflampe(kl)=colflampe(kl)*clv1/cl1
+                  write(*,*)colflampe(kl),flampe(kl)
+c Scale into my units
+                  flm(kl)=flampe(kl)*foml
+c Unfortunately, Lampe uses lambda_s instead of lambda_De
+                  clm(kl)=colflampe(kl)*sqrt(2.*Ti)
+     $                 *sqrt(1+1./Ti)/debyelen
+                  write(*,*)clm(kl),flm(kl)
+               enddo
             endif
-c     Plotting
             call pfset(ipfnum)
             call minmax(colnwtarr,i,cmin,cmax)
             if(cmin.ne.cmax)then
@@ -504,32 +392,17 @@ c               rt=debyelen
      $                 rt*(rt+1)**2*chencol(kk)
                enddo
                call polyline(chencol,chenline,nptmax)
+c Add Lampe line:
+               call dashset(2)
+               call polyline(clm(2),flm(2),nflampe-1)
+               call dashset(0)
 c work around accis bug:
                call vecw(1.,1.,0)
                call pltend()
 c Linear plot intended for Lampe comparisons
-               ZTei=1./Ti
-               Zmepi=sqrt(4.*3.14159/(1837.*rmtoz))
-               omlf=-omlfloat(0.,ZTei,Zmepi)
-c Zero drift form.
-               foml=sqrt(Ti)*(1.-omlf/Ti)/sqrt(2.*3.14159)
-               write(*,*)'omlfloat,rmtoz',omlf,rmtoz
-               write(string2,'('' OML M/Z='',i2)')nint(rmtoz)
-               do kl=1,nflampe
-c Scale into Lampe's units:
-                  flampe(kl)=1.+flampe(kl)*flv1/fl1
-                  colflampe(kl)=colflampe(kl)*clv1/cl1
-                  write(*,*)colflampe(kl),flampe(kl)
-c Scale into my units
-                  flampe(kl)=flampe(kl)*foml
-c Unfortunately, Lampe uses lambda_s instead of lambda_De
-                  colflampe(kl)=colflampe(kl)*sqrt(2.*Ti)
-     $                 *sqrt(1+1./Ti)/debyelen
-                  write(*,*)colflampe(kl),flampe(kl)
-               enddo
                call minmax(fluxarr,i,fmin,fmax)
-               call minmax(colflampe,nflampe,cfmin,cfmax)
-               call fitinit(0.,cfmax,min(fmin,flampe(1)),1.3*fmax)
+               call minmax(clm,nflampe,cfmin,cfmax)
+               call fitinit(0.,cfmax,min(fmin,flm(1)),1.3*fmax)
                call axis()
                call polymark(colnwtarr,fluxarr,i,1)
                call axlabels(
@@ -539,8 +412,28 @@ c Unfortunately, Lampe uses lambda_s instead of lambda_De
                call vecw(.1*cfmax,foml,1)
                call drcstr(string2)
                call color(2)
-               call polyline(colflampe,flampe,nflampe)
+               call polyline(clm,flm,nflampe)
                call color(15)
+               call pltend()
+c Plot in Lampe's normalization:
+c               call pfpsset(1)
+               call fitinit(0.,.5,0.,4.)
+               call axis
+c               call polymark(collampe,fluxbyoml,i,1)
+c Alternative coded plot:
+               do kl=1,i
+                  mark=4
+                  if(debyearr(kl).lt.100) mark=2
+                  call polymark(collampe(kl),fluxbyoml(kl),1,mark)
+               enddo
+               call axlabels(
+     $              'Collision Frequency /[v!dti!d/!Al!@!ds!d]',
+     $              'Flux /OML-value',)
+               call polyline(colflampe,flampe,nflampe)
+c               call pfpsset(0)
+               call legendline(.5,.25,4,' !Al!@!dDe!d=666.7 r!dp!d')
+               call legendline(.5,.2,2,' !Al!@!dDe!d=66.7 r!dp!d')
+               call legendline(.5,.15,0,' Lampe et al')
                call pltend()
 c Floating potential plot
                call minmax(vprbarr,i,vpmin,vpmax)
@@ -555,121 +448,6 @@ c Floating potential plot
                call drcstr(string2)
                call pltend()
             endif
-            call minmax(ftot2,i,fmin,fmax)
-            if(ldecompose)then
-               fmin=-ftot2(i)*.3
-               fmax=fmax*1.2
-            else
-               fmin=0.
-               fmax=fmax*1.1
-            endif
-            if(finmax.ne.0)fmax=finmax
-            call ticnumset(10)
-            call fitinit(0.,v(i),fmin,fmax)
-            call charsize(.02,.02)
-c     call axis()
-c Instead of that, do things by hand
-            call ticset(.015,.015,-.03,-.03,0,0,0,0)
-            call yaxis(1.,0.)
-            call xaxis(0.,1.)
-            call ticset(.01,.01,-.03,-.03,0,0,0,0)
-            call ticlabtog()
-            call xaxis(0.,.5)
-            call ticlabtog()
-            call axis2()
-            call axlabels('Drift velocity /[ZT!de!d/m!di!d]!u1/2!u',
-     $           'Drag Force /[r!dp!d!u2!un!de!dT!de!d]')
-c     charin='!Al!@!dD!d='
-c     call fwrite(debye,iwidth,1,charin(12:))
-            
-            call fwrite(debye,iwidth1,1,string)
-            call fwrite(Ti,iwidth2,2,string2)
-            charin=' '
-            charin(1:12)='!Al!@!dD!d='
-            charin(12:11+iwidth1)=string(1:iwidth1)
-            charin(12+iwidth1:21+iwidth1)=', T!di!d='
-            charin(21+iwidth1:)=string2
-            call legendline(.41,.95,257,charin(1:21+iwidth1+iwidth2))
-            call winset(.true.)
-            call polymark(v,ftot1,i,1)
-            call polyline(v,ftot1,i)
-            yleg=.95
-            call legendline(.0,yleg,1,' Total SCEPTIC')
-            call vecw(0.,0.,0)
-            call vecw(v(i),0.,1)
-            if(ldecompose)then
-               call polymark(v,ffl1,i,2)
-               call polyline(v,ffl1,i)
-               call polymark(v,felec1,i,3)
-               call polyline(v,felec1,i)
-               call polyline(v,fion1,i)
-               call polymark(v,fion1,i,4)
-               call legendline(.0,yleg-.05,2,' E-field')
-               call legendline(.0,yleg-.1,3,' Electrons')
-               call legendline(.0,yleg-.15,4,' Ions')
-               call legendline(.4,yleg-.12,0,' Inner Sphere')
-               if(louter)then
-                  call color(4)
-                  call dashset(4)
-                  call legendline(.4,yleg-.07,0,' Outer Boundary')
-                  call polymark(v,ftot2,i,1)
-                  call polyline(v,ftot2,i)
-                  call polymark(v,ffl2,i,2)
-                  call polymark(v,felec2,i,3)
-                  call polyline(v,felec2,i)
-                  call polymark(v,fion2,i,4)
-                  call polyline(v,fion2,i)
-               endif
-            endif
-            if(ltheory)then
-               if(lfcolk)then
-                  call color(iblue())
-                  call dashset(2)
-                  call polyline(v,fcolk,i)
-                  call polymark(v,fcolk,i,7)
-               endif
-               call color(ired())
-               call dashset(3)
-               call polyline(v,fcol,i)
-               yoffs=0.
-               if(ldecompose) then
-                  call polyline(v,fcoul,i)
-               else
-                  yoffs=.80
-               endif
-c     call dashset(1)
-               call dashset(0)
-               call polymark(v,fcombined,i,11)
-               call polyline(v,fcombined,i)
-               if(.not.(lasymp.and.lmason.and.lliboff.and.lmason2))then
-                  if(lstandard) then
-                     call legendline(.4,.1+yoffs,-11,' Standard')
-                  else
-                     call legendline(.4,.1+yoffs,-11,' Adjusted')
-                  endif
-               else
-                  call legendline(.4,.1+yoffs,-11,' Asymptotic')
-               endif
-c     call dashset(5)
-               call color(iblue())
-               call polymark(v,fcomb2,i,10)
-               call polyline(v,fcomb2,i)
-               call legendline(.4,.05+yoffs,-10,' Khrapak')
-            endif
-            if(lfcomp)then
-               write(*,*)'Doing force comparison; file ',compfile(1:30)
-               open(10,file=compfile,status='old',err=220)
-               do j=1,nptmax
-                  read(10,*,end=221,err=221)debyelen,vdi,vpi,force,error
-                  ftot2(j)=force
-                  v(j)=vdi
-               enddo
- 221           close(10)
-               call color(6)
-               call polymark(v,ftot2,j-1,7)
-               call polyline(v,ftot2,j-1)
-            endif
-            call pltend()
          endif
  100  continue
 
@@ -677,18 +455,13 @@ c     call dashset(5)
  220     stop 'lfcomp file open error'
 
  200  write(*,*)' Error opening file',filename(jf)
- 99   write(*,*)'Usage: ./forcesum [switches] file1, file2, ...\n',
+ 99   write(*,*)'Usage: ./fcol [switches] file1, file2, ...\n',
      $     ' produce file by headsum, or head -n2 ;tail -n 3 T*.dat'
       write(*,*)'Switches:'
       write(*,*)'-c chargeplot, -d no decompose, -t no theory,',
      $     ' -p potential plot',
-     $     '-s use asymptotic form,',
-     $     ' not standard:log((b902+dterm)/(b902+bc2)',
-     $     '-m Mason form -l Liboff form -2 Mason2 form.',
      $     '-o no outer  -r?? ratio of mass to charge.',
-     $     '-k plot Khrapak collection force (v<<v_ti approx)',
      $     '-a don''t add 1 to debyelen (default add to compensate).',
-     $     '-j use adjusted transition form fit.',
      $     '-ffilename comparison force file.  -yf.f max force (y). ',
      $     '-vf.f set tempmul (1). -n no screen output.'
 
