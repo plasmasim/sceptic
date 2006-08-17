@@ -30,7 +30,11 @@ c Using the routines in strings_names.f
       filename=' '
       call nameappendexp(filename,'T',Ti,1)
       call nameappendint(filename,'v',nint(100*vd),3)
-      call nameappendint(filename,'r',ifix(r(nr)),2)
+      if(r(nr).ge.100)then
+         call nameappendint(filename,'R',ifix(r(nr)/10.),2)
+      else
+         call nameappendint(filename,'r',ifix(r(nr)),2)
+      endif
       call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
       call nameappendexp(filename,'L',debyelen,1)
       if(Bz.ne.0.) call nameappendexp(filename,'B',Bz,2)
@@ -45,7 +49,7 @@ c Write out averaged results.
       write(10,'(2f7.4,f7.3,i5,f8.1,f7.3,f8.4,f8.3,f8.3,f6.2,f7.3,$)')
      $     dt,vd,Ti,i,rhoinf,log(rhoinf),fave,debyelen,vprobe,damplen,Bz
       if(icolntype.gt.0)then
-         write(10,'(i2,f7.3)')icolntype,colnwt
+         write(10,'(i2,f8.5)')icolntype,colnwt
       else
          write(10,*)
       endif

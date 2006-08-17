@@ -551,7 +551,8 @@ c     Calculate the potential field, unless it is fixed.
                   call fcalc_lambda(dt,icolntype)
 #ifdef MPI
                else
-                  call fcalc_shielding(dt,icolntype,sor_comm,myid2)
+                  call fcalc_shielding(dt,icolntype,colnwt,
+     $                 sor_comm,myid2)
                endif
 #endif
             endif

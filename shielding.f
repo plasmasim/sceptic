@@ -1,6 +1,5 @@
-
 c******************************************************************
-      subroutine fcalc_shielding(dt,icolntype,sor_comm,myid2)
+      subroutine fcalc_shielding(dt,icolntype,colnwt,sor_comm,myid2)
 
       include 'piccom.f'
       include 'mpif.h'
@@ -63,8 +62,9 @@ c     Screening k-number combines electrons and ions.
          expE1=(alog(1.+1./rxl) - 0.56/(1.+4.1*rxl+0.9*rxl**2))
          rindex=alpha*(redge*el+1.)+ (1.-alpha)*2.
 c         if(icolntype.eq.2)then
-c Remove the deficit term
-c            expE1=0.
+c Remove the deficit term when using simplistic rindex, otherwise 
+c instability tends to result.
+c         expE1=0.
 c Simplistic trials.
 c            rindex=(redge*el+1.)
 c            rindex=1.
@@ -78,7 +78,9 @@ c     Current fractional ion deficit due to collection.
 c     Coefficient of 1/r^2 in modified shielding equation is
 c     a = deficitj * r_edge^2 / \lambda_De^2
             deficitj=1-phi(NRUSED,j)/Ti -rho(NRUSED,j)
-c     write(*,*)rho(NRUSED,j),phi(NRUSED,j),deficitj
+c Reduce the deficit term when collisionality is significant.
+c Because it no longer applies. (Perhaps ought to account for vd).
+            deficitj=deficitj/(1.+(colnwt*redge)**2/Ti)
             blfac1=(deficitj/debyelen**2) * redge
             adeficit=adeficit+blfac1
 c     BC modification is (a/r_edge)[exp(EL*r) E_1(El*r)] given by approx.
