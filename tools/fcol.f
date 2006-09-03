@@ -363,7 +363,9 @@ c Compare with Chang and Laframboise.
                   chenline(kk)=changlaf(Ti,Vprobe,chencol(kk))
                enddo
                call winset(.true.)
-               call polyline(chencol,chenline,nptmax)
+               if(vprbarr(1).eq.vprbarr(i))then
+                  call polyline(chencol,chenline,nptmax)
+               endif
                call color(15)
 c Compare with heuristic collisional effects.
 c Zero drift form.
@@ -542,90 +544,6 @@ c      write(*,*)x,omlux(u,x)
       if(abs(x1-x)/x.gt.1.e-5) goto 1
       omlfloat=x/ZTei
       end
-c*******************************************************************
-      function xlnmmason(Ti,v,xls,bc,phip)
-c Log lambda for shielded coulomb potential,
-c  per fit to Mason et al Phys Fl 10,1827(1967)
-c  extended by incorporating a minimum impact parameter.
-c T is ion temperature. v drift velocity. 
-c xls=\lambda_s is shielding length.
-c bc is the collection impact parameter
-c phip is the probe potential, at radius 1.
-c
-c phi0 (\lambda_s/r) exp(-r/\lambda_s) = potential.
-      phi0=phip*exp(1./xls)/xls
-c b90L is the equivalent minimum impact parameter.
-      b90L=-phi0/(Ti+1.12*v**2)
-c Tstar is Mason's parameter: xls*T/phi0, 
-c    but with flow- and collection-correction.
-      Tstar=xls/sqrt(b90L**2+bc**2)
-c a1 and a2 are fitting parameters.
-      a1=1.75
-      a2=7.0
-      xlnmmason=alog(1.+a1*tstar) -(0.268+alog(a1))*tstar/(a2+tstar)
-      end
-c*******************************************************************
-      function xlnmmason2(Ti,v,xls,bc,phip)
-c Log lambda for shielded coulomb potential,
-c  per fit to Mason et al Phys Fl 10,1827(1967). Alternate cutoff.
-c  extended by incorporating a minimum impact parameter.
-c T is ion temperature. v drift velocity. 
-c xls=\lambda_s is shielding length.
-c bc is the collection impact parameter
-c phip is the probe potential, at radius 1.
-c
-c phi0 (\lambda_s/r) exp(-r/\lambda_s) = potential.
-      phi0=phip*exp(1./xls)/xls
-c b90L is the equivalent minimum impact parameter.
-      b90L=-phi0/(Ti+1.12*v**2)
-c Tstar is Mason's parameter: xls*T/phi0, 
-c    with flow- but without collection-correction.
-      Tstar=xls/abs(b90L)
-c a1 and a2 are fitting parameters.
-      a1=1.75
-      a2=7.0
-      xlnmmason2=alog(1.+a1*tstar) -(0.268+alog(a1))*tstar/(a2+tstar)
-c Collection correction applied after the fact.
-      xlnmmason2=xlnmmason2-0.5*alog(1+ bc**2/b90L**2)
-      end
-c******************************************************************
-      function xlnmliboff(Ti,v,xls,bc,phip)
-c Log lambda for shielded coulomb potential,
-c  per Liboff. Simply made asymptotically correct.
-c T is ion temperature. v drift velocity. 
-c xls=\lambda_s is shielding length.
-c bc is the collection impact parameter
-c phip is the probe potential, at radius 1.
-c
-c phi0 (\lambda_s/r) exp(-r/\lambda_s) = potential.
-      phi0=phip*exp(1./xls)/xls
-c b90L is the equivalent minimum impact parameter.
-      b90L=-phi0/(Ti+1.12*v**2)
-c Tstar is Mason's parameter: xls*T/phi0, 
-c    but with flow- and collection-correction.
-      Tstar=xls/sqrt(b90L**2+bc**2)
-c a1 and a2 are fitting parameters.
-      xlnmliboff=max(alog(tstar)-0.268,0.)
-      end
-c*****************************************************************
-      function xlnmasymp(Ti,v,xls,bc,phip)
-c Log lambda for shielded coulomb potential,
-c  per asymptotic approximations.
-c T is ion temperature. v drift velocity. 
-c xls=\lambda_s is shielding length.
-c bc is the collection impact parameter
-c phip is the probe potential, at radius 1.
-      vt2=v**2+ 3.*Ti
-      b902=(phip/vt2)**2
-      bc2=bc**2
-      a=sqrt(bc2/b902)
-      sl=sqrt(xls**2/b902)
-c     New asymptotics
-      xlnmasymp=((sl+a)/sqrt(1.+(sl+a)**2))
-     $        *alog(1.+sl/sqrt(1.+a**2))
-     $     *exp(-a/sl)
-
-      end
 c******************************************************************
 c Return the position (not pointer) of match in string
 c Trailing blanks are ignored.
@@ -657,7 +575,7 @@ c Obtain the length of a string omitting trailing blanks.
       end
 c********************************************************************
 c Chen and Laframboise collisional ion flux:
-c Need to fix vti ambiguity there's a factor of order unity.
+c Needed to fix vti ambiguity there's a factor of order unity.
 c First guess was low by factor 1.329:
 c      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
       function changlaf(Ti,Vprobe,colnwt)
