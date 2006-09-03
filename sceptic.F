@@ -272,7 +272,7 @@ c         write(*,*)'Command line and defaults:'
          write(*,502)debyelen,Ti,maxsteps,dtf,rmax,vd,vprobe
  505     format(' Mesh: ',i3,' x',i3,'  Particles:',i7,' Bz:',f4.2)
  502     format('l_d=',f10.3,' Ti=',f7.3,' Steps=',i4,
-     $        ' dt=',f6.4,' rmax=',f4.1,' vd=',f6.3,' vp=',f8.4)
+     $        ' dt=',f6.4,' rmax=',f5.1,' vd=',f6.3,' vp=',f8.4)
          if(lsubcycle)write(*,*)'Subcycling on!'
       endif
       if(maxsteps.gt.nstepmax-1) Stop 'Too many steps requested.'

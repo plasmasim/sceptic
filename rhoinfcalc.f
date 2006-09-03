@@ -47,12 +47,16 @@ c     We have to calculate rhoinf consistently with the reinjection
 c Using general fvinject, injecting at the computational boundary.
 c  qthfv(nthfvsize) contains the one-way flux density
 c integrated dcos(theta) in 2Ti-normalized units.
-c We hack up the effect of attracting edge potential.
             riest=(nrein/dt) /
      $           (sqrt(2.*Ti)*
-     $           qthfv(nthfvsize)*2.*3.141593*(1-averein/(Ti+0.*vd**2))
+     $           qthfv(nthfvsize)*2.*3.141593
      $           *r(NRFULL)**2 )
-c Correction for collisional drag solution in outer region.
+c Hack up the effect of attracting edge potential.
+c This extra term is not correct for large collisionality and probably 
+c should not be applied. However, it does then give the same answer as 
+c the kt2 approach.
+c     $           /(1-averein/(Ti+0.*vd**2))
+c Correction for collisional drag in outer region. Usually negligible.
             riest=riest
      $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
          elseif(icolntype.eq.2)then
@@ -85,7 +89,7 @@ c smaxflux returns total flux in units of Ti (not 2Ti)
 c            write(*,*) riest
          endif
 
-c         write(*,*)'nrein=',nrein,'  psum=',psu,
+c         write(*,*)'nrein=',nrein,
 c     $        '  averein=',averein,' riest=',riest
       else
 c If no valid estimate, just keep it the same.
