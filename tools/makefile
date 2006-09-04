@@ -17,7 +17,7 @@ COMPILE-SWITCHES = -Wall -O2
 % : %.F
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(libraries)
 
-all : postprocB postproc parrot fluxVp newsumplot
+all : postprocB postproc parrot fluxVp newsumplot fcol 
 
 postproc : postproc.f piccompost.f /home/hutch/accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(libraries)
@@ -31,10 +31,12 @@ fluxVp : fluxVp.f /home/hutch/accis/libaccisX.a coulflux.f
 postprocB : postprocB.f piccompost.f /home/hutch/accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f coulflux.f $(libraries)
 
+fcol : fcol.f kennedyallen.o
+	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(libraries)
 
 clean :
 
 	rm -f *.o
-	rm -f postproc parrot fluxVp newsumplot
+	rm -f postproc parrot fluxVp newsumplot fcol
 	rm -f *.dat *.frc
 	rm -f *.ps *.txt

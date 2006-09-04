@@ -5,6 +5,7 @@ c fcol Aug 2006 for collisional use.
       integer nptmax,nsmax
       parameter (nptmax=100,nsmax=100,nfilemax=20)
       character*100 string,filename(nfilemax),charin,string2,compfile
+      character*100 abrstring
       character debchar
       real charge1(nptmax),ffield1(nptmax),felec1(nptmax), fion1(nptmax)
      $     ,ftot1(nptmax),ffl1(nptmax)
@@ -23,11 +24,11 @@ c      logical lasymp,lliboff,lmason,lmason2,lstandard,
       logical lfcolk,lfcomp
       logical ldterm1
 c Data from Lampe et al POP03 for Ti=.01, a/lambda_s=.015
-      parameter (nflampe=14)
+      parameter (nflampe=16)
       real flampe(nflampe),colflampe(nflampe),flm(nflampe),clm(nflampe)
-      data flampe/0.,-265.,-495.,-715.,-905.,-1195.,-1585.,
+      data flampe/0.,-25,-127.,-265.,-495.,-715.,-905.,-1195.,-1585.,
      $     -1925.,-2235.,-2535.,-2865.,-3215.,-3585.,-3955./
-      data colflampe/0.,107.,207.,327.,437.,647.,967.,
+      data colflampe/0.,10.,50.,107.,207.,327.,437.,647.,967.,
      $     1327.,1697.,2177.,2787.,3567.,4537.,5637./
 c upper point scaled positions and values:
       data cl1/5997./fl1/-3585./clv1/0.5/flv1/2./
@@ -182,8 +183,8 @@ c
      $              ,fion1(i),ftot1(i)
  121           read(10,*)charge2(i),ffield2(i),felec2(i),fion2(i)
      $              ,ftot2(i)
-               ffl1(i)=ffield1(i)*debye**2
-               ffl2(i)=ffield2(i)*debye**2               
+               ffl1(i)=ffield1(i)*debyelen**2
+               ffl2(i)=ffield2(i)*debyelen**2               
             else
                goto 11
             endif
@@ -294,9 +295,9 @@ c     call pltinit(0.,5.,-2.8,-1.7)
             endif
             call color(jf)
             if(Ti.lt.0.1) then
-               write(string,'('' '',f4.0,'' '',f4.2)')debye,Ti
+               write(string,'('' '',f4.0,'' '',f4.2)')debyelen,Ti
             else
-               write(string,'('' '',f4.0,'' '',f3.1)')debye,Ti
+               write(string,'('' '',f4.0,'' '',f3.1)')debyelen,Ti
             endif
 c     call legendline(xleg,yleg-.05*jf,-jf,string)
             call legendline(xleg,yleg-.05*jf,jf,string)
@@ -324,8 +325,15 @@ c Default Plotting
                omlf=-omlfloat(0.,ZTei,Zmepi)
 c Zero drift form.
                foml=sqrt(Ti)*(1.-omlf/Ti)/sqrt(2.*3.14159)
-               write(*,*)'omlfloat,rmtoz',omlf,rmtoz
                write(string2,'('' OML M/Z='',i2)')nint(rmtoz)
+               potlabr=-potlka(1./debyelen)
+c Electron flux density at potential potlabr in units of sqrt(T_e/m_i).
+               fabr=exp(potlabr)/Zmepi/sqrt(2.)
+               abrstring=' ABR !Al!@!dDe!d='
+               call fwrite(debyelen,iwidth,1,
+     $              abrstring(lentrim(abrstring)+1:))
+               write(*,*)'rmtoz,omlfloat,potlabr,fabr',
+     $              rmtoz,omlf,potlabr,fabr
                do kl=1,nflampe
 c Scale into Lampe's units:
                   flampe(kl)=1.+flampe(kl)*flv1/fl1
@@ -380,6 +388,10 @@ c     $              sqrt(2.*Ti)*omlux(0.*vd/sqrt(2.*Ti),-Vprobe/Ti)/4.
                call vecw(colleft,foml,0)
                call vecw(colleft*5.,foml,1)
                call drcstr(' OML')
+c mark abr
+               call vecw(colleft,fabr,0)
+               call vecw(colleft*5.,fabr,1)
+               call drcstr(abrstring)
 c Overload chencol/line
                colmax=.1
                colmin=colnwtmin
@@ -410,9 +422,14 @@ c Linear plot intended for Lampe comparisons
                call axlabels(
      $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
      $    'Flux /[n!di!A;!@!d(ZT!de!d/m!di!d)!u1/2!u4!Ap!@r!dp!d!u2!u]')
+c mark oml
                call vecw(0.,foml,0)
                call vecw(.1*cfmax,foml,1)
                call drcstr(string2)
+c mark abr
+               call vecw(0.,fabr,0)
+               call vecw(.1*cfmax,fabr,1)
+               call drcstr(abrstring)
                call color(2)
                call polyline(clm,flm,nflampe)
                call color(15)
