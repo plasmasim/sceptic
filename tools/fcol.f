@@ -513,6 +513,7 @@ c               call pfpsset(0)
                call pltend()
 c Floating potential plot
                call minmax(vprbarr,i,vpmin,vpmax)
+c               vpmin=min(vpmin,1.1*omlf)
                call fitinit(0.,.025,vpmin,vpmax)
                call fitrange(-vpmax,-vpmin,5,nxfac,xfac,xdelta,
      $              vymin,vymax)
@@ -531,7 +532,8 @@ c Floating potential plot
                call ticrev()
                call altxaxis(sfac,sfac)
                call jdrwstr(.6,.67,
-     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
+c     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
+     $    '!An!@!dc!d/[v!dti!d/!Al!@!ds!d]',1.2)
                call axptset(0.,0.)
                call ticrev()
                call pltend()
