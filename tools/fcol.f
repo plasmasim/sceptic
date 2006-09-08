@@ -18,6 +18,8 @@ c      real fcolk(nptmax),fcol(nptmax),fcoul(nptmax),
       real colnwtarr(nptmax),fluxarr(nptmax),changlaflux(nptmax)
       real collampe(nptmax),fluxbyoml(nptmax),debyearr(nptmax)
       real chenline(nptmax),chencol(nptmax)
+      real xs(nptmax),ys(nptmax)
+      integer icoltarr(nptmax)
 c      logical ldecompose,ltheory,
       logical louter,lchargeplot,lpotplot
 c      logical lasymp,lliboff,lmason,lmason2,lstandard,
@@ -156,8 +158,9 @@ c     Find minimum:
                      endif
                      debyearr(i)=debyelen
                      colnwtarr(i)=colnwt
-                     collampe(i)=colnwt/(sqrt(2.*Ti)
-     $                 *sqrt(1+1./Ti)/debyelen)
+                     icoltarr(i)=icolntype
+                     collampe(i)=colnwt/sqrt(2.*Ti)
+     $                 *(debyelen/sqrt(1+1./Ti))
                      ZTei=1./Ti
                      Zmepi=sqrt(4.*3.14159/(1837.*rmtoz))
                      omlf=-omlfloat(0.,ZTei,Zmepi)
@@ -351,18 +354,67 @@ c Unfortunately, Lampe uses lambda_s instead of lambda_De
             call minmax(colnwtarr,i,cmin,cmax)
             if(cmin.ne.cmax)then
 c We have a number of different collisionalities.
+c Force plot:
                call lautomark(colnwtarr,ftot1,i,.true.,.false.,1)
                call axlabels(
-     $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
-     $           'Drag Force /[r!dp!d!u2!un!de!dT!de!d]')
+     $'Collision Frequency !An!@!dc!d/[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]'
+     $              ,'Drag Force /[r!dp!d!u2!un!de!dT!de!d]')
                call pltend()
-               call lautomark(colnwtarr,fluxarr,i,.true.,.false.,1)
+c Flux plot
+               call minmax(fluxarr,i,fmin,fmax)
+               fmin=min(fmin,foml*.9)
+               fmax=max(fmax,fabr*1.05)
+               call pltinit(cmin,cmax,fmin,fmax)
+               call fitrange(fmin,fmax,6,nxfac,xfac,xdelta,fymin,fymax)
+               call scalewn(cmin,cmax,fymin,fymax,.true.,.false.)
+               call axis()
                call axlabels(
-     $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
+     $'Collision Frequency !An!@!dc!d/[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
      $    'Flux /[n!di!A;!@!d(ZT!de!d/m!di!d)!u1/2!u4!Ap!@r!dp!d!u2!u]')
+c Alternative axis.
+               sfac=(debyelen/sqrt(1+1./Ti))/sqrt(2.*Ti)
+               call axptset(1.,1.)
+               call ticrev()
+               call altxaxis(sfac,sfac)
+               call jdrwstr(.6,.67,
+     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
+               call axptset(0.,0.)
+               call ticrev()
+
+               do kk=1,i
+                  imark=4
+                  if(icoltarr(kk).eq.1)imark=5
+                  call polymark(colnwtarr(kk),fluxarr(kk),1,imark)
+               enddo
+               call sortincrease(colnwtarr,fluxarr,icoltarr,i,2,
+     $              xs,ys,ns)
+               call polyline(xs(2),ys(2),ns-1)
+               call sortincrease(colnwtarr,fluxarr,icoltarr,i,1,
+     $              xs,ys,ns)
+               call polyline(xs,ys,ns)
+c               call polymark(colnwtarr,fluxarr,i,1)
+               call legendline(.5,.05,5,' SCEPTIC 1')
+               call legendline(.5,.1,4,' SCEPTIC 2')
 c Compare with Chang and Laframboise.
+               call winset(.true.)
                call color(5)
-               call polymark(colnwtarr,changlaflux,i,5)
+               do kk=1,i
+                  imark=1
+                  if(icoltarr(kk).eq.1)imark=2
+                  call polymark(colnwtarr(kk),changlaflux(kk),1,imark)
+               enddo
+               call dashset(4)
+               call sortincrease(colnwtarr,changlaflux,icoltarr,i,2,
+     $              xs,ys,ns)
+               call polyline(xs,ys,ns)
+               call dashset(3)
+               call sortincrease(colnwtarr,changlaflux,icoltarr,i,1,
+     $              xs,ys,ns)
+               call polyline(xs,ys,ns)
+               call dashset(0)
+               call legendline(.5,.15,2,' Continuum 1')
+               call legendline(.5,.2,1,' Continuum 2')
+c               call polymark(colnwtarr,changlaflux,i,imark)
                colmax=10.
                colmin=.1
                do kk=1,nptmax
@@ -380,7 +432,7 @@ c Zero drift form.
 c               foml=sqrt(Ti)*(1.-Vprobe/Ti)/sqrt(2.*3.14159)
 c               write(*,*)'foml(0)=',foml
 c Finite drift form.
-               foml=sqrt(2.*Ti)*omlux(vd/sqrt(2.*Ti),-vprbarr(ic0)/Ti)/4.
+c               foml=sqrt(2.*Ti)*omlux(vd/sqrt(2.*Ti),-vprbarr(ic0)/Ti)/4.
                write(*,*)vprbarr(ic0),Ti,'  OML flux=',foml
 c               write(*,*)'OML Flux(0,Ti)',
 c     $              sqrt(2.*Ti)*omlux(0.*vd/sqrt(2.*Ti),-Vprobe/Ti)/4.
@@ -405,10 +457,14 @@ c               rt=debyelen
                   chenline(kk)=foml+sqrt(1./(4.*3.14159))*
      $                 rt*(rt+1)**2*chencol(kk)
                enddo
-               call polyline(chencol,chenline,nptmax)
+c Heuristic collision correction line:
+c               call polyline(chencol,chenline,nptmax)
 c Add Lampe line:
                call dashset(2)
+               call color(ibrickred())
                call polyline(clm(2),flm(2),nflampe-1)
+               call legendline(.5,.25,0,' Lampe')
+               call color(15)
                call dashset(0)
 c work around accis bug:
                call vecw(1.,1.,0)
@@ -420,7 +476,7 @@ c Linear plot intended for Lampe comparisons
                call axis()
                call polymark(colnwtarr,fluxarr,i,1)
                call axlabels(
-     $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
+     $'Collision frequency !An!@!dc!d/[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
      $    'Flux /[n!di!A;!@!d(ZT!de!d/m!di!d)!u1/2!u4!Ap!@r!dp!d!u2!u]')
 c mark oml
                call vecw(0.,foml,0)
@@ -442,11 +498,12 @@ c               call polymark(collampe,fluxbyoml,i,1)
 c Alternative coded plot:
                do kl=1,i
                   mark=4
-                  if(debyearr(kl).lt.100) mark=2
-                  call polymark(collampe(kl),fluxbyoml(kl),1,mark)
+                  if(debyearr(kl)-66.7.lt.1.) mark=2
+                  if(icoltarr(kl).eq.2)
+     $                 call polymark(collampe(kl),fluxbyoml(kl),1,mark)
                enddo
                call axlabels(
-     $              'Collision Frequency /[v!dti!d/!Al!@!ds!d]',
+     $     'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',
      $              'Flux /OML-value',)
                call polyline(colflampe,flampe,nflampe)
 c               call pfpsset(0)
@@ -456,15 +513,27 @@ c               call pfpsset(0)
                call pltend()
 c Floating potential plot
                call minmax(vprbarr,i,vpmin,vpmax)
-               call fitinit(0.,.025,vpmax,vprbarr(ic0))
+               call fitinit(0.,.025,vpmin,vpmax)
+               call fitrange(-vpmax,-vpmin,5,nxfac,xfac,xdelta,
+     $              vymin,vymax)
+               write(*,*)vpmin,vpmax,vprbarr(ic0),vymin,vymax
+               call scalewn(cmin,cmax,-vymin,-vymax,.true.,.false.)
                call axis()
                call polymark(colnwtarr,vprbarr,i,1)
                call axlabels(
-     $    'Collision frequency /[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
+     $'Collision Frequency !An!@!dc!d/[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
      $    'Sphere Potential /[T!de!d/e]')
-               call vecw(0.,omlf,0)
-               call vecw(.005,omlf,1)
+               call vecw(colleft,omlf,0)
+               call vecw(colleft*5.,omlf,1)
                call drcstr(string2)
+               sfac=(debyelen/sqrt(1+1./Ti))/sqrt(2.*Ti)
+               call axptset(1.,1.)
+               call ticrev()
+               call altxaxis(sfac,sfac)
+               call jdrwstr(.6,.67,
+     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
+               call axptset(0.,0.)
+               call ticrev()
                call pltend()
             endif
          endif
@@ -601,4 +670,36 @@ c      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
       fluxii=(1.+kappai)*(-Vprobe)/
      $     (Ti*(1.-(1.+kappai*Vprobe/Ti)*expion))
       changlaf=fluxii*Ti/(1+kappai)/(colnwt)
+      end
+c********************************************************************
+c Return ordered arrays for plotting etc. Very inefficient!
+      subroutine sortincrease(x,y,m,ni,mc,xs,ys,ns)
+c Input arrays, to sort in order of increasing x
+      real x(ni),y(ni)
+      integer m(ni)
+c Use only those points having m(i)=mc
+      integer mc
+c Output arrays of sorted couples
+      real xs(ni),ys(ni)
+c With this many selected points:
+      integer ns
+
+      ns=0
+      xv=1.e-30
+      do i=1,ni
+         xmin=1.e30
+         k=0
+         do j=1,ni
+            if(x(j).lt.xmin .and. x(j).gt.xv .and. m(j).eq.mc)then
+               k=j
+               xmin=x(j)
+            endif
+         enddo
+         if(k.eq.0) goto 1
+         ns=ns+1
+         xs(ns)=x(k)
+         ys(ns)=y(k)
+         xv=xmin
+      enddo
+ 1    continue
       end
