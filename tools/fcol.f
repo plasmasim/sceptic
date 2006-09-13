@@ -25,6 +25,13 @@ c      logical ldecompose,ltheory,
 c      logical lasymp,lliboff,lmason,lmason2,lstandard,
       logical lfcolk,lfcomp
       logical ldterm1
+c Zobnin variables.
+      integer nkapts,nz2,nz3,nzmax
+      parameter (nkapts=14,nz2=11,nz3=17,nzmax=40)
+      integer xyarr(2,nkapts),xya2(2,nz2),xya3(2,nz3)
+      integer nlen(3)
+      real roverl(nzmax,3),rlog(nzmax,3),fltptl(nzmax,3)
+      logical linit
 c Data from Lampe et al POP03 for Ti=.01, a/lambda_s=.015
       parameter (nflampe=16)
       real flampe(nflampe),colflampe(nflampe),flm(nflampe),clm(nflampe)
@@ -34,18 +41,54 @@ c Data from Lampe et al POP03 for Ti=.01, a/lambda_s=.015
      $     1327.,1697.,2177.,2787.,3567.,4537.,5637./
 c upper point scaled positions and values:
       data cl1/5997./fl1/-3585./clv1/0.5/flv1/2./
+c
+c     Floating potential for spherical collisional collection of Zobnin
+c     JETP 91, 483 (2000). For neon, Ti/Te=.01, versus \lambda_s/mfp.
+c Traced data:
+c a/R_D=0.06
+      data xyarr/
+     $   1967,2955,2497,3285,2977,3585,3677,4015,4257,4345,4757,4625,
+     $   5227,4865,5617,5015,5937,5095,6277,5125,6557,5065,6857,4925,
+     $   7067,4775,7357,4515/          
+c 0.012
+      data xya2/
+     $	 1987,3135,2907,3695,4007,4375,4767,4835,5407,5185,5917,5425,
+     $	 6287,5565,6597,5645,6957,5715,7327,5745,8107,5735/
+c 0.24
+      data xya3/
+     $   1997,2595,2457,2935,2947,3225,3357,3435,3777,3615,4307,3805,
+     $	 4757,3925,5087,3975,5327,3995,5617,3955,5837,3875,6137,3715,
+     $ 	 6367,3555,6597,3355,6807,3135,7067,2835,7377,2445/
+      data nlen/nkapts,nz2,nz3/
+      data linit/.false./
+      save
+c Default curve to use
+      if(it.eq.0)it=1
+c Initialize if needed.
+      if(.not.linit)then
+c axis locator points of tracing
+         xm1=3630
+         xp1=8340
+         y0=7350
+         y2=2565
+         do i=1,nkapts
+            rlog(i,1)=(-1.+2.*(xyarr(1,i)-xm1)/(xp1-xm1))
+            roverl(i,1)=10**rlog(i,1)
+            fltptl(i,1)=-2.*(xyarr(2,i)-y0)/(y2-y0)
+         enddo
+         do i=1,nz2
+            rlog(i,2)=(-1.+2.*(xya2(1,i)-xm1)/(xp1-xm1))
+            roverl(i,2)=10**rlog(i,2)
+            fltptl(i,2)=-2.*(xya2(2,i)-y0)/(y2-y0)
+         enddo
+         do i=1,nz3
+            rlog(i,3)=(-1.+2.*(xya3(1,i)-xm1)/(xp1-xm1))
+            roverl(i,3)=10**rlog(i,3)
+            fltptl(i,3)=-2.*(xya3(2,i)-y0)/(y2-y0)
+         enddo
+         linit=.true.
+      endif
 
-c Data from Khrapak PoP05 on lamda_eff/lambda_de vs v/sqrt(Ti/mi)
-c for Te/Ti = 100 (case 1) and 10 (case 2).
-c This lambda_eff is what to put in the coulomb log expression
-c \ln\Lambda = \ln (\lambda_eff/R) - 1/2, where R=Ze^2/T_i(1+u^2) is b_90.
-c It is for a point particle.
-c      parameter (nlk=10)
-c      real ulk(nlk)
-c      real xlk1(nlk),xlk2(nlk)
-c      data ulk/.1,.3,.6,1.,1.5,2.,3.,6.,10.,30./
-c      data xlk1/0.1,0.101,0.108,0.123,0.158,0.210,0.380,0.805,0.995,1./
-c      data xlk2/0.298,0.304,0.324,0.367,0.460,0.592,0.901,1.,1.,1./
 c     Defaults.
       louter=.true.
       lchargeplot=.false.
@@ -536,6 +579,20 @@ c     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
      $    '!An!@!dc!d/[v!dti!d/!Al!@!ds!d]',1.2)
                call axptset(0.,0.)
                call ticrev()
+               if(rmtoz.eq.20) then
+c Zobnin comparison
+                  icurve=1
+                  if(abs(debyelen-833.) .lt. 10.) icurve=2
+                  if(abs(debyelen-41.6) .lt. 2.) icurve=3
+                  sfac=sfac*sqrt(3.1415926)/2.
+                  call scalewn(sfac*cmin,sfac*cmax,
+     $                 -vymin,-vymax,.true.,.false.)
+                  call color(ibrickred())
+                  call polyline(roverl(1,icurve),
+     $                 fltptl(1,icurve),nlen(icurve))
+                  call legendline(.1,.1,0,' Zobnin et al')
+                  call color(15)
+               endif
                call pltend()
             endif
          endif
