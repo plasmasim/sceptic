@@ -420,7 +420,8 @@ c Alternative axis.
                call ticrev()
                call altxaxis(sfac,sfac)
                call jdrwstr(.6,.67,
-     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
+c     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
+     $    '!An!@!dc!d/[v!dti!d/!Al!@!ds!d]              ',0.)
                call axptset(0.,0.)
                call ticrev()
 
@@ -438,37 +439,45 @@ c Alternative axis.
 c               call polymark(colnwtarr,fluxarr,i,1)
                call legendline(.5,.05,5,' SCEPTIC 1')
                call legendline(.5,.1,4,' SCEPTIC 2')
-c Compare with Chang and Laframboise.
-               call winset(.true.)
-               call color(5)
-               do kk=1,i
-                  imark=1
-                  if(icoltarr(kk).eq.1)imark=2
-                  call polymark(colnwtarr(kk),changlaflux(kk),1,imark)
-               enddo
-               call dashset(4)
-               call sortincrease(colnwtarr,changlaflux,icoltarr,i,2,
-     $              xs,ys,ns)
-               call polyline(xs,ys,ns)
-               call dashset(3)
-               call sortincrease(colnwtarr,changlaflux,icoltarr,i,1,
-     $              xs,ys,ns)
-               call polyline(xs,ys,ns)
-               call dashset(0)
-               call legendline(.5,.15,2,' Continuum 1')
-               call legendline(.5,.2,1,' Continuum 2')
+c Compare with Chang and Laframboise. Superceded by the continuum line.
+c               call winset(.true.)
+c               call color(5)
+c               do kk=1,i
+c                  imark=1
+c                  if(icoltarr(kk).eq.1)imark=2
+c                  call polymark(colnwtarr(kk),changlaflux(kk),1,imark)
+c               enddo
+c               call dashset(4)
+c               call sortincrease(colnwtarr,changlaflux,icoltarr,i,2,
+c     $              xs,ys,ns)
+c               call polyline(xs,ys,ns)
+c               call dashset(3)
+c               call sortincrease(colnwtarr,changlaflux,icoltarr,i,1,
+c     $              xs,ys,ns)
+c               call polyline(xs,ys,ns)
+c               call dashset(0)
+c               call legendline(.5,.15,2,' Continuum 1')
+c               call legendline(.5,.2,1,' Continuum 2')
 c               call polymark(colnwtarr,changlaflux,i,imark)
+c Continuum line from Chang Laframboise.
                colmax=10.
-               colmin=.1
+               colmin=.02
                do kk=1,nptmax
                   chencol(kk)=colmin*
      $                exp((log(colmax)-log(colmin))*(kk-1.)/(nptmax-1.))
-                  chenline(kk)=changlaf(Ti,Vprobe,chencol(kk))
+                  if(vprbarr(1).eq.vprbarr(i))then
+                     chenline(kk)=changlaf(Ti,Vprobe,chencol(kk))
+                  else
+                     vfloat=changfloat(Ti,rmtoz,chencol(kk),fluxi)
+                     chenline(kk)=fluxi
+                  endif
                enddo
+               call color(5)
                call winset(.true.)
-               if(vprbarr(1).eq.vprbarr(i))then
-                  call polyline(chencol,chenline,nptmax)
-               endif
+               call dashset(1)
+               call polyline(chencol,chenline,nptmax)
+               call legendline(.5,.15,0,' Continuum')
+               call dashset(0)
                call color(15)
 c Compare with heuristic collisional effects.
 c Zero drift form.
@@ -488,7 +497,7 @@ c mark abr
                call vecw(colleft*5.,fabr,1)
                call drcstr(abrstring)
 c Overload chencol/line
-               colmax=.1
+               colmax=1.
                colmin=colnwtmin
                slambda=sqrt(1+debyelen**2/(1+1/(Ti+vd**2)))
                rt=slambda*log(1.-2.*Vprobe/(3.*Ti*(1+slambda)))
@@ -497,16 +506,30 @@ c               rt=debyelen
                do kk=1,nptmax
                   chencol(kk)=colmin*
      $                exp((log(colmax)-log(colmin))*(kk-1.)/(nptmax-1.))
-                  chenline(kk)=foml+sqrt(1./(4.*3.14159))*
-     $                 rt*(rt+1)**2*chencol(kk)
+                  xx=chencol(kk)
+                  xconv=chencol(kk)*debyelen/sqrt(2.*(Ti+1.))
+c Fit to Lampe line:
+                  chenline(kk)=foml*(1.+log(1.+17.*xconv+5.*xconv**2))
+c Fit to continuum line:
+                  contin=3.4*log10(1.+xx/.008)/log10(1./.008)/xx
+                  wt=-1.1
+                  wt=-3.5+2.4*log10(debyelen/667.)/log10(20./667.)
+c                  write(*,*)'wt=',wt,debyelen
+c Interpolation between them.
+                  chenline(kk)=(chenline(kk)**wt+contin**wt)**(1./wt)
+c Heuristic collision correction line abandoned:
+c                  chenline(kk)=foml+sqrt(1./(4.*3.14159))*
+c     $                 rt*(rt+1)**2*chencol(kk)
                enddo
-c Heuristic collision correction line:
-c               call polyline(chencol,chenline,nptmax)
+               call color(2)
+               call dashset(5)
+               call polyline(chencol,chenline,nptmax)
+               call legendline(.5,.25,0,' Fit')
 c Add Lampe line:
                call dashset(2)
                call color(ibrickred())
                call polyline(clm(2),flm(2),nflampe-1)
-               call legendline(.5,.25,0,' Lampe')
+               call legendline(.5,.20,0,' Lampe')
                call color(15)
                call dashset(0)
 c work around accis bug:
@@ -719,7 +742,7 @@ c Obtain the length of a string omitting trailing blanks.
  101  lentrim=i
       end
 c********************************************************************
-c Chen and Laframboise collisional ion flux:
+c Chang and Laframboise collisional ion flux:
 c Needed to fix vti ambiguity there's a factor of order unity.
 c First guess was low by factor 1.329:
 c      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
@@ -731,6 +754,27 @@ c      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
       changlaf=fluxii*Ti/(1+kappai)/(colnwt)
       end
 c********************************************************************
+      function changfloat(Ti,rmtoz,colnwt,fluxi)
+      Vprobe=-2.
+      do i=1,20
+         fluxi=changlaf(Ti,Vprobe,colnwt)
+c exp(Vprobe)\sqrt(Te/2\pi me)=fluxi \sqrt(Te/mi)
+         Vnew=log(fluxi*sqrt(2.*3.1415926/(rmtoz*1837.)))
+         if(.not.Vnew.lt.0.)goto 110
+         if(abs(Vnew-Vprobe).lt.1.e-5)goto 100
+c         write(*,*)i,Vprobe,Vnew,fluxi
+         Vprobe=.5*Vnew+.5*Vprobe
+      enddo
+ 100  continue
+      changfloat=Vnew
+      write(*,'(''changfloat'',f8.5,f9.5,i3)')colnwt,Vprobe,i
+      return
+c Error case.
+ 110  continue
+      changfloat=100
+      return
+      end
+c*****************************************************************
 c Return ordered arrays for plotting etc. Very inefficient!
       subroutine sortincrease(x,y,m,ni,mc,xs,ys,ns)
 c Input arrays, to sort in order of increasing x
