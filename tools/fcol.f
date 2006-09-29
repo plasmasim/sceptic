@@ -29,7 +29,8 @@ c Zobnin variables.
       integer nkapts,nz2,nz3,nzmax
       parameter (nkapts=14,nz2=11,nz3=17,nzmax=40)
       integer xyarr(2,nkapts),xya2(2,nz2),xya3(2,nz3)
-      integer nlen(3)
+      integer nlen(3),idrw(3)
+      real zdebye(3)
       real roverl(nzmax,3),rlog(nzmax,3),fltptl(nzmax,3)
       logical linit
 c Data from Lampe et al POP03 for Ti=.01, a/lambda_s=.015
@@ -60,6 +61,7 @@ c 0.24
      $	 4757,3925,5087,3975,5327,3995,5617,3955,5837,3875,6137,3715,
      $ 	 6367,3555,6597,3355,6807,3135,7067,2835,7377,2445/
       data nlen/nkapts,nz2,nz3/
+      data zdebye/167.,833.,41.6/
       data linit/.false./
       save
 c Default curve to use
@@ -384,13 +386,13 @@ c Electron flux density at potential potlabr in units of sqrt(T_e/m_i).
 c Scale into Lampe's units:
                   flampe(kl)=1.+flampe(kl)*flv1/fl1
                   colflampe(kl)=colflampe(kl)*clv1/cl1
-                  write(*,*)colflampe(kl),flampe(kl)
+c                  write(*,*)colflampe(kl),flampe(kl)
 c Scale into my units
                   flm(kl)=flampe(kl)*foml
 c Unfortunately, Lampe uses lambda_s instead of lambda_De
                   clm(kl)=colflampe(kl)*sqrt(2.*Ti)
      $                 *sqrt(1+1./Ti)/debyelen
-                  write(*,*)clm(kl),flm(kl)
+c                  write(*,*)clm(kl),flm(kl)
                enddo
             endif
             call pfset(ipfnum)
@@ -406,7 +408,8 @@ c Force plot:
 c Flux plot
                call minmax(fluxarr,i,fmin,fmax)
                fmin=min(fmin,foml*.9)
-               fmax=max(fmax,fabr*1.05)
+               fmin=0.
+               if (rmtoz.eq.40) fmax=max(fmax,fabr*1.05)
                call pltinit(cmin,cmax,fmin,fmax)
                call fitrange(fmin,fmax,6,nxfac,xfac,xdelta,fymin,fymax)
                call scalewn(cmin,cmax,fymin,fymax,.true.,.false.)
@@ -432,36 +435,19 @@ c     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
                enddo
                call sortincrease(colnwtarr,fluxarr,icoltarr,i,2,
      $              xs,ys,ns)
-               call polyline(xs(2),ys(2),ns-1)
+               if(ns.gt.1)then 
+                  call polyline(xs(2),ys(2),ns-1)
+                  call legendline(.5,.1,4,' SCEPTIC 2')
+               endif
                call sortincrease(colnwtarr,fluxarr,icoltarr,i,1,
      $              xs,ys,ns)
-               call polyline(xs,ys,ns)
-c               call polymark(colnwtarr,fluxarr,i,1)
-               call legendline(.5,.05,5,' SCEPTIC 1')
-               call legendline(.5,.1,4,' SCEPTIC 2')
-c Compare with Chang and Laframboise. Superceded by the continuum line.
-c               call winset(.true.)
-c               call color(5)
-c               do kk=1,i
-c                  imark=1
-c                  if(icoltarr(kk).eq.1)imark=2
-c                  call polymark(colnwtarr(kk),changlaflux(kk),1,imark)
-c               enddo
-c               call dashset(4)
-c               call sortincrease(colnwtarr,changlaflux,icoltarr,i,2,
-c     $              xs,ys,ns)
-c               call polyline(xs,ys,ns)
-c               call dashset(3)
-c               call sortincrease(colnwtarr,changlaflux,icoltarr,i,1,
-c     $              xs,ys,ns)
-c               call polyline(xs,ys,ns)
-c               call dashset(0)
-c               call legendline(.5,.15,2,' Continuum 1')
-c               call legendline(.5,.2,1,' Continuum 2')
-c               call polymark(colnwtarr,changlaflux,i,imark)
+               if(ns.gt.1) then
+                  call polyline(xs,ys,ns)
+                  call legendline(.5,.05,5,' SCEPTIC 1')
+               endif
 c Continuum line from Chang Laframboise.
                colmax=10.
-               colmin=.02
+               colmin=.005
                do kk=1,nptmax
                   chencol(kk)=colmin*
      $                exp((log(colmax)-log(colmin))*(kk-1.)/(nptmax-1.))
@@ -472,8 +458,8 @@ c Continuum line from Chang Laframboise.
                      chenline(kk)=fluxi
                   endif
                enddo
-               call color(5)
                call winset(.true.)
+               call color(5)
                call dashset(1)
                call polyline(chencol,chenline,nptmax)
                call legendline(.5,.15,0,' Continuum')
@@ -493,9 +479,11 @@ c     $              sqrt(2.*Ti)*omlux(0.*vd/sqrt(2.*Ti),-Vprobe/Ti)/4.
                call vecw(colleft*5.,foml,1)
                call drcstr(' OML')
 c mark abr
-               call vecw(colleft,fabr,0)
-               call vecw(colleft*5.,fabr,1)
-               call drcstr(abrstring)
+               if(abs(rmtoz-40.).lt.3.)then
+                  call vecw(colleft,fabr,0)
+                  call vecw(colleft*5.,fabr,1)
+                  call drcstr(abrstring)
+               endif
 c Overload chencol/line
                colmax=1.
                colmin=colnwtmin
@@ -507,20 +495,41 @@ c               rt=debyelen
                   chencol(kk)=colmin*
      $                exp((log(colmax)-log(colmin))*(kk-1.)/(nptmax-1.))
                   xx=chencol(kk)
+c \nu_c\lambda_s/v_ti:
                   xconv=chencol(kk)*debyelen/sqrt(2.*(Ti+1.))
+c Compensate for higher temperature:
+c                  contin=0.7*log(1.1+20.*sqrt(rmtoz)*xx)/xx
+c                  xconv=xconv/(100.*Ti)
+                  xconv=xconv/(0.9+100.*(Ti)**1.5)
 c Fit to Lampe line:
                   chenline(kk)=foml*(1.+log(1.+17.*xconv+5.*xconv**2))
-c Fit to continuum line:
-                  contin=3.4*log10(1.+xx/.008)/log10(1./.008)/xx
-                  wt=-1.1
-                  wt=-3.5+2.4*log10(debyelen/667.)/log10(20./667.)
-c                  write(*,*)'wt=',wt,debyelen
+c Fit to continuum line gives same as old:
+c                  contin=1.621*log10(1.+19.76*sqrt(rmtoz)*xx)/xx
+c                  contin=0.7*log(1.1+20.*sqrt(rmtoz)*xx)/xx
+c Using better fit to floating potential.
+                  contin=0.52*(log(1.1+30.*sqrt(rmtoz)*xx))**1.15/xx
+c         y2(i)=-0.52*(log(1.1+30.*sqrt(rmtoz)*x(i)))**1.15
+c Reduced expression does not fit quite as well as old:
+c                  contin=(1.+19.76*sqrt(rmtoz)*xx)**(-.704)
+c     $                 /sqrt(2.*3.1415926/(1837.*rmtoz))
+c Old form:
+c                  contin=3.4*log10(1.+sqrt(rmtoz/40.)*xx/.008)
+c     $                 /log10(1./.008)/xx
+c                  wt1=-3.5+2.4*log10(debyelen/667.)/log10(20./667.)
+c Hence wt=-3.5 + 2.4/(ln(10)*log10(20./667.))(ln(debyelen)-ln(667.))
+c = -3.5 - .684*ln(debyelen)+ 4.45, giving the compact form:
+c                  wt=0.95-.68*log(debyelen)
+c Attempt to fix high Ti:
+c                  wt=1.-.68*log(debyelen)*(1.-.1*log(Ti/.01))
+c Simplified:
+                  wt=1.-.37*log(debyelen)*(1-.18*log(Ti))
 c Interpolation between them.
                   chenline(kk)=(chenline(kk)**wt+contin**wt)**(1./wt)
 c Heuristic collision correction line abandoned:
 c                  chenline(kk)=foml+sqrt(1./(4.*3.14159))*
 c     $                 rt*(rt+1)**2*chencol(kk)
                enddo
+                  write(*,*)'wt=',wt,debyelen
                call color(2)
                call dashset(5)
                call polyline(chencol,chenline,nptmax)
@@ -586,35 +595,67 @@ c               vpmin=min(vpmin,1.1*omlf)
                write(*,*)vpmin,vpmax,vprbarr(ic0),vymin,vymax
                call scalewn(cmin,cmax,-vymin,-vymax,.true.,.false.)
                call axis()
-               call polymark(colnwtarr,vprbarr,i,1)
                call axlabels(
      $'Collision Frequency !An!@!dc!d/[(ZT!de!d/m!di!d)!u1/2!u/r!dp!d]',
      $    'Sphere Potential /[T!de!d/e]')
                call vecw(colleft,omlf,0)
                call vecw(colleft*5.,omlf,1)
                call drcstr(string2)
-               sfac=(debyelen/sqrt(1+1./Ti))/sqrt(2.*Ti)
-               call axptset(1.,1.)
-               call ticrev()
-               call altxaxis(sfac,sfac)
-               call jdrwstr(.6,.67,
+c Coded plot.
+               idrw(1)=0
+               idrw(2)=0
+               idrw(3)=0
+               do kl=1,i
+                  mark=4
+                  if(abs(debyearr(kl)-167).lt.20.)then
+                     mark=1
+                     call color(1)
+                     idrw(1)=2
+                  elseif(abs(debyearr(kl)-833).lt.20.)then
+                     mark=2
+                     call color(2)
+                     idrw(2)=1
+                  elseif(abs(debyearr(kl)-41.6).lt.2.)then
+                     mark=3
+                     call color(3)
+                     idrw(3)=3
+                  endif
+                  call polymark(colnwtarr(kl),vprbarr(kl),1,mark)
+               enddo
+               if(mark.eq.4)then
+                  call color(1)
+                  sfac=(debyelen/sqrt(1+1./Ti))/sqrt(2.*Ti)
+                  call axptset(1.,1.)
+                  call ticrev()
+                  call altxaxis(sfac,sfac)
+                  call jdrwstr(.6,.67,
 c     $    'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',0.)
-     $    '!An!@!dc!d/[v!dti!d/!Al!@!ds!d]',1.2)
-               call axptset(0.,0.)
-               call ticrev()
+     $                 '!An!@!dc!d/[v!dti!d/!Al!@!ds!d]',1.2)
+                  call axptset(0.,0.)
+                  call ticrev()
+               endif
                if(rmtoz.eq.20) then
 c Zobnin comparison
-                  icurve=1
-                  if(abs(debyelen-833.) .lt. 10.) icurve=2
-                  if(abs(debyelen-41.6) .lt. 2.) icurve=3
-                  sfac=sfac*sqrt(3.1415926)/2.
-                  call scalewn(sfac*cmin,sfac*cmax,
-     $                 -vymin,-vymax,.true.,.false.)
-                  call color(ibrickred())
-                  call polyline(roverl(1,icurve),
-     $                 fltptl(1,icurve),nlen(icurve))
-                  call legendline(.1,.1,0,' Zobnin et al')
-                  call color(15)
+c                  idrw(3)=3
+                  do icurve=1,3
+                     if(idrw(icurve).ne.0)then
+c                  if(abs(debyelen-833.) .lt. 10.) icurve=2
+c                  if(abs(debyelen-41.6) .lt. 2.) icurve=3
+                        sfac=(zdebye(icurve)/sqrt(1+1./Ti))/sqrt(2.*Ti)
+                        sfac=sfac*sqrt(3.1415926)/2.
+                        call scalewn(sfac*cmin,sfac*cmax,
+     $                       -vymin,-vymax,.true.,.false.)
+                        call color(icurve)
+                        call dashset(icurve)
+                        call polyline(roverl(1,icurve),
+     $                       fltptl(1,icurve),nlen(icurve))
+                        string2=' !Al!@!dDe!d/r!dp!d='
+                        call fwrite(zdebye(icurve),iw,0,string2(21:))
+                        call legendline(.03,.07+.05*idrw(icurve),
+     $                       -icurve,string2)
+                        call color(15)
+                     endif
+                  enddo
                endif
                call pltend()
             endif
@@ -754,7 +795,7 @@ c      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
       changlaf=fluxii*Ti/(1+kappai)/(colnwt)
       end
 c********************************************************************
-      function changfloat(Ti,rmtoz,colnwt,fluxi)
+      function changfloatold(Ti,rmtoz,colnwt,fluxi)
       Vprobe=-2.
       do i=1,20
          fluxi=changlaf(Ti,Vprobe,colnwt)
@@ -766,8 +807,39 @@ c         write(*,*)i,Vprobe,Vnew,fluxi
          Vprobe=.5*Vnew+.5*Vprobe
       enddo
  100  continue
+      changfloatold=Vnew
+c      write(*,'(''changfloat'',f8.5,f9.5,i3)')colnwt,Vprobe,i
+      return
+c Error case.
+ 110  continue
+      changfloatold=100
+      return
+      end
+c********************************************************************
+      function changfloat(Ti,rmtoz,colnwt,fluxi)
+      Vprobe=-2.
+      c1=sqrt(2.*3.1415926/(rmtoz*1837.))
+      do i=1,40
+         fluxi=changlaf(Ti,Vprobe,colnwt)
+c exp(Vprobe)\sqrt(Te/2\pi me)=fluxi \sqrt(Te/mi)
+c Less convergent approaches.
+c         Vnew=log(fluxi*c1)
+c         dv=-(Vprobe-log(fluxi*c1))/(1.+5./(fluxi*c1))
+         ev=exp(Vprobe)
+         dv=-(ev-fluxi*c1)/(ev-fluxi*c1/Vprobe)
+         Vnew=Vprobe+(.2+.8*(colnwt/(.01+colnwt)))*dv
+         if(Vnew.ge.0.)Vnew=-1.e-20
+         if(abs((Vnew-Vprobe)/Vprobe).lt.1.e-5)goto 100
+         write(*,*)i,Vprobe,Vnew,fluxi
+         Vprobe=Vnew
+c         Vprobe=.5*Vnew+.5*Vprobe
+c         if(.not.Vprobe.lt.0.)goto 110
+      enddo
+      write(*,*)'changfloat unconverged. Vprobe=',Vprobe
+ 100  continue
       changfloat=Vnew
-      write(*,'(''changfloat'',f8.5,f9.5,i3)')colnwt,Vprobe,i
+      write(*,'(''changfloat: colnwt,V,it'',f8.5,f9.5,i3)')
+     $     colnwt,Vprobe,i
       return
 c Error case.
  110  continue

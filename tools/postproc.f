@@ -26,7 +26,7 @@ c      real thanglocal(0:NTHFULL)
       real fluxofangle(nth),cflux(nth)
       integer jstepth
       logical lpcic,ltempc,lphip,lreaddiag,lgraph,larrows,lconline
-      logical lvfwrt,lseptp,lunlabel,ledge,ldens,langle
+      logical lvfwrt,lseptp,lunlabel,ledge,ldens,langle,lnlog
       data lpcic/.false./
       data ltempc/.false./
       data lconline/.false./
@@ -40,6 +40,7 @@ c      real thanglocal(0:NTHFULL)
       data ledge/.false./
       data ldens/.false./
       data langle/.false./
+      data lnlog/.false./
       data jstepth/1/
 
 c Deal with arguments
@@ -65,6 +66,7 @@ c Legacy usage for summarize:
          if(string(1:2) .eq. '-u') lunlabel=.true.
          if(string(1:2) .eq. '-e') ledge=.true.
          if(string(1:2) .eq. '-b') langle=.true.
+         if(string(1:3) .eq. '-o') lnlog=.true.
          if(string(1:2) .eq. '-j') read(string(3:),*)jstepth
          if(string(1:2) .eq. '-?') goto 51
          else
@@ -141,6 +143,23 @@ c Old start of plotting.
          call pltend()
          call multiframe(0,0,0)
       endif
+      if(lnlog)then
+c         call lautoplot(rpic,rhopic,nrhere,.true.,.true.)
+         call pltinit(0.,1.,0.,1.)
+         call scalewn(1.,200.,1.,100.,.true.,.true.)
+         call polyline(rpic,rhopic,nrhere)
+         call axis()
+         call axlabels('r','angle averaged density')
+         call pltend()
+         open(15,status='unknown',file='rhopic.dat')
+         write(15,*)'dt,      vd,      Ti,      rmax,',
+     $        '   fave, debyelen,    Vp [icoln,colnwt]'
+         write(15,'(2f8.5,f8.4,f8.3,f8.3,f12.5,f10.5,i4,e13.4)')
+     $     dt,vd,Ti,rmax,fave,debyelen,vprobe,icolntype,colnwt
+         write(15,*)nrhere
+         write(15,'(2f12.5)')(rpic(jj),rhopic(jj),jj=1,nrhere)
+         close(15)
+      endif
 c Ti=0 quasineutral case:
       do j=1,nti0
          phiti0(j)=-0.5*j/float(nti0)
@@ -157,8 +176,8 @@ C End of stuff dependent on Ti file reading.
       open(13,status='unknown',file='phiout.dat')
       write(13,*)'dt,      vd,      Ti,      rmax,',
      $     '   fave, debyelen,    Vp [icoln,colnwt]'
-      write(13,'(2f8.5,f8.4,f8.3,f8.3,f12.5,f10.5)')
-     $     dt,vd,Ti,rmax,fave,debyelen,vprobe
+      write(13,'(2f8.5,f8.4,f8.3,f8.3,f12.5,f10.5,i4,e13.4)')
+     $     dt,vd,Ti,rmax,fave,debyelen,vprobe,icolntype,colnwt
       write(13,*)nrhere
       write(13,'(2f12.5)')(rpic(j),phipic(j),j=1,nrhere)
 
@@ -346,7 +365,8 @@ c     fix up as double on boundary.
      $     "-a put velocity arrows on T plots. -s separate T plots",
      $     "-u plot unlabelled full sphere.  -x do no line graphs.",
      $     "-e use density contours spaced closer to 1, for edge.",
-     $     "-b plot angle distributions."
+     $     "-b plot angle distributions.",
+     $     "-o plot log(n) versus log(r), angle averaged."
       
       call exit
       end
