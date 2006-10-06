@@ -17,18 +17,21 @@ COMPILE-SWITCHES = -Wall -O2
 % : %.F
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(libraries)
 
-all : postprocB postproc parrot fluxVp newsumplot fcol 
+all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
 
-postproc : postproc.f piccompost.f /home/hutch/accis/libaccisX.a coulflux.f 
+../accis/libaccisX.a : ../accis/*.f
+	make -C ../accis
+
+postproc : postproc.f piccompost.f ../accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(libraries)
 
-parrot : parrot.f piccompost.f /home/hutch/accis/libaccisX.a
+parrot : parrot.f piccompost.f ../accis/libaccisX.a
 	$(G77) $(COMPILE-SWITCHES) -o parrot -fno-backslash parrot.f -laccisX $(libraries)
 
-fluxVp : fluxVp.f /home/hutch/accis/libaccisX.a coulflux.f 
+fluxVp : fluxVp.f ../accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(libraries)
 
-postprocB : postprocB.f piccompost.f /home/hutch/accis/libaccisX.a coulflux.f 
+postprocB : postprocB.f piccompost.f ../accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f coulflux.f $(libraries)
 
 fcol : fcol.f kennedyallen.o
