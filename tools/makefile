@@ -1,5 +1,5 @@
 
-libraries = -L/usr/X11R6/lib/ -L/home/hutch/accis/ -laccisX -lXt -lX11 
+libraries = -L/usr/X11R6/lib/ -L../accis/ -laccisX -lXt -lX11 
 G77=g77
 COMPILE-SWITCHES = -Wall -O2
 #COMPILE-SWITCHES = -Wall -O2 -pg
