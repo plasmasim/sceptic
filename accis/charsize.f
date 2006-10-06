@@ -40,7 +40,7 @@ c*************************************************************************
 c Add a minimum length real (fx.ip) i to the line buffer for unit iunit
       integer iw,ip,iunit
       character*80 str
-	 call fwrite(r,ip,iw,str)
+	 call fwrite(r,iw,ip,str)
 	 call abufwrt(str,iw,iunit)
       end
 c*************************************************************************
@@ -51,6 +51,7 @@ c If overflowing the line, write line.
       integer sblen,iunit,la
       character*80 sbuf
       common /wbuf/sblen,sbuf
+      if(sblen.le.0) write(*,*)'sblen error:',sblen,la,sbuf,iunit
 	 if(sblen+la.gt.78) then
 	    write(iunit,*)sbuf(1:sblen-1)
 	    sbuf=str(1:la)

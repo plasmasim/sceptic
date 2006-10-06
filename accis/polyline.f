@@ -1,7 +1,7 @@
 C********************************************************************
       subroutine polyline(x,y,npts)
 c Dashed line version.
-      real x(1),y(1)
+      real x(npts),y(npts)
       integer npts
       integer i
       include 'plotcom.h'
@@ -21,6 +21,7 @@ c Segments alternate pen down, pen up.
       dimension dashmask(MASKNO),dashlen(MASKNO)
       common/dashline/ldash,dashlen,dashdist,dashmask,jmask
 
+      if(npts.le.0) return
       call vecw(x(1),y(1),0)
       do 3 i=2,npts
 	 if(.not.ldash) then
@@ -139,20 +140,26 @@ c 'Long Dashes short breaks'.
 C********************************************************************
       subroutine polymark(x,y,nx,nmark)
       integer nx,nmark,i
-      character*2 mark
+      character*4 mark
       real x(*),y(*),xp,yp,wx2nx,wy2ny
+      include 'plotcom.h'
+      ipf=pfPS
+c      if(nmark.eq.3)then
+c         mark='!A3'//char(0)
+c  That does not quite align well. Better not to mix thinkgs up.
       if(nmark.lt.10)then
+         pfPS=0
 	 mark=char(nmark+176)//char(0)
       elseif(nmark.eq.10)then
 	 mark='+'//char(0)
       elseif(nmark.eq.11)then
-	 mark=char(128+ichar('X'))//char(0)
+	 mark='!AX'//char(0)
       elseif(nmark.eq.12)then
-	 mark=char(128+ichar('*'))//char(0)
+	 mark='!A*'//char(0)
       elseif(nmark.eq.13)then
-	 mark='-'//char(0)
+	 mark='!A-'//char(0)
       elseif(nmark.eq.15)then
-	 mark=char(176)//char(0)
+	 mark='!A'//char(48)//char(0)
       else
 	 mark=char(nmark)//char(0)
       endif
@@ -165,6 +172,7 @@ C********************************************************************
 	 call jdrwstr(xp,yp,mark,0.)
       endif
     1 continue
+      pfPS=ipf
       end
 C********************************************************************
 c Plot error bars from y to y+err.

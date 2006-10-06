@@ -15,10 +15,12 @@ c Make test arrays.
 	 ym(i)=y(i)-0.5*err(i)
     2 continue
 
+      call pfset(3)
+      call pfPSset(1)
 c Plot 1. Simplest one-call plot.
       call autoplot(x,y,length)
 c If needed other calls can overwrite before terminating via:
-      call pltend
+      call pltend()
 
 c Plot 2. A more complicated plot to illustrate different possibilities.
 c Initialize the plot:
@@ -47,7 +49,7 @@ c Switch off truncation.
 c Plot 3.
 c Use the built in response facility by calling with negative switch.
 c This will prompt for plotting to file.
-      call pfset(3)
+c      call pfset(3)
 c Set to dashed line plotting, only polylines are dashed:
       call dashset(2)
 c Do a log autoplot of the arrays. x logarithmic, y linear.
@@ -68,7 +70,7 @@ c Restore default size.
       call charsize(0.,0.)
       call pltend()
 c Switch off plotting to file.
-      call pfset(0)
+c      call pfset(0)
 c
 c Plot 4 Simple log-log plot.
 c But with reversed tics and axes

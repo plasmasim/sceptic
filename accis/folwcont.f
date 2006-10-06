@@ -54,7 +54,8 @@ c 2 Aug 92 Labelled contouring. Feb 93.
 c 1 Jan 2001 coloring by height.
 c Plot should be initialized first.
       integer l,imax,jmax,nc
-      real z(l,jmax),x(1),y(1),cl(1)
+c I here lie about the number of elements cl has to prevent bounds check
+      real z(l,jmax),x(l),y(l),cl(100)
       character ppath(l,jmax)
       integer consw
 c Switch consw determines the type of plot. Lower nibble

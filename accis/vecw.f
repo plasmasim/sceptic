@@ -206,15 +206,21 @@ c  Draw a vector in normalized coordinates.
 	 prx=crsrx
 	 pry=crsry
 	 ret=ptrunc(prx,pry,crx,cry)
+         ret2=ret/16
+         ret1=ret-16*ret2
 	 if(ret.ne.99)then
-	    if(ret.gt.0)then
+	    if(ret1.gt.0)then
 	       call tn2s(prx,pry,sx,sy)
 	       if(pfsw.ge.0)call vec(sx,sy,0)
 	       if(pfsw.ne.0)call vecnp(prx,pry,0)
-	    endif
-	    call tn2s(crx,cry,sx,sy)
+	    endif 
+            call tn2s(crx,cry,sx,sy)
 	    if(pfsw.ge.0) call vec(sx,sy,ud)
 	    if(pfsw.ne.0) call vecnp(crx,cry,ud)
+	    if(ret2.gt.0)then
+c End point moved. Break the line here.
+	       if(pfsw.ne.0)call vecnp(crx,cry,0)
+	    endif
 	 endif
       else
 	 call tn2s(crx,cry,sx,sy)
@@ -257,9 +263,10 @@ c New approach set truncation at the screen boundary plus20%, Not infinity.
       return
       end
 
-c**********************************************************************/
-c*   Truncate within the rectangle given by xma,yma,xmi,ymi in trunc. */
-c* Return 99 if whole vector outside, ic>0 if x1,y1 is moved. */
+c**********************************************************************
+c*   Truncate within the rectangle given by xma,yma,xmi,ymi in trunc.
+c* Return 99 if whole vector outside, 
+c* ptrunc bits 0-4 set if x1,y1 is moved; bits 5-7 set if x2,y2 moved
       function ptrunc(x1,y1,x2,y2)
       integer ptrunc
       real x1,y1,x2,y2
@@ -281,6 +288,7 @@ c* Return 99 if whole vector outside, ic>0 if x1,y1 is moved. */
       else if(d2.gt.0)then
 	 x2=trcxmi
 	 y2=(d2*y1-d1*y2)/(d2-d1)
+         ic=ic+16
       endif
 
       d1=trcymi-y1
@@ -296,6 +304,7 @@ c* Return 99 if whole vector outside, ic>0 if x1,y1 is moved. */
       else if(d2.gt.0)then
 	 y2=trcymi
 	 x2=(d2*x1-d1*x2)/(d2-d1)
+         ic=ic+16
       endif
 
       d1=x1-trcxma
@@ -311,6 +320,7 @@ c* Return 99 if whole vector outside, ic>0 if x1,y1 is moved. */
       else if(d2.gt.0)then
 	 x2=trcxma
 	 y2=(d2*y1-d1*y2)/(d2-d1)
+         ic=ic+16
       endif
 
       d1=y1-trcyma
@@ -326,6 +336,7 @@ c* Return 99 if whole vector outside, ic>0 if x1,y1 is moved. */
       else if(d2.gt.0)then
 	 y2=trcyma
 	 x2=(d2*x1-d1*x2)/(d2-d1)
+         ic=ic+16
       endif
       ptrunc=ic
       return

@@ -2,7 +2,7 @@ C********************************************************************
       subroutine labeline(x,y,npts,label,nlabel)
 c Draw a polyline with imbedded label of nlabel characters.
 c 9 Aug 92.
-      real x(1),y(1)
+      real x(npts),y(npts)
       integer npts,nlabel
       character*(*) label
       character llstr*10

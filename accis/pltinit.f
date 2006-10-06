@@ -35,7 +35,9 @@ c     Initialize buffer and open file on unit 12.
 	    else
 	       str1(9:11)='.ps'
 	    endif
+            psini=2
 	    call inib(12,str1(1:11))
+            if(pfPS.eq.1)call PSfontinit()
 	 endif
       endif
 
@@ -68,6 +70,7 @@ c      data  trcxmi,trcxma,trcymi,trcyma,ltlog
 c     $	 / 0.,0.,1.,1.,.false. /
       data updown/99/
       data pfsw,pfilno/0,0/
+      data pfPS/0/
       end
 
 C********************************************************************
@@ -75,12 +78,11 @@ C********************************************************************
 c Wait for return, then switch to text mode
       include 'plotcom.h'
 c	write (*,*)' PLtend, updown=',updown
-c This is to ensure that we really do the following draw to finish 
-c possibly unfinished polylines that went outside the window.
+c This is to ensure that we really complete the previous draw. 
+      call vecn(crsrx,crsry,0)
 c This gives ps errors:      ltlog=.false.
 c Instead this new approach truncates outside window.
       call truncf(0.,0.,0.,0.)
-      call vecn(crsrx,crsry,0)
       if(pfsw .ne. 0)then
 	 call flushb(12)
       endif

@@ -7,7 +7,6 @@ c  Test of contouring routine.
       integer nl,i,j,n,snl
 
       write(*,'('' Enter No of contours, (<50)'')')
-      call pfset(3)
       read(*,*)nl
       snl=nl
       nl=abs(nl)
@@ -21,6 +20,8 @@ c  Test of contouring routine.
       do 300 n=1,nl
 	 cl(n)=-1.+ 2.*n/nl
  300  continue
+      call pfPSset(1)
+      call pfset(3)
 c      write(*,'(10f7.3)')(cl(i),i=1,nl)
       call multiframe(2,2,3)
 c 1.Simplest call autocontours on a rectangular mesh when nl=0.

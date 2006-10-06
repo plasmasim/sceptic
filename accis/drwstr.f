@@ -18,7 +18,7 @@ c	U	Toggle superscript mode
       include 'plotcom.h'
       integer j,n1,cwidth,isw,lenstr
       real dd
-      integer STDWDTH,offset
+      integer STDWDTH,offset,offprev
       parameter (STDWDTH=21)
       save
 
@@ -26,6 +26,7 @@ c	U	Toggle superscript mode
       width=0
 c Reset to standard font at start of each string.
       offset=0
+      if(pfPS.eq.1 .and. pfsw.ge.2)call PSsetfont(offset/128)
       if(drw.ne.0) call vecn(px,py,0)
       j=1
     1 continue
@@ -52,6 +53,7 @@ c If we ended jump out Aug 98.
 c Switch operated; adjust position and start on next character.
             px=crsrx
 	    py=crsry
+            if(pfPS.eq.1 .and. pfsw.ge.2)call PSsetfont(offset/128)
 	    goto 1
          endif
 c No valid switch character found after \. Interpret as plain.
@@ -60,14 +62,31 @@ c Fixed for f2c/gcc upper characters.
 	 if(n1 .lt. 0) n1=n1+256
       endif
       if(n1.eq.0) goto 2
+      if(pfPS.eq.1 .and. pfsw.ge.2 .and. drw.ne.0)then
+         if(offset.eq.128)then
+            n2=iPSsymsub(n1)
+         else
+            n2=n1
+         endif
+         if(n2.eq.40.or.n2.eq.41.or.n2.eq.92)then
+            call PSchardrw(char(92)//char(n2))
+         else
+            call PSchardrw(char(n2))
+         endif
+      endif
       n1=n1+offset
-c
       call drwchar(n1,px,py,drw,cwidth)
       dd=chrswdth*cwidth/STDWDTH
       width=width+dd
       px=px+chrscos*dd
       py=py+chrssin*dd
-      if(drw.ne.0)call vecn(px,py,0)
+      if(drw.ne.0)then 
+         if(pfPS.eq.0) then
+            call vecn(px,py,0)
+         else
+            call vecnnops(px,py,0)
+         endif
+      endif
 c  Terminate after end of string. 
 c   crsrx crsry contain end crsr. */
       j=j+1
@@ -112,16 +131,21 @@ c /* Toggle super/sub-script mode  */
 	    dy= chrshght*.6*chrscos*sgn
 	    crsrx=crsrx+dx
 	    crsry=crsry+dy
+c Needed to ensure that the ps fonts move down.
+            call vecn(crsrx,crsry,0)
 	    height=chrshght
 	    width=chrswdth
 	    chrshght=0.7*height
 	    chrswdth=0.7*width
+            if(pfPS.eq.1 .and. pfsw.ge.2) call PSsetfont(offset/128)
 	    su=1
 	 else
 	    crsrx=crsrx-dx
 	    crsry=crsry-dy
+            call vecn(crsrx,crsry,0)
 	    chrshght=height
 	    chrswdth=width
+            if(pfPS.eq.1 .and. pfsw.ge.2)call PSsetfont(offset/128)
 	    su=0
 	 endif
       else
@@ -164,7 +188,11 @@ c F2C fix. 25 May 96.
 	       xcn=(xc-xci)*cw +chrsslnt*ycn
 	       xn=xcn*chrscos - ycn*chrssin
 	       yn=xcn*chrssin + ycn*chrscos
-	       call vecn((px+xn),(py+yn),ud)
+               if(pfPS.eq.0) then
+                  call vecn((px+xn),(py+yn),ud)
+               else
+                  call vecnnops((px+xn),(py+yn),ud)
+               endif
 	       ud=1
 	    else
 	       ud=0

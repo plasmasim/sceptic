@@ -17,6 +17,7 @@ c Set up data etc.
 	   cl(i)=ht*(-1.+i*2./nl)
  10	continue
 c	call pfset(-1)
+	call pfset(3)
 	do 1 j=1,ny
 	   y(j)=-(float(j)-ny/3. +0.5)
 	   yy=y(j)*y(j)
@@ -32,6 +33,7 @@ c Start of actual plotting.
  98	call pltinit(0.,1.,0.,1.)
 c       Plot the surface. With axes (1). Web color 10, axis color 7.
 	j=1 + 256*10 + 256*256*7
+c	write(*,*)'Starting hidweb'
 	call hidweb(x,y,z,iLx,nx,ny,j)
 c	write(*,*) 'Done hidweb'
 c       Draw a contour plot in perspective. Need to reset color anyway.
@@ -44,6 +46,8 @@ c       call axis   ! if desired.
 	call scalewn(1.,float(nx),1.,float(ny),.false.,.false.)
 c       Contour without labels, direct on mesh.
 c	write(*,*) 'Done scalewn'
+c The coloring does not work properly on some displays unless initialized.
+c	call accisgradinit(0,0,0,64000,64000,64000)
 	call contourl(z,pp,iLx,nx,ny,cl,nl,r,r,16)
 c	call contourl(z,pp,iLx,nx,ny,cl,nl,r,r,16)
 c	write(*,*) 'Done contourl'
@@ -56,6 +60,7 @@ c If we look from underneath, redraw the web over the contour plot.
 	call color(15)
 c How to enable interactive plot rotation. Just this call instead of pltend:
 	if(ieye3d().ne.0) goto 98
+c	call pltend()
 	end
 
 
