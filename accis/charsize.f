@@ -51,15 +51,16 @@ c If overflowing the line, write line.
       integer sblen,iunit,la
       character*80 sbuf
       common /wbuf/sblen,sbuf
+c      write(*,*)'abufwrt:',str(1:la)
       if(sblen.le.0) write(*,*)'sblen error:',sblen,la,sbuf,iunit
-	 if(sblen+la.gt.78) then
-	    write(iunit,*)sbuf(1:sblen-1)
-	    sbuf=str(1:la)
-	    sblen=la+1
-	 else
-	    sbuf(sblen:sblen+la)=str(1:la)
-	    sblen=sblen+la
-	 endif
+      if(sblen+la.gt.78) then
+         write(iunit,*)sbuf(1:sblen-1)
+         sbuf=str(1:la)
+         sblen=la+1
+      else
+         sbuf(sblen:sblen+la)=str(1:la)
+         sblen=sblen+la
+      endif
       end
 c*********************************************************************/
       subroutine lnswrt(iunit,str,iln,ch,iomit)

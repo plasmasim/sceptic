@@ -38,8 +38,8 @@ c  Characters
 c
 c  Plot-to-file control
       integer pfsw
-      integer pfilno,pfnextsw
-      common/pltfil/pfsw,pfilno,pfnextsw
+      integer pfilno,pfnextsw,pfPS,psini
+      common/pltfil/pfsw,pfilno,pfnextsw,pfPS,psini
 c
 c  Screen Parameters
       integer*2 scrxpix,scrypix,ncolor,vmode

@@ -476,7 +476,7 @@ int accisgradinit_(r1,g1,b1,r2,g2,b2)
       /*fprintf(stderr,"True color shortcut.\n");*/
     }else{
       status=0;
-      /*fprintf(stderr,"Status false: pixel:%d\n",theRGBcolor.pixel);*/
+      fprintf(stderr,"True Color 24 bit Status false: pixel:%d\n",theRGBcolor.pixel);
     }
   }
   for (i=0;i<a_gradPixno;i++){
@@ -506,26 +506,37 @@ int accisgradinit_(r1,g1,b1,r2,g2,b2)
 }
 /************** Setup Default Gradient Grey-scale **********************/
 int accisgraddef_()
+{ 
+  long top=65535;
+  long bot=0;
+  accisgradinit_(&bot,&bot,&bot,&top,&top,&top);
+}
+/**********************************************************************/
+int accisgraddefobsolete_()
 {
   int i,j,status;
   unsigned long white;
   XColor theRGBcolor;
-     /* RGB are specified in the range 0 to 65535 */
-  theRGBcolor.red=65535;
-  theRGBcolor.green=65535;
-  theRGBcolor.blue=65535;
   /*Lookup numeric white*/
   if(accis_nodisplay){
-    white=65535;
-  }else 
-  if(XAllocColor(accis_display,accis_colormap,&theRGBcolor)){
-    /*    fprintf(stderr,"Allocated Color %d\n",theRGBcolor.pixel);*/
-    white=theRGBcolor.pixel;
-  }else{
-    white=0;
+    status=1;
+  }else {
+  /*See if this is a sensible 24 bit display or not */
+    theRGBcolor.red=255*256;
+    theRGBcolor.green=127*256;
+    theRGBcolor.blue=2*256;
+    XAllocColor(accis_display,accis_colormap,&theRGBcolor);
+    if(theRGBcolor.pixel==((255*256+127)*256+2)){
+      status=1;
+      /*fprintf(stderr,"True color shortcut.\n");*/
+    }else{
+      status=0;
+      fprintf(stderr,"True Color 24 bit Status false: pixel:%d\n",
+              theRGBcolor.pixel);
+    }
   }
   /* If we have a true or direct color display, just scale. */
-  if(white>256){
+  if(status){
     for (i=0;i<a_gradPixno;i++){
       j=(i* 65535)/(a_gradPixno-1.) ;
 /*        a_gradPix[i]=white*i/(a_gradPixno-1.); */
@@ -535,7 +546,7 @@ int accisgraddef_()
       a_gradPix[i]=
 	((theRGBcolor.red/256)*256+(theRGBcolor.green/256))*256
 	+(theRGBcolor.blue/256);
-/*        fprintf(stderr,"a_gradPix[%d]=%d\n",i,a_gradPix[i]); */
+        fprintf(stderr,"a_gradPix[%d]=%d\n",i,a_gradPix[i]);
     }
   }else{ /* Have to do the network-expensive lookups */
     for (i=0;i<a_gradPixno;i++){

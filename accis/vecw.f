@@ -32,7 +32,13 @@ C********************************************************************
       include 'plotcom.h'
       real xd
       if(lxlog)then
-	 xd=log10(wx)-log10(wxmin)
+         if(wx.lt.0.01*wxmin .or. wx.gt.100.*wxmax) then
+            write(*,*)'ACCIS WARNING world log x value outside range:'
+     $           ,wx,' plotting outside box.'
+            xd=.1/w2nx
+         else
+            xd=log10(wx)-log10(wxmin)
+         endif
       else
 	 xd=wx-wxmin
       endif
@@ -45,7 +51,13 @@ C********************************************************************
       include 'plotcom.h'
       real yd
       if(lylog)then
-	 yd=log10(wy)-log10(wymin)
+         if(wy.lt.0.01*wymin .or. wy.gt.100.*wymax) then
+            write(*,*)'ACCIS WARNING world log y value outside range:'
+     $           ,wy,' plotting outside box.'
+            yd=.1/w2ny
+         else
+            yd=log10(wy)-log10(wymin)
+         endif
       else
 	 yd=wy-wymin
       endif

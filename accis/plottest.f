@@ -16,7 +16,7 @@ c Make test arrays.
     2 continue
 
       call pfset(3)
-      call pfPSset(1)
+c      call pfPSset(1)
 c Plot 1. Simplest one-call plot.
       call autoplot(x,y,length)
 c If needed other calls can overwrite before terminating via:
