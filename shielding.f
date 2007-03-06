@@ -61,6 +61,10 @@ c     Screening k-number combines electrons and ions.
          rxl=el*redge
          expE1=(alog(1.+1./rxl) - 0.56/(1.+4.1*rxl+0.9*rxl**2))
          rindex=alpha*(redge*el+1.)+ (1.-alpha)*2.
+c At high collisionality reduce the debye gradient term
+         if(icolntype.eq.1 .or. icolntype.eq.2)then
+            rindex=(rindex-1.)/(1.+(colnwt*redge)**2/Ti)+1.
+         endif
 c         if(icolntype.eq.2)then
 c Remove the deficit term when using simplistic rindex, otherwise 
 c instability tends to result.

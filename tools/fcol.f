@@ -830,7 +830,7 @@ c         dv=-(Vprobe-log(fluxi*c1))/(1.+5./(fluxi*c1))
          Vnew=Vprobe+(.2+.8*(colnwt/(.01+colnwt)))*dv
          if(Vnew.ge.0.)Vnew=-1.e-20
          if(abs((Vnew-Vprobe)/Vprobe).lt.1.e-5)goto 100
-         write(*,*)i,Vprobe,Vnew,fluxi
+c         write(*,*)i,Vprobe,Vnew,fluxi
          Vprobe=Vnew
 c         Vprobe=.5*Vnew+.5*Vprobe
 c         if(.not.Vprobe.lt.0.)goto 110
@@ -838,8 +838,8 @@ c         if(.not.Vprobe.lt.0.)goto 110
       write(*,*)'changfloat unconverged. Vprobe=',Vprobe
  100  continue
       changfloat=Vnew
-      write(*,'(''changfloat: colnwt,V,it'',f8.5,f9.5,i3)')
-     $     colnwt,Vprobe,i
+c      write(*,'(''changfloat: colnwt,V,it'',f8.5,f9.5,i3)')
+c     $     colnwt,Vprobe,i
       return
 c Error case.
  110  continue

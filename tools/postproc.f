@@ -509,9 +509,10 @@ c      character*30 tstring
       character cworka(nr*(NTHFULL+1+1))
       integer ncont
       parameter (ncont=12)
-      real zclv(ncont)
+      real zclv(ncont),zclv2(ncont)
       real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
       real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
+      real Trave(NRFULL+1),Ttpave(NRFULL+1)
       save xrho,zrho
       real basesize
       parameter (basesize=.02)
@@ -548,6 +549,8 @@ c Temperature plots.
       Trmax=0.
       Trmin=1000.
       do i=1,nrhere
+         Trave(i)=0.
+         Ttpave(i)=0.
          do j=1,nthhere
             Tr(i,j)=(vr2sum(i,j)*psum(i,j)-vrsum(i,j)**2)
      $           /(psum(i,j)**2+1.e-5)
@@ -558,7 +561,11 @@ c Temperature plots.
             if(Tr(i,j).gt.Trmax)Trmax=Tr(i,j)
             if(Ttp(i,j).lt.Tmin)Tmin=Ttp(i,j)
             if(Ttp(i,j).gt.Tmax)Tmax=Ttp(i,j)
+            Trave(i)=Trave(i)+Tr(i,j)
+            Ttpave(i)=Ttpave(i)+Ttp(i,j)
          enddo
+         Trave(i)=Trave(i)/nthhere
+         Ttpave(i)=Ttpave(i)/nthhere
          Tr(i,0)=Tr(i,1)
          Tr(i,nthhere+1)=Tr(i,nthhere)
          Ttp(i,0)=Ttp(i,1)
@@ -573,12 +580,17 @@ c         zclv(j)=Trmin+(Tmax-Trmin)*(1.*(j-1)/float(ncont-1))
 c      enddo
 c      icl=-ncont
 c
-
+      icl2=0
       if(ledge) then
          Trmin=0.5*Ti
          Tmin=Trmin
          Trmax=5*Ti
          Tmax=Trmax
+         icl2=20
+         do ii=1,icl2
+            zclv2(ii)=Ti*(1.+(ii-icl2/4.)/icl2)
+         enddo
+c         if(ledge)write(*,*)'Tr-contours',(zclv2(ii),ii=1,icl2)
       endif
 
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
@@ -594,7 +606,7 @@ c
       icl=0
       if(lconline)
      $     call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
+     $        zclv1,icl,zrho,xrho,ntype)
       write(*,*)'Trmin,Trmax',Trmin,Trmax
       call ticrev()
       call gradlegend(Trmin,Tmax,
@@ -638,11 +650,11 @@ c Ttp plot
       call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       ntype=2
-      zclv(1)=10
+      zclv2(1)=10
       icl=0
       if(lconline)
      $     call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-     $        zclv,icl,zrho,xrho,ntype)
+     $        zclv1,icl,zrho,xrho,ntype)
       write(*,*)'Tmin,Tmax',Tmin,Tmax
       call ticrev()
       call gradlegend(Trmin,Tmax,
@@ -676,6 +688,14 @@ c Ttp plot
          call legendline(0.8,0.95,258,'  v=1'//char(0))
       endif
       call multiframe(0,0,0)
+      call pltend()
+
+      call lautoplot(rcc,Ttpave,nrhere,.false.,.true.)
+      call axlabels('r','T')
+      call legendline(.8,.95,0,'T!d!A`!@!d')
+      call dashset(1)
+      call legendline(.8,.9,0,'T!dr!d')
+      call polyline(rcc,Trave,nrhere)
       call pltend()
       end
 

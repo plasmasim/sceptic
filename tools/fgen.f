@@ -555,9 +555,11 @@ c Floating potential plot
                call drcstr(string2)
                call pltend()
             endif
-            call minmax(ftot2,i,fmin,fmax)
+c            call minmax(ftot2,i,fmin,fmax)
+            call minmax(ftot1,i,fmin,fmax)
             if(ldecompose)then
-               fmin=-ftot2(i)*.3
+c               fmin=-ftot2(i)*.3
+               fmin=-fmax*.3
                fmax=fmax*1.2
             else
                fmin=0.

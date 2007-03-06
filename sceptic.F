@@ -548,7 +548,7 @@ c     Calculate the potential field, unless it is fixed.
 #ifdef MPI
                if(lfcalcl.and.(.not.sorparallel)) then
 #endif
-                  call fcalc_lambda(dt,icolntype)
+                  call fcalc_lambda(dt,icolntype,colnwt)
 #ifdef MPI
                else
                   call fcalc_shielding(dt,icolntype,colnwt,
