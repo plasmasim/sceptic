@@ -31,6 +31,7 @@ c      ninner=0
             v2sum(i,j)=0.
             vr2sum(i,j)=0.
             vtp2sum(i,j)=0.
+            vzsum(i,j)=0.
          enddo
       enddo
 c Perhaps this needs to be larger than npart for .not.lfixed.
@@ -76,6 +77,7 @@ c Correction for --ds
                vr2sum(ir,ith)=vr2sum(ir,ith)*corr
                v2sum(ir,ith)=v2sum(ir,ith)*corr
                vtp2sum(ir,ith)=vtp2sum(ir,ith)*corr
+               vzsum(ir,ith)=vzsum(ir,ith)*corr
             enddo
          enddo
       endif
@@ -133,6 +135,12 @@ c Charge summation.
       vtp2sum(irl+1,ithl)=vtp2sum(irl+1,ithl) + rf*(1.-thf)*vtp2
       vtp2sum(irl,ithl+1)=vtp2sum(irl,ithl+1) + (1.-rf)*thf*vtp2
       vtp2sum(irl+1,ithl+1)=vtp2sum(irl+1,ithl+1) + rf*thf*vtp2
+
+      vz=xp(6,i)
+      vzsum(irl,ithl)=vzsum(irl,ithl) + (1.-rf)*(1.-thf)*vz
+      vzsum(irl+1,ithl)=vzsum(irl+1,ithl) + rf*(1.-thf)*vz
+      vzsum(irl,ithl+1)=vzsum(irl,ithl+1) + (1.-rf)*thf*vz
+      vzsum(irl+1,ithl+1)=vzsum(irl+1,ithl+1) + rf*thf*vz
       endif
       end
 c***********************************************************************

@@ -27,7 +27,11 @@ c*******************************************************************
       character*(*) name,paramname
       character*12 form
       integer iparam
-      write(form,301)ip,ip
+      if(iparam.ge.0)then
+         write(form,301)ip,ip
+      else
+         write(form,301)ip+1,ip
+      endif
  301  format('(i',i1,'.',i1,')')
       np=nbcat(name,paramname)
       write(name(lentrim(name)+1:),form)iparam

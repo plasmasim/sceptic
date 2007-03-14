@@ -81,9 +81,16 @@ c -log(rhoinf)
       write(10,*)nastep
       write(10,*)(ninth(j),j=1,NTHUSED)
       write(10,'(a,i4,i4)')'Mesh potential. Grid',NRUSED,NTHUSED
-      do j=1,NRUSED
-         write(10,'(10f8.3)')(phi(j,k),k=1,NTHUSED)
-      enddo
+      call minmax2(phi(1,1),nrsize+1,NRUSED,NTHUSED,phimin,phimax)
+      if(max(abs(phimin),abs(phimax)).lt.1.)then
+         do j=1,NRUSED
+            write(10,'(10f8.4)')(phi(j,k),k=1,NTHUSED)
+         enddo
+      else
+         do j=1,NRUSED
+            write(10,'(10f8.3)')(phi(j,k),k=1,NTHUSED)
+         enddo
+      endif
       write(10,'(a,i4,i4)')'Mesh density/infinity. Grid',NRUSED,NTHUSED
       do j=1,NRUSED
          write(10,'(10f8.3)')(rho(j,k),k=1,NTHUSED)
@@ -324,6 +331,8 @@ c      open(10,file=filename)
       write(10,*)((vr2sum(k1,k2),k1=1,nrhere),k2=1,nthhere)
       write(10,*)'vtp2sum'
       write(10,*)((vtp2sum(k1,k2),k1=1,nrhere),k2=1,nthhere)
+      write(10,*)'vzsum'
+      write(10,*)((vzsum(k1,k2),k1=1,nrhere),k2=1,nthhere)
       write(10,*)'diagvr'
       write(10,*)((diagvr(k1,k2),k1=1,nrhere),k2=1,nthhere)
       write(10,*)'r[cc]'

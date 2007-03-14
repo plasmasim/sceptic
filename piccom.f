@@ -65,6 +65,8 @@ c The sum of radial particle velocities squared
       real vr2sum(0:nrsize,0:nthsize)
 c The sum of non-radial particle velocities squared
       real vtp2sum(0:nrsize,0:nthsize)
+c The sum of particle z-velocities
+      real vzsum(0:nrsize,0:nthsize)
 c The potential normalized to Te/e
       real phi(0:nrsize,0:nthsize)
 c Charge density
@@ -82,7 +84,7 @@ c Highest occupied particle slot.
       integer myid,numprocs
       real rmtoz
       common /piccom/xp,npart,psum,dtprec,
-     $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
+     $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
      $     myid,numprocs,rmtoz,ipf,iocprev,Bz,xpstorage,

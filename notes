@@ -1,0 +1,76 @@
+Started 6 Mar 
+
+Planning to include the vzsum and its derived momentum contribution
+in the outputs. 
+
+added vzsum to all places where there's a corresponding vtp2sum,
+including output.
+
+added into the tools. 
+However, the problem with that is that the tools are then not going
+to work with old outputs that don't have the vrsum. Because there's
+the wrong number of variables. So made that read conditional. 
+
+Got Leo's fgen to fgencol and modified that too. 
+
+postproc seems to work still.
+
+10 Mar
+Found that there's a problem with mpi on unity. It appears to be able to
+run scepticmpi but it does not complete.
+
+Rebooted mpd on all nodes.
+
+Made a trivial mpitest program. Tried to run it. Got
+
+[hutch@unity sceptic]$ mpiexec -n 20 ./mpitest
+problem with execution of ./mpitest  on  node30:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node02:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node26:  [Errno 2] No such file or directory 
+
+[hutch@unity sceptic]$ mpiexec -n 36 ./mpitest
+problem with execution of ./mpitest  on  node21:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node05:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node06:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node01:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node17:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node30:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node02:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node26:  [Errno 2] No such file or directory 
+
+Obviously what this means is that some of the unity nodes do not have access
+to up-to-date versions of /beo_codes/hutch/src/sceptic. They can't find
+the program I just created. This probably means that there are incompatible
+versions of scepticmpi running on different nodes. NFS problem, I'm sure.
+
+
+14 Mar 07
+
+Trying to track down the forces associated with collisions and the 
+related asymmetries. 
+
+There are inaccuracies associated with exit, reinjection and collisions. 
+
+The test for leaving the domain is done after moving but before colliding.
+Colliding addresses possible collisions for the step just taken. However
+if a particle has exited the domain, it is then not included for possible
+collision in the prior step. A collision, if it had occurred before the
+particle exited, might have prevented the exit. Therefore, particles have
+a tendency to leave more rapidly than they should. 
+
+Reinjection moves the reinjected particle by an amount that is a
+random fraction of the assumed prior step, placing it inside the
+domain.  When a collision of this reinjected particle is detected, it
+is backtracked then collided. The backtracking might mean that the
+particle collided outside the domain. If it does, it may not make it
+into the domain on the succeeding fractional step. In that case,
+currently, the particle is reinjected at the original end-of-step but
+with the collided velocity. This is an approximation that will tend
+to place particles inside the domain with on-average lower inward normal
+velocity than they should have. It might be better to ignore collisions
+that occur outside the domain (when backtracked).
+
+Both of these effects appear to bias the particle injection by causing
+particles to leave the domain faster than they should. However, the
+effect definitely ought to decrease as timestep is decreased, since it
+is proportional to \nu dt.

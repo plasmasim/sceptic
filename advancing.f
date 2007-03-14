@@ -71,6 +71,7 @@ c Zero the sums now these are assigned here.
             v2sum(i,j)=0.
             vr2sum(i,j)=0.
             vtp2sum(i,j)=0.
+            vzsum(i,j)=0.
          enddo
       enddo
 c      if(lfixedn)then

@@ -58,6 +58,8 @@ c Parallel processing MPI options.
       sor_comm=0
 #endif
 
+c      write(*,*)'Starting',myid
+
 c Full size arrays by default. Can be changed later by switches.
       nr=nrsize
       nth=nthsize
@@ -530,7 +532,7 @@ c     $              '  Flux, Phiedge, Trap, Vp or Rein'
             write(*,'(i5,$)')i
          endif
 
-c Avoid uggly printing on the screen :
+c Avoid ugly printing on the screen :
 #ifdef MPI
          if (NRUSED.lt.150) then
             call MPI_BARRIER(MPI_COMM_WORLD,ierr)
@@ -647,7 +649,7 @@ c Restore the permanent plotting switch.
       lplot=lpstore
 
       if(writepart) call partwrt()
-
+      
       diags=.true.
       call chargetomesh()
       call sumreduce()
@@ -824,6 +826,7 @@ c The particle number total
       real vttot(0:nrsize,0:nthsize)
       real vr2tot(0:nrsize,0:nthsize),v2tot(0:nrsize,0:nthsize)
       real vtp2tot(0:nrsize,0:nthsize)
+      real vztot(0:nrsize,0:nthsize)
       call MPI_REDUCE(psum,ptot,(nrsize+1)*(nthsize+1),
      $     MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_REDUCE(vrsum,vrtot,(nrsize+1)*(nthsize+1),
@@ -837,6 +840,8 @@ c The particle number total
      $        MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
          call MPI_REDUCE(vtp2sum,vtp2tot,(nrsize+1)*(nthsize+1),
      $        MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         call MPI_REDUCE(vzsum,vztot,(nrsize+1)*(nthsize+1),
+     $        MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       endif
       if(myid.eq.0)then
          do i1=0,nr
@@ -848,6 +853,7 @@ c The particle number total
                   vtsum(i1,i2)=vttot(i1,i2)
                   v2sum(i1,i2)=v2tot(i1,i2)
                   vtp2sum(i1,i2)=vtp2tot(i1,i2)
+                  vzsum(i1,i2)=vztot(i1,i2)
                endif
             enddo
          enddo
