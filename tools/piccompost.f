@@ -21,6 +21,8 @@ c The sum of radial particle velocities squared
       real vr2sum(0:NRFULL,0:NTHFULL)
 c The sum of non-radial particle velocities squared
       real vtp2sum(0:NRFULL,0:NTHFULL)
+c The sum of particle z-velocities
+      real vzsum(0:NRFULL,0:NTHFULL)
 c The potential normalized to Te/e
       real phi(0:NRFULL,0:NTHFULL)
 c Charge density
@@ -34,7 +36,7 @@ c Mag field
       logical diags,lplot
       integer myid,numprocs
       common /piccom/xp,npart,
-     $     psum,vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,
+     $     psum,vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,lplot
      $     ,myid,numprocs,Bz,damplen
 

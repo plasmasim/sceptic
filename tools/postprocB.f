@@ -746,6 +746,10 @@ c Read in  summed results.
       read(10,*)string
       read(10,*)((vtp2sum(k1,k2),k1=1,nrhere),k2=1,nthhere)
       read(10,*)string
+      if(string(1:5).eq.'vzsum')then
+         read(10,*)((vzsum(k1,k2),k1=1,nrhere),k2=1,nthhere)
+         read(10,*)string
+      endif
       read(10,*)((diagvr(k1,k2),k1=1,nrhere),k2=1,nthhere)
       read(10,*)string
       read(10,*)(rcc(k1),k1=1,nrhere)
