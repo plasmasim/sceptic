@@ -74,3 +74,23 @@ Both of these effects appear to bias the particle injection by causing
 particles to leave the domain faster than they should. However, the
 effect definitely ought to decrease as timestep is decreased, since it
 is proportional to \nu dt.
+
+16 Mar
+
+Established that decreasing dt while s.dt is constant does not substantially
+change the error.
+
+Revisiting single processor verifications.  Modified pdiag to document
+some upstream versus downstream comparisons, and to limit the r-range.
+
+Found that there appears to be a significant discrepancy at low
+collisionality between the observed ion distribution and the analytic,
+but not at high collisionality. But doubling dt seems to reduce it and
+the distribution is then pretty correct.
+
+Also found there is a density discrepancy in the costheta plus versus
+minus regions, which appears systematic. When dealing with x30, we need
+an upstream/downstream asymmetry of about 30/ \pi rmax^2 to give a force
+of 30 units (nT r_p^2). This requires about 1% asymmetry. This much is
+present in the sums I get, although the potential asymmetry is somewhat
+below this = few x 10^-3 
