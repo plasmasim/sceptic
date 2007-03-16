@@ -18,6 +18,7 @@ c at steady state where the distribution is the injection distribution.
 c Defaults
       Ti=1.
       rmax=5.
+      rmin=0.
       vd=0.
       myid=0
 
@@ -31,6 +32,7 @@ c Deal with arguments.
          if(string(1:2) .eq. '-s') diags=.true.
          if(string(1:2) .eq. '-t') read(string(3:),*)Ti
          if(string(1:2) .eq. '-x') read(string(3:),*)rmax
+         if(string(1:2) .eq. '-r') read(string(3:),*)rmin
          if(string(1:2) .eq. '-v') read(string(3:),*)vd
          if(string(1:3) .eq. '-pf') then
             lfloat=.true.
@@ -60,18 +62,38 @@ c Deal with arguments.
       endif
       
       vmean=0.
+      vmeanplus=0.
+      vmeanminus=0.
+      ncount=0
+      nplus=0
+      nminus=0
       do i=1,npart
-         iv1=min(nv,max(-nv,nint(xp(4,i)*nv/vrange)))
-         iv2=min(nv,max(-nv,nint(xp(5,i)*nv/vrange)))
-         iv3=min(nv,max(-nv,nint(xp(6,i)*nv/vrange)))
-         fv1(iv1)=fv1(iv1)+1
-         fv2(iv2)=fv2(iv2)+1
-         fv3(iv3)=fv3(iv3)+1
-         vmean=vmean+xp(6,i)
+         rp=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+         costheta=xp(3,i)/rp
+         if(rmin.le.rp .and. rp.le.rmax)then
+            iv1=min(nv,max(-nv,nint(xp(4,i)*nv/vrange)))
+            iv2=min(nv,max(-nv,nint(xp(5,i)*nv/vrange)))
+            iv3=min(nv,max(-nv,nint(xp(6,i)*nv/vrange)))
+            fv1(iv1)=fv1(iv1)+1
+            fv2(iv2)=fv2(iv2)+1
+            fv3(iv3)=fv3(iv3)+1
+            vmean=vmean+xp(6,i)
+            ncount=ncount+1
+            if(costheta.gt.0)then
+               vmeanplus=vmeanplus+xp(6,i)
+               nplus=nplus+1
+            else
+               vmeanminus=vmeanminus+xp(6,i)
+               nminus=nminus+1
+            endif
+         endif
       enddo
-      vmean=vmean/npart
+      vmean=vmean/ncount
       write(*,*)'Mean vz=',vmean,' cf vd=',vd
-
+      vmeanplus=vmeanplus/nplus
+      vmeanminus=vmeanminus/nminus
+      write(*,*)'Mean vzplus=',vmeanplus,'  vzminus=',vmeanminus,
+     $     ' nplus,nminus=',nplus,nminus
 c Don't plot the bottom end if there's no data.
       do i=-nv,nv
          nvmin=i
