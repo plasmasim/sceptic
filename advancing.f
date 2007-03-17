@@ -355,7 +355,7 @@ c Common data:
       integer interpth
 
 c Testing
-      if(.not. xp(1,i).le.200.)then
+      if(.not. xp(1,i).le.400.)then
          write(*,*)'Ptomesh particle overflow on entry'
          write(*,*)i,(xp(ipl,i),ipl=1,6)
          write(*,*)i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp,zetap,ih,hf
