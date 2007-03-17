@@ -55,40 +55,44 @@ c Deal with arguments.
          fmaxwell(j)=exp(-v(j)**2)
       enddo
 
-      call partrd(success)
-      if(.not.success)then
-         write(*,*)'Failed to read the particles in'
-         stop
-      endif
-      
       vmean=0.
       vmeanplus=0.
       vmeanminus=0.
       ncount=0
       nplus=0
       nminus=0
-      do i=1,npart
-         rp=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
-         costheta=xp(3,i)/rp
-         if(rmin.le.rp .and. rp.le.rmax)then
-            iv1=min(nv,max(-nv,nint(xp(4,i)*nv/vrange)))
-            iv2=min(nv,max(-nv,nint(xp(5,i)*nv/vrange)))
-            iv3=min(nv,max(-nv,nint(xp(6,i)*nv/vrange)))
-            fv1(iv1)=fv1(iv1)+1
-            fv2(iv2)=fv2(iv2)+1
-            fv3(iv3)=fv3(iv3)+1
-            vmean=vmean+xp(6,i)
-            ncount=ncount+1
-            if(costheta.gt.0)then
-               vmeanplus=vmeanplus+xp(6,i)
-               nplus=nplus+1
-            else
-               vmeanminus=vmeanminus+xp(6,i)
-               nminus=nminus+1
-            endif
+
+      do myid=0,36
+         write(*,*)'Reading particles for myid=',myid
+         call partrd(success)
+         if(.not.success)then
+            write(*,*)'Quitting read attempts'
+            goto 10
+         else
+            do i=1,npart
+               rp=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+               costheta=xp(3,i)/rp
+               if(rmin.le.rp .and. rp.le.rmax)then
+                  iv1=min(nv,max(-nv,nint(xp(4,i)*nv/vrange)))
+                  iv2=min(nv,max(-nv,nint(xp(5,i)*nv/vrange)))
+                  iv3=min(nv,max(-nv,nint(xp(6,i)*nv/vrange)))
+                  fv1(iv1)=fv1(iv1)+1
+                  fv2(iv2)=fv2(iv2)+1
+                  fv3(iv3)=fv3(iv3)+1
+                  vmean=vmean+xp(6,i)
+                  ncount=ncount+1
+                  if(costheta.gt.0)then
+                     vmeanplus=vmeanplus+xp(6,i)
+                     nplus=nplus+1
+                  else
+                     vmeanminus=vmeanminus+xp(6,i)
+                     nminus=nminus+1
+                  endif
+               endif
+            enddo
          endif
       enddo
-      vmean=vmean/ncount
+ 10   vmean=vmean/ncount
       write(*,*)'Mean vz=',vmean,' cf vd=',vd
       vmeanplus=vmeanplus/nplus
       vmeanminus=vmeanminus/nminus
@@ -138,6 +142,7 @@ c Read in the particle data.
       logical success
 c Common data:
       include 'piccom.f'
+c Included myid.
       character*11 filename
 
       write(filename,'(''part'',i3.3,''.dat'')')myid
