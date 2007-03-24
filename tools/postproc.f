@@ -1367,6 +1367,7 @@ c Read in  summed results.
       read(10,*,err=200)
      $     dt,vd,Ti,i,rmax,rhoinf,debyelen,vprobe
  200  continue
+      if(rhoinf.lt.1.)rhoinf=exp(phiinf)
       read(10,*)nrhere,nthhere,nphere
       if(nrhere.gt.NRUSED .or. nthhere.gt.NTHUSED)then
          write(*,*)'Required dimensions: nr',nrhere,' nth',nthhere
@@ -1495,7 +1496,7 @@ c fix angle ends of rho and phi
          write(*,*)'rho   ','rholocal',
      $     ' ;  rho is from psum, rholocal from Ti file'
          do i=1,nrhere
-            write(*,*)rho(i,1),rholocal(i,1)
+            write(*,*)rho(i,1),rholocal(i,1),rho(i,1)/rholocal(i,1)
          enddo
          write(*,*)'End of rho comparison'
       endif
