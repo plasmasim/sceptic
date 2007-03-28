@@ -17,9 +17,10 @@ c***********************************************************************
 c Currently this is set up for a constant nu charge-exchange distrib.
 c***********************************************************************
 c Reinjection from a general ion distribution function.
-      subroutine fvreinject(i,dt)
+      subroutine fvreinject(i,dt,icolntype)
       include 'piccom.f'
       include 'fvcom.f'
+      include 'colncom.f'
       real qz(nzfvi:nzfva),vzp(nzfvi:nzfva)
       logical lpos, lpos1
       logical istrapped
@@ -378,6 +379,11 @@ c random position prior to reentering the domain.
       do j=1,3
          xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
       enddo
+
+c If the third bit (4) of icolntype is set this means we must add the 
+c Eneutral acceleration for the effective prior step. 
+      if(mod(icolntype/2,2).eq.1)xp(6,i)=xp(6,i)+Eneutral*dt
+
 c Deal with possibly non-zero potential. Not yet done. Done above Jul06     
 c      phihere=0.
       rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2

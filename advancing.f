@@ -13,6 +13,8 @@ c or run the code, you do so at your own risk.
 c
 c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
+c Version of Mar 07 includes icolntypes with bit 3 set to do all
+c collisions at the end of the step.
 c Version 2.5; Jan 2005: subcycling of padvnc.
 c Version 2.5; Jan 2005: fixed reinjection flux option.
 c Advance the particles
@@ -675,17 +677,23 @@ c Master Collision subroutine.
       real dt,colnwt
       integer icolntype
 c Call the appropriate collision routine.
-      if(icolntype.eq.1 .or. icolntype.eq.2)then
+      if(icolntype.eq.1 .or. icolntype.eq.2
+     $     .or. icolntype.eq.5 .or. icolntype.eq.6)then
          call nucollide(dt,colnwt,icolntype)
-      elseif(icolntype.gt.2)then
+      elseif(icolntype.gt.8)then
          call mfpcollide(dt,colnwt,icolntype)
+      else
+         write(*,*)'Incorrect collision type:',icolntype
+         stop
       endif
       end
 c******************************************************************
       subroutine nucollide(dt,cnu,icolntype)
-c Collision type icolntype=1: with specified collision frequency.
+c Collision type with specified collision frequency.
 c Input dt=timestep, colnwt=cnu=collision freq (\propto target density)
-c       ichoose=starting particle icycle=particle-number step.
+c icolntype bit 3 (4) if set says do all collisions at step end.
+c That is less accurate for treating multiple collisions but should
+c avoid errors at the boundary from reinjection etc.
       include 'piccom.f'
       include 'colncom.f'
       real accel(3)
@@ -721,70 +729,81 @@ c Cycle through all the particles, skipping if necessary.
 c This is an active particle slot.
             dtd=dt
             ytest=ytestfull 
+            if(mod(icolntype/4,2).eq.1)then
+c Simple: all collisions at end of step.
+               y=ran0(idum)
+               if(y.lt.ytest)then
+c Get new velocity; reflects neutral maxwellian shifted by vneutral.
+                  xp(4,i)=tisq*gasdev(idum)
+                  xp(5,i)=tisq*gasdev(idum)
+                  xp(6,i)=tisq*gasdev(idum)+ vneutral
+               endif
+            else
 c Start of multiple collision loop           
- 1          y=ran0(idum)
-            if(y.lt.ytest)then
+ 1             y=ran0(idum)
+               if(y.lt.ytest)then
 c A collision occured at a time dtc during the last [partial] step
-               ncollide=ncollide+1
+                  ncollide=ncollide+1
 c at a time dtc after its start.
-               dtc=-alog(1.-y)/(cnu*icycle)
+                  dtc=-alog(1.-y)/(cnu*icycle)
 c Adjust the step duration to that remaining after collision.
-               dtd=dtd-dtc
+                  dtd=dtd-dtc
 c               write(*,*)i,ytest,y,ytest,dtc,dtd
 c Calculate the probability of a collision in remaining partial step.
-               ytest=1.-exp(-cnu*icycle*dtd)
+                  ytest=1.-exp(-cnu*icycle*dtd)
 c Get the current acceleration, needed below.
 c We don't bother about the place we calculate this being correct,
 c because that would need more elaborate testing for being inside
 c the computational region, and is a second order effect.
-               ih=1
-               hf=66.
-               call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
-     $              ,zetap,ih,hf)
-               call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
-     $              sp,cp,rp,zetap,ih,hf)
-               accel(3)=accel(3)+Eneutral
+                  ih=1
+                  hf=66.
+                  call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
+     $                 ,zetap,ih,hf)
+                  call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
+     $                 sp,cp,rp,zetap,ih,hf)
+                  accel(3)=accel(3)+Eneutral
 c Save the position at end of step (inside the grid)
-               xpi1=xp(1,i)
-               xpi2=xp(2,i)
-               xpi3=xp(3,i)
+                  xpi1=xp(1,i)
+                  xpi2=xp(2,i)
+                  xpi3=xp(3,i)
 c Back track the position to the point of last collision
 c [None of this is correct for finite magnetic field. For that we would
 c need a rotation of the perpendicular position/velocity.]
-               xp(1,i)=xp(1,i)-dtd*xp(4,i)
-               xp(2,i)=xp(2,i)-dtd*xp(5,i)
-               xp(3,i)=xp(3,i)-dtd*xp(6,i)
+                  xp(1,i)=xp(1,i)-dtd*xp(4,i)
+                  xp(2,i)=xp(2,i)-dtd*xp(5,i)
+                  xp(3,i)=xp(3,i)-dtd*xp(6,i)
 c Get new velocity; reflects neutral maxwellian shifted by vneutral.
-               xp(4,i)=tisq*gasdev(idum)
-               xp(5,i)=tisq*gasdev(idum)
-               xp(6,i)=tisq*gasdev(idum)+ vneutral
+                  xp(4,i)=tisq*gasdev(idum)
+                  xp(5,i)=tisq*gasdev(idum)
+                  xp(6,i)=tisq*gasdev(idum)+ vneutral
 c Forward track fractional position with new velocity
-               xp(1,i)=xp(1,i)+dtd*xp(4,i)
-               xp(2,i)=xp(2,i)+dtd*xp(5,i)
-               xp(3,i)=xp(3,i)+dtd*xp(6,i)
-               rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+                  xp(1,i)=xp(1,i)+dtd*xp(4,i)
+                  xp(2,i)=xp(2,i)+dtd*xp(5,i)
+                  xp(3,i)=xp(3,i)+dtd*xp(6,i)
+                  rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c Make sure we are inside the grid. If not, it was either because the forward
 c tracking was too much or because this was a reinjected particle itself, so 
 c its apparent prior position was outside grid.
 c Compromise by simply using the end-of-step position which was inside.
 c This may have unintended effects near the boundary. An alternative might
 c be to reinject without a collision possibility.
-               if(rn.ge.r(NRFULL) .or. rn.le.1.)then
-                  xp(1,i)=xpi1
-                  xp(2,i)=xpi2
-                  xp(3,i)=xpi3
+                  if(rn.ge.r(NRFULL) .or. rn.le.1.)then
+                     xp(1,i)=xpi1
+                     xp(2,i)=xpi2
+                     xp(3,i)=xpi3
 c                  rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c                  if(rn.le.1.)write(*,*)'Collide inside error',rn
-               endif
+                  endif
 c Apply acceleration for the forward step duration. This is always
 c starting from a newly collided particle. Fixes drift bias at high
 c collisionality.
-               xp(4,i)=xp(4,i)+dtd*accel(1)
-               xp(5,i)=xp(5,i)+dtd*accel(2)
-               xp(6,i)=xp(6,i)+dtd*accel(3)
+                  xp(4,i)=xp(4,i)+dtd*accel(1)
+                  xp(5,i)=xp(5,i)+dtd*accel(2)
+                  xp(6,i)=xp(6,i)+dtd*accel(3)
 c Test for another collision
-               goto 1
-            endif 
+                  goto 1
+               endif 
+            endif
          endif
       enddo
       NCneutral=ncollide

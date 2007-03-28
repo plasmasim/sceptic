@@ -24,7 +24,7 @@ c***********************************************************************
          call maxreinject(i,dt,bcr)
       elseif(icolntype.eq.1) then
 c Injection from fv distribution at the boundary.
-         call fvreinject(i,dt)
+         call fvreinject(i,dt,icolntype)
       elseif(icolntype.eq.2)then
 c Injection from a general gyrotropic distribution at infinity
          call ogenreinject(i,dt)
