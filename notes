@@ -94,3 +94,10 @@ an upstream/downstream asymmetry of about 30/ \pi rmax^2 to give a force
 of 30 units (nT r_p^2). This requires about 1% asymmetry. This much is
 present in the sums I get, although the potential asymmetry is somewhat
 below this = few x 10^-3 
+
+23 Mar
+
+Implemented angle distribution testing in fvinjecttest. We get the 
+mean and 1st moment correct to better than 1 part in 1000 for 1M 
+injections. Thus the reinjection is correct, as far as one can tell. 
+This can't give anything like the 1% asymmetry.

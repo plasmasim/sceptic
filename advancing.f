@@ -708,7 +708,7 @@ c     until we have used up the whole time-step.
 c     When nu.dt is very small we gain efficiency by only treating a
 c     subset of the particles. And multiplying the nu by icycle.
       icycle=1./(20.*cnu*dt)
-c     We keep icycle.nu.dt < 20  if possible to avoid bias by the cycle.
+c     We keep icycle.nu.dt < 1/20  to avoid bias by the cycle.
       if(.not.icycle.ge.1) icycle=1
       ichoose=ran0(idum)*icycle+1
       if(ichoose.gt.icycle)ichoose=icycle

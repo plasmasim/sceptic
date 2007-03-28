@@ -133,7 +133,8 @@ c Don't plot the bottom end if there's no data.
       call pltend()
 
       call exit(0)
- 51   write(*,*)'Usage: pdiag -t -x -v -m'
+ 51   write(*,*)'Usage: pdiag -t -r -x -v -m',
+     $     'tempr, rmin, rmax, velocity, mass'
       end
 
 c**********************************************************************

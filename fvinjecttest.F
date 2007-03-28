@@ -12,14 +12,18 @@ c Common storage:
       real ftest(nxfvi:nxfva,nzfvi:nzfva)
 
 c diagnostics
-      real vydist(nxfvi:nxfva),fmaxwell(nxfvi:nxfva)
-      common /vinjdiag/vydist
+      real vydist(nxfvi:nxfva),fmaxwell(nxfvi:nxfva),vzdist(nxfvi:nxfva)
+      common /vinjdiag/vydist,vzdist
 c Local diagnostics
       integer ndist
       parameter (ndist=40)
       real vphidist(-ndist:ndist),vphi(-ndist:ndist)
      $     ,fmdist(-ndist:ndist)
       real phiangle(npartmax), pindex(npartmax),tanvel(npartmax)
+     $     ,cosarr(npartmax)
+      parameter (ncdist=100)
+      real cosdist(ncdist),cosangle(ncdist),acdist(ncdist),ratc(ncdist)
+      real qthtest(nthfvsize),fvthtest(nthfvsize)
 c      real worka(0:nxfva-nxfvi+2,0:nzfva-nzfvi+2)
 c Data
       data rmax/5./
@@ -145,10 +149,23 @@ c Set Array sizes, allowed variable.
       write(*,505)nr,nthfvsize,npart
  505  format(' Mesh: ',i3,' x',i3,'  Particles:',i7)
 
-         r(nr)=rmax
+      r(nr)=rmax
 c********************
 c Real init testing section.
 c
+      ud=vd/sqrt(2.*Ti)
+      actot=0.
+      do j=1,ncdist
+         cosdist(j)=0.
+         cosangle(j)=-1.+2.*(j-0.5)/ncdist
+         acdist(j)=canglecx(-cosangle(j),ud)
+         actot=actot+acdist(j)
+      enddo
+c Renormalize to integral equals 1.
+      do j=1,ncdist
+         acdist(j)=0.5*ncdist*acdist(j)/actot
+      enddo
+
       ldiaginj=diags
       write(*,*) 'Testing fvinject. Drift velocity=',vd
       call fvinjinit()
@@ -238,7 +255,7 @@ c         endif
          jsw=1 + 256*10 + 256*256*7
          call hidweb(vxfv,vzfv,fqvxvz,
      $        nxfva-nxfvi+1,nxfva-nxfvi+1,nzfva-nzfvi+1,jsw)
-         call boxtitle('fqvxvz(vx,th)'//
+         call boxtitle('fqvxvz(vx,vz)'//
      $        ' tangential cumulative distribution')
          call axident3()
          call ax3labels('vx','vz','fqvxvz(vx,vz)')
@@ -247,7 +264,7 @@ c         endif
       endif
 
 c      write(*,*)'Reinjection particle No, position, velocity'
-      dt=.01
+      dt=.001
       do i=1,npart
          call fvreinject(i,dt)
          if(npart.le.100) write(*,701)i,(xp(k,i),k=1,6)
@@ -261,9 +278,55 @@ c      write(*,*)'Reinjection particle No, position, velocity'
          if(ip.lt.-ndist)ip=-ndist
          if(ip.gt.ndist)ip=ndist
          vphidist(ip)=vphidist(ip)+1.
+         ca=xp(3,i)/sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+         cosarr(i)=ca
+         icdist=nint(0.5+ncdist*(ca+1)/2.000001)
+         cosdist(icdist)=cosdist(icdist)+1
       enddo
+      itotal=0
+      aver=0
+      am1=0
+      do j=1,ncdist
+         itotal=itotal+cosdist(j)
+         cosdist(j)=0.5*ncdist*cosdist(j)/npart
+         ratc(j)=cosdist(j)/acdist(j)
+         aver=aver+ratc(j)
+         am1=am1+ratc(j)*cosangle(j)
+      enddo
+      aver=aver/ncdist
+      am1=am1/ncdist
+      write(*,*)'npart,itotal,average,1st moment',npart,itotal,aver,am1
 
 c Plot some diagnostics      
+c The fvinject theta distribution function. Includes the poles.
+      do j=1,nthfvsize
+         qthtest(j)=qxfv(nxfva,j)
+         fvthtest(j)=-fvth(j)
+      enddo
+c Integrate:
+      total=0.
+      do j=1,nthfvsize-1
+         total=total+
+     $        (fvthtest(j+1)-fvthtest(j))*(qthtest(j+1)+qthtest(j))*0.5
+      enddo
+      do j=1,nthfvsize
+         qthtest(j)=qthtest(j)/abs(total)
+      enddo
+c This then seems to give excellent agreement with analytic form.
+c And provided dt is small enough, so does the reinjection.
+
+      call automark(cosangle,cosdist,ncdist,1)
+      call axlabels('cos(!Aq!@)','Injection angle distribution')
+      call polyline(cosangle,acdist,ncdist)
+      call color(4)
+      call dashset(1)
+      call polyline(fvthtest,qthtest,nthfvsize)
+      call pltend()
+
+      call automark(cosangle,ratc,ncdist,3)
+      call axlabels('cos(!Aq!@)','Distribution ratio')
+      call pltend()
+
 c      call automark(pindex,phiangle,npart,10)
 c      call axlabels('index','phiangle')
 c      call pltend()
@@ -294,6 +357,21 @@ c
       call polyline(vxfv,fmaxwell,nxfva-nxfvi+1)
       call dashset(0)
       call pltend()
+c
+      call autoplot(vzfv,vzdist,nxfva-nxfvi+1)
+      call axlabels('v','z-velocity distribution')
+      call minmax(vzdist,nxfva-nxfvi+1,vzmin,vzmax)
+      do j=nxfvi,nxfva
+         v=vzfv(j)
+         fmaxwell(j)=fvcx(v,vd/sqrt(2.*Ti))*npart*(vzfv(2)-vzfv(1))
+      enddo
+      call dashset(1)
+      call polyline(vzfv,fmaxwell,nxfva-nxfvi+1)
+      call dashset(0)
+      call jdrwstr(.02,.02,
+     $'Comparing injection flux to f(vz) distrib. Should not agree',
+     $     1.)
+      call pltend()
 
       call exit(0)
  51   write(*,*) 'Usage: fvinjecttest -vfff.ff [other options]'
@@ -312,3 +390,15 @@ c  Initialization approximately 0.6s
 c  1000000 reinjections approximately 4s. Actually may be just 200000.
 c  Probably small enough to be negligible.
 
+c***************************************************************
+      function canglecx(ct,ud)
+c Return the angle distribution function for a cx constant collision
+c frequency distribution when the normalized velocity is ud, at angle
+c cos(theta)=ct
+      real ct,ud
+      
+      x=abs(2.*ct*ud)
+      if(x.lt.1.e-10)x=1.e-10
+      canglecx=0.5*(ct*ud*(1.+ sign(experfcc(1/x),ct*ud))
+     $     + 1./sqrt(3.145926))
+      end

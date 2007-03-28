@@ -17,7 +17,7 @@ c Version 2.5; Aug 2004
       integer npartmax,npart,nr,nth,ndim,np,npartadd,addhist
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
-      parameter (npartmax=200000,np=1,ndim=6)
+      parameter (npartmax=2000000,np=1,ndim=6)
 c Start of inner domain additions ----------------
 c Number of additional particles in the inner domain
       parameter (npartadd=100000)

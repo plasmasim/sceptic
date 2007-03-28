@@ -25,8 +25,8 @@ c Reinjection from a general ion distribution function.
       logical istrapped
       real eps
 c diagnostics
-      real vydist(nxfvi:nxfva)
-      common /vinjdiag/vydist
+      real vydist(nxfvi:nxfva),vzdist(nxfvi:nxfva)
+      common /vinjdiag/vydist,vzdist
 
 c A really small number
       eps=1.e-20
@@ -203,6 +203,11 @@ c Plot backwards
          endif
       endif
       vz=(1.-fzfv)*vzfv(izfv) + fzfv*vzfv(izfv+1)
+c Diagnostics
+      izp=nint(vz*nzfva/vzfv(nzfva))
+      if(izp.lt.nzfvi) iyp=nzfvi
+      if(izp.gt.nzfva) iyp=nzfva
+      vzdist(izp)=vzdist(izp)+1
 
       sintheta=sqrt(1.-costheta**2)
 c----------------------------------------------------------------------
@@ -348,7 +353,10 @@ c which is therefore the inward normal.
       xp(1,i)=(rs*sintheta)*cosphi
 c
 c Obtain angle coordinate and map back to th for phihere.
-      ct=xp(3,i)/rs
+c This appears to be in error because costheta is -th in fvinject. 
+c We are getting the angular position of the injection.
+c      ct=xp(3,i)/rs
+      ct=xp(3,i)/r(nr)
       call invtfunc(th(1),nth,ct,x)
       ic1=x
       ic2=ic1+1
