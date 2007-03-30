@@ -9,7 +9,6 @@ c Grabbed initially from sceptic.F
 c Common storage:
       include 'piccom.f'
       include 'fvcom.f'
-c      include 'colncom.f'
       real ftest(nxfvi:nxfva,nzfvi:nzfva)
 
 c diagnostics
@@ -164,25 +163,27 @@ c Real init testing section.
 c
       ud=vd/sqrt(2.*Ti)
       actot=0.
+      dcos=2./ncdist
       do j=1,ncdist
          cosdist(j)=0.
          cosangle(j)=-1.+2.*(j-0.5)/ncdist
          acdist(j)=canglecx(-cosangle(j),ud)
-         actot=actot+acdist(j)
+         actot=actot+acdist(j)*dcos
       enddo
-c Renormalize to integral equals 1.
-      do j=1,ncdist
-         acdist(j)=0.5*ncdist*acdist(j)/actot
-      enddo
-
+c Now actot is \int canglecx dcostheta.
       ldiaginj=diags
       write(*,*) 'Testing fvinject. Drift velocity=',vd
       call fvinjinit()
       write(*,*) 'Finished initialization on grid',
      $     nthfvsize,nxfva,nzfva
+      write(*,*)'actot,qthfv(nthfvsize)',actot,qthfv(nthfvsize)
+
+c Renormalize to sum equals 1.
+      do j=1,ncdist
+         acdist(j)=0.5*ncdist*acdist(j)*dcos/actot
+      enddo
 
  510  format(10f8.3)
-
 
       if(nthfvsize.le.10)then
          write(string,'(''('',i3,''f8.3)'')')nthfvsize
@@ -242,14 +243,14 @@ c qfv for all the thetas
      $           nzfva-nzfvi+1,qmin,qmax)
             if(qmin.ne.qmax)then
                write(*,*)'j,th',j,fvth(j)
- 601        call pltinit(0.,1.,0.,1.)
-            jsw=1 + 256*10 + 256*256*7
-            call hidweb(vzfv,vxfv,qfv(nzfvi,nxfvi,j),
-     $           nzfva-nzfvi+1,nzfva-nzfvi+1,nxfva-nxfvi+1,jsw)
-            call boxtitle('qfv(vz,vx)')
-            call axident3()
-            call ax3labels('vz','vx','qfv(vz,vx)')
-            if(ieye3d().ne.0) goto 601
+ 601           call pltinit(0.,1.,0.,1.)
+               jsw=1 + 256*10 + 256*256*7
+               call hidweb(vzfv,vxfv,qfv(nzfvi,nxfvi,j),
+     $              nzfva-nzfvi+1,nzfva-nzfvi+1,nxfva-nxfvi+1,jsw)
+               call boxtitle('qfv(vz,vx)')
+               call axident3()
+               call ax3labels('vz','vx','qfv(vz,vx)')
+               if(ieye3d().ne.0) goto 601
             else
                write(*,*)'Flat qfv',j,qmin,qmax
             endif
@@ -268,7 +269,8 @@ c         endif
 
       endif
 
-c      write(*,*)'Reinjection particle No, position, velocity'
+      if(npart.le.100)
+     $     write(*,*)'Reinjection particle No, position, velocity'
       dt=.001
       do i=1,npart
          call fvreinject(i,dt,icolntype)
@@ -405,5 +407,5 @@ c cos(theta)=ct
       x=abs(2.*ct*ud)
       if(x.lt.1.e-10)x=1.e-10
       canglecx=0.5*(ct*ud*(1.+ sign(experfcc(1/x),ct*ud))
-     $     + 1./sqrt(3.145926))
+     $     + 1./sqrt(3.1415926))
       end
