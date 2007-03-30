@@ -22,10 +22,10 @@ c***********************************************************************
 
       if(bcr.ne.0) then
          call maxreinject(i,dt,bcr)
-      elseif(icolntype.eq.1) then
+      elseif(icolntype.eq.1.or.icolntype.eq.5) then
 c Injection from fv distribution at the boundary.
          call fvreinject(i,dt,icolntype)
-      elseif(icolntype.eq.2)then
+      elseif(icolntype.eq.2.or.icolntype.eq.6)then
 c Injection from a general gyrotropic distribution at infinity
          call ogenreinject(i,dt)
       else
@@ -41,10 +41,10 @@ c***********************************************************************
       if(bcr.ne.0) then
 c Injection from a maxwellian at boundary?
          call maxinjinit(bcr)
-      elseif(icolntype.eq.1) then
+      elseif(icolntype.eq.1.or.icolntype.eq.5) then
 c Injection from fv distribution at the boundary.
          call fvinjinit(icolntype)
-      elseif(icolntype.eq.2)then
+      elseif(icolntype.eq.2.or.icolntype.eq.6)then
 c Injection from a general gyrotropic distribution at infinity
          call ogeninjinit(icolntype)
       else

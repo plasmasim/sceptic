@@ -38,8 +38,10 @@ c Using the routines in strings_names.f
       call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
       call nameappendexp(filename,'L',debyelen,1)
       if(Bz.ne.0.) call nameappendexp(filename,'B',Bz,2)
-      if(icolntype.eq.1) call nameappendexp(filename,'c',colnwt,1)
-      if(icolntype.eq.2) call nameappendexp(filename,'C',colnwt,1)
+      if(icolntype.eq.1.or.icolntype.eq.5)
+     $     call nameappendexp(filename,'c',colnwt,1)
+      if(icolntype.eq.2.or.icolntype.eq.6)
+     $     call nameappendexp(filename,'C',colnwt,1)
       idf=nbcat(filename,'.dat')
 
 c Write out averaged results.

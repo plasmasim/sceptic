@@ -382,7 +382,7 @@ c random position prior to reentering the domain.
 
 c If the third bit (4) of icolntype is set this means we must add the 
 c Eneutral acceleration for the effective prior step. 
-      if(mod(icolntype/2,2).eq.1)xp(6,i)=xp(6,i)+Eneutral*dt
+      if(mod(icolntype/4,2).eq.1)xp(6,i)=xp(6,i)+Eneutral*dt
 
 c Deal with possibly non-zero potential. Not yet done. Done above Jul06     
 c      phihere=0.

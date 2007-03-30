@@ -43,7 +43,7 @@ c            write(*,*)'Excessive averein',averein,' capped'
 
 c     We have to calculate rhoinf consistently with the reinjection
 
-         if(icolntype.eq.1) then
+         if(icolntype.eq.1.or.icolntype.eq.5) then
 c Using general fvinject, injecting at the computational boundary.
 c  qthfv(nthfvsize) contains the one-way flux density
 c integrated dcos(theta) in 2Ti-normalized units.
@@ -59,7 +59,9 @@ c     $           /(1-averein/(Ti+0.*vd**2))
 c Correction for collisional drag in outer region. Usually negligible.
             riest=riest
      $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
-         elseif(icolntype.eq.2)then
+c Hack test of changing the rhoinfinity.
+c            riest=.95*riest
+         elseif(icolntype.eq.2 .or. icolntype.eq.6)then
 c ogeninject from infinity with a general distribution numerically
 c Flux/(2\pi riest v_n rmax^2) = pu1(1) - averein*pu2(1)
             riest=(nrein/dt) /

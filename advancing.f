@@ -657,7 +657,8 @@ c Initialization for Collisions
       include 'piccom.f'
       include 'colncom.f'
 c      write(*,*)'Initialized collisions',colnwt,icolntype
-      if(icolntype.eq.1 .or. icolntype.eq.2)then
+      if(icolntype.eq.1 .or. icolntype.eq.2
+     $     .or. icolntype.eq.5 .or. icolntype.eq.6)then
 c Constant nu collisions. The Eneutral must be consistent with vd:
          Eneutral=colnwt*(vd-vneutral)
 c Testing
@@ -665,10 +666,13 @@ c         Eneutral=0.
          if(myid .eq.0) write(*,*)'colnwt,vd,vneutral=',colnwt,vd
      $        ,vneutral,' Eneutral=',Eneutral
      $        
-      else
+      elseif(icolntype.eq.0)then
 c Need more code here for other types. Not yet implemented.
 c Must set Eneutral to zero by default.
          Eneutral=0.
+      else
+         write(*,*)'Incorrect icolntype',icolntype
+         stop
       endif
       end
 c***********************************************************************

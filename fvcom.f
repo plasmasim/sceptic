@@ -19,7 +19,7 @@ c Dimensions in vx and vz, min, max
       integer nxfvi,nzfvi,nxfva,nzfva
 c We only need arrays for the non-negative cosine angles (including 0).
 c This was derived from nthsize, but there were overflows.
-      parameter (nthfvsize=50)
+      parameter (nthfvsize=100)
 c Moving to use theta array independent of sceptic mesh
       real fvth(nthfvsize)
 c These are the adjustable dimensions for storage optimization.

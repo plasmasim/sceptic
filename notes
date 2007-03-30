@@ -101,3 +101,42 @@ Implemented angle distribution testing in fvinjecttest. We get the
 mean and 1st moment correct to better than 1 part in 1000 for 1M 
 injections. Thus the reinjection is correct, as far as one can tell. 
 This can't give anything like the 1% asymmetry.
+
+28 Mar 
+Implemented kt5 kt6 which do no backtracking. They now seem to work
+and kt5 gives good particle distributions, but there are still force
+errors and density drop. Therefore it does not seem that I have 
+succeeded in fixing the problems with reinjection.
+
+29 Mar
+Showed that v1 kt5 k.1 gives comparable density drop (.97) for s1000 d.1 and 
+s5000 d.02, showing that the density drop is not a function of timestep.
+With k.001 the density drop is reduced (~.99), so it seems that collision
+frequency is important. Similarly, k.01 is ~99.
+
+k1 starts with a big density drop ~0.8 and then drifts up slowly through
+the run, ending with about 0.94. 
+There's a slight error on the downstream side of the distribution function.
+The observed distribution there, rises above the analytic, so the
+distribution is a little less shifted overall than analytic. I wonder if
+this error is enough to be significant.
+The initial error is substantially lower (~.93) when run with .d02, which shows
+perhaps that there is a timestep issue at these high collisionalities.
+This might be a multiple-collision issue, I suppose. The pdiag error is
+much reduced by the smaller timestep. But the density drop error, while
+not quite as large, is still substantial: 0.96.
+
+Therefore there is an error that is d-dependent but there's also one that
+is not. The one that is not is rather weakly dependent on the actual
+collisionality. 
+
+Try artificially multiplying riest by .95. Got density ~1.03 as expected.
+That hack gives the response expected.
+
+Try increasing nthfvsize to 150. Get about .99 this seems better than the
+previous kt5, k.1, d.1, s1000 (.97). Yes it definitely is.
+Try nthfvsize 300. Does not run correctly for some reason. 
+It's a dependency problem touching makefile makes it work.
+There might have been a problem with my prior change. This one seems
+to have about .975. So we don't have clear convergence. nthfvsize=100
+seems to have about .98. Not clear that we are chasing a real effect.

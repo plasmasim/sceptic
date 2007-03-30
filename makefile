@@ -49,7 +49,7 @@ fvinject.o : fvinject.f fvcom.f piccom.f
 	$(G77) -c $(COMPILE-SWITCHES) fvinject.f
 
 #pattern rule
-%.o : %.f piccom.f makefile;
+%.o : %.f piccom.f fvcom.f makefile;
 	$(G77) -c $(COMPILE-SWITCHES) $*.f
 
 %.o : %.F piccom.f makefile;

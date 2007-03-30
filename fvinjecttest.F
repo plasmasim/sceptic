@@ -9,6 +9,7 @@ c Grabbed initially from sceptic.F
 c Common storage:
       include 'piccom.f'
       include 'fvcom.f'
+c      include 'colncom.f'
       real ftest(nxfvi:nxfva,nzfvi:nzfva)
 
 c diagnostics
@@ -71,6 +72,7 @@ c Common defaults. Avoid block data.
       lfext=.false.
       colnwt=0.
       icolntype=0
+      vneutral=0.
       localinj=.false.
       damplen=0.
       ipfsw=3
@@ -107,7 +109,6 @@ c restore defaults on read error.
          endif
          if(string(1:2) .eq. '-b') read(string(3:),*)bdyfc
          if(string(1:2) .eq. '-t') read(string(3:),*)Ti
-         if(string(1:6) .eq. '--damp')read(string(7:),*)damplen
          if(string(1:2) .eq. '-x') read(string(3:),*)rmax
          if(string(1:2) .eq. '-v') read(string(3:),*)vd
          if(string(1:3) .eq. '-pf') then
@@ -123,6 +124,11 @@ c restore defaults on read error.
 c         if(string(1:3) .eq. '-nt') read(string(4:),*)nth
 c Can't change here.
          if(string(1:3) .eq. '-ni') read(string(4:),*)npart
+         if(string(1:3) .eq. '-kt') then
+            read(string(4:),*)icolntype
+         elseif(string(1:2) .eq. '-k') then
+            read(string(3:),*)colnwt
+         endif
          if(string(1:2) .eq. '-m') read(string(3:),*)myid
          if(string(1:2) .eq. '-a') then
             read(string(3:),*,err=251,end=251)ipfsw
@@ -150,6 +156,9 @@ c Set Array sizes, allowed variable.
  505  format(' Mesh: ',i3,' x',i3,'  Particles:',i7)
 
       r(nr)=rmax
+      Eneutral=colnwt*(vd-vneutral)
+      write(*,*)'vd,icolntype,colnwt,Eneutral',
+     $     vd,icolntype,colnwt,Eneutral
 c********************
 c Real init testing section.
 c
@@ -173,10 +182,6 @@ c Renormalize to integral equals 1.
      $     nthfvsize,nxfva,nzfva
 
  510  format(10f8.3)
-c      write(*,*)'vxfv='
-c      write(*,510)vxfv
-c      write(*,*)'vzfv='
-c      write(*,510)vzfv
 
 
       if(nthfvsize.le.10)then
@@ -266,7 +271,7 @@ c         endif
 c      write(*,*)'Reinjection particle No, position, velocity'
       dt=.001
       do i=1,npart
-         call fvreinject(i,dt)
+         call fvreinject(i,dt,icolntype)
          if(npart.le.100) write(*,701)i,(xp(k,i),k=1,6)
  701     format(i6,6f10.4)
          phiangle(i)=atan2(xp(5,i),xp(4,i))
