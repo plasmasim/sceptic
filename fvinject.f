@@ -204,8 +204,10 @@ c Plot backwards
          endif
       endif
       vz=(1.-fzfv)*vzfv(izfv) + fzfv*vzfv(izfv+1)
-c Diagnostics
-      izp=nint(vz*nzfva/vzfv(nzfva))
+c Diagnostics assuming uniform vz arrays.
+      izp=nint(nzfvi+(nzfva-nzfvi)*(vz-vzfv(nzfvi))
+     $     /(vzfv(nzfva)-vzfv(nzfvi)))
+c Obsolete     izp=nint(vz*nzfva/vzfv(nzfva))
       if(izp.lt.nzfvi) iyp=nzfvi
       if(izp.gt.nzfva) iyp=nzfva
       vzdist(izp)=vzdist(izp)+1
@@ -406,6 +408,8 @@ c     crt,czt,ceta,cosal
             endif
          endif
       endif
+c trying counting only once.
+c      nrein=nrein+1
 
       end
 c***********************************************************************
@@ -416,6 +420,7 @@ c Initialize the needed data arrays.
       include 'fvcom.f'
 c Passing the drift velocity to fv.
       common /distfunc/ud
+      parameter (vtrange=4.,udrange=8.)
 
 c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
@@ -423,21 +428,28 @@ c which for a Maxwellian-related form is sqrt(2T_i/m).
 
 c Decide what the positive and negative velocity ranges are and fit them
 c to the mesh.
-      vxfvi=-4.
-      vxfva=4.
-      vzfvi=min(-4.,-4.+5.*ud)
-      vzfva=max(4.,4.+5.*ud)
+      vxfvi=-vtrange
+      vxfva=vtrange
+      vzfvi=min(-vtrange,-vtrange+udrange*ud)
+      vzfva=max(vtrange,vtrange+udrange*ud)
+      write(*,*)'vzfvi,vzfva=',vzfvi,vzfva
       do i=0,nxfva
          vxfv(i)=vxfva*i/float(nxfva)
       enddo
       do i=-1,nxfvi,-1
          vxfv(i)=vxfvi*i/float(nxfvi)
       enddo
-      do i=0,nzfva
-         vzfv(i)=vzfva*i/float(nzfva)
-      enddo
-      do i=-1,nzfvi,-1
-         vzfv(i)=vzfvi*i/float(nzfvi)
+c Equal numbers of points for negative and positive. Inefficient.
+c      do i=0,nzfva
+c         vzfv(i)=vzfva*i/float(nzfva)
+c      enddo
+c      do i=-1,nzfvi,-1
+c         vzfv(i)=vzfvi*i/float(nzfvi)
+c      enddo
+c Uniform vz-grid.
+      do i=nzfvi,nzfva
+         vzfv(i)=vzfvi+(vzfva-vzfvi)*(i-nzfvi)
+     $        /(float(nzfva-nzfvi))
       enddo
 c
       do i=1,nthfvsize
@@ -549,7 +561,7 @@ c Set initial values
          fvzm=fvz
          fvz=fv(vx,vzfv1(iz))
          if(fvz.lt.0.) then
-            write(*,*)'zinntqfv fv negative error',iz,fvz
+            write(*,*)'zintqfv fv negative error',iz,fvz
          endif
          vdotnm=vdotn
          vdotn=xn*vx + zn*vzfv1(iz)

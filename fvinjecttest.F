@@ -21,8 +21,10 @@ c Local diagnostics
      $     ,fmdist(-ndist:ndist)
       real phiangle(npartmax), pindex(npartmax),tanvel(npartmax)
      $     ,cosarr(npartmax)
-      parameter (ncdist=100)
-      real cosdist(ncdist),cosangle(ncdist),acdist(ncdist),ratc(ncdist)
+      parameter (ncdist=20)
+      real cosdist(ncdist),cdangle(ncdist)
+      real cosangle(ncdist),acdist(ncdist),ratc(ncdist)
+      real acint(ncdist)
       real qthtest(nthfvsize),fvthtest(nthfvsize)
 c      real worka(0:nxfva-nxfvi+2,0:nzfva-nzfvi+2)
 c Data
@@ -163,12 +165,22 @@ c Real init testing section.
 c
       ud=vd/sqrt(2.*Ti)
       actot=0.
-      dcos=2./ncdist
-      do j=1,ncdist
+      acdist(1)=0.
+      acint(1)=0.
+      cosangle(1)=-1.
+      do j=2,ncdist
          cosdist(j)=0.
-         cosangle(j)=-1.+2.*(j-0.5)/ncdist
-         acdist(j)=canglecx(-cosangle(j),ud)
-         actot=actot+acdist(j)*dcos
+         cdangle(j) =-1.+2.*(j-1.5)/(ncdist-1)
+         acdist(j)=canglecx(-cdangle(j),ud)
+         actot=actot+acdist(j)
+         cosangle(j)=-1.+2.*(j-1)/(ncdist-1)
+c         acint(j)=acint(j-1)+0.5*(acdist(j)+acdist(j-1))
+         acint(j)=acint(j-1)+acdist(j)
+     $        *(cosangle(j)-cosangle(j-1))
+      enddo
+c Renormalize to sum equals 1.
+      do j=2,ncdist
+         acdist(j)=0.5*(ncdist-1)*acdist(j)/actot
       enddo
 c Now actot is \int canglecx dcostheta.
       ldiaginj=diags
@@ -176,12 +188,8 @@ c Now actot is \int canglecx dcostheta.
       call fvinjinit()
       write(*,*) 'Finished initialization on grid',
      $     nthfvsize,nxfva,nzfva
-      write(*,*)'actot,qthfv(nthfvsize)',actot,qthfv(nthfvsize)
+      write(*,*)'acint,qthfv(nthfvsize)',acint(ncdist),qthfv(nthfvsize)
 
-c Renormalize to sum equals 1.
-      do j=1,ncdist
-         acdist(j)=0.5*ncdist*acdist(j)*dcos/actot
-      enddo
 
  510  format(10f8.3)
 
@@ -271,7 +279,7 @@ c         endif
 
       if(npart.le.100)
      $     write(*,*)'Reinjection particle No, position, velocity'
-      dt=.001
+      dt=.0001
       do i=1,npart
          call fvreinject(i,dt,icolntype)
          if(npart.le.100) write(*,701)i,(xp(k,i),k=1,6)
@@ -287,15 +295,15 @@ c         endif
          vphidist(ip)=vphidist(ip)+1.
          ca=xp(3,i)/sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
          cosarr(i)=ca
-         icdist=nint(0.5+ncdist*(ca+1)/2.000001)
+         icdist=nint(1.5+(ncdist-1)*(ca+1)/2.000001)
          cosdist(icdist)=cosdist(icdist)+1
       enddo
       itotal=0
       aver=0
       am1=0
-      do j=1,ncdist
+      do j=2,ncdist
          itotal=itotal+cosdist(j)
-         cosdist(j)=0.5*ncdist*cosdist(j)/npart
+         cosdist(j)=0.5*(ncdist-1)*cosdist(j)/npart
          ratc(j)=cosdist(j)/acdist(j)
          aver=aver+ratc(j)
          am1=am1+ratc(j)*cosangle(j)
@@ -322,9 +330,18 @@ c Integrate:
 c This then seems to give excellent agreement with analytic form.
 c And provided dt is small enough, so does the reinjection.
 
-      call automark(cosangle,cosdist,ncdist,1)
+      call autoplot(cosangle,acint,ncdist)
+      call axlabels('cos(!Aq!@)','Cumulative angle distribution')
+      call color(4)
+      call dashset(1)
+      call polyline(fvthtest,qthfv,nthfvsize)
+      call pltend()
+
+      write(*,'(2f10.5)')(cdangle(j),acdist(j),j=1,ncdist)
+
+      call automark(cdangle(2),cosdist(2),ncdist-1,1)
       call axlabels('cos(!Aq!@)','Injection angle distribution')
-      call polyline(cosangle,acdist,ncdist)
+      call polyline(cdangle(2),acdist(2),ncdist-1)
       call color(4)
       call dashset(1)
       call polyline(fvthtest,qthtest,nthfvsize)

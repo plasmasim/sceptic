@@ -130,7 +130,8 @@ c     Except for the first time, find new position.
 c getaccel returns the accel based on the charge-field calculation.
 c We then add on the acceleration due to the neutral-collisions-implied
 c electric field.
-               accel(3)=accel(3)+Eneutral
+c Trying adding on the Eneutral partially at the end.
+               accel(3)=accel(3)+Eneutral*.5
 
 c     write(*,501)accel,(xp(j,i),j=1,3)
 
@@ -182,7 +183,8 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                      rn=0.
                   endif
                endif
-
+c Trying adding on the Eneutral partially at the end.
+               xp(6,i)=xp(6,i)+Eneutral*dt*0.5
 c     Handling boundaries for 'real particles' :
             if(i.le.npart) then
                if(rn.le.r(1)) then

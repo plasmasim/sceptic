@@ -140,3 +140,78 @@ It's a dependency problem touching makefile makes it work.
 There might have been a problem with my prior change. This one seems
 to have about .975. So we don't have clear convergence. nthfvsize=100
 seems to have about .98. Not clear that we are chasing a real effect.
+
+30 Mar
+
+Implemented independent test of angle integration in fvinjecttest.
+This prints out the difference between its evaluation actot and that
+of fvinjinit: qthfv(nthfvsize). Athough the agreement is not bad, there
+are significant discrepancies:
+./fvinjecttest -ni1000 -v1. -t.01
+actot,qthfv(nthfvsize)  3.63838959  3.54334331
+This is 3 %. At -t.1 the discrepancy is about 1% or slightly less.
+
+Note that at high v/t the one way flux that these correspond to should
+be 1/2\sqrt(2) = 0.35355 times sqrt(T). 
+
+./fvinjecttest -ni1000 -v1. -t.0001 gives
+actot,qthfv(nthfvsize)  353.555237  338.884613
+which shows that actot is accurate, but the qthfv is substantially low.
+
+Increasing the number of theta or v steps did not significantly change
+this problem:
+Finished initialization on grid 100 100 100
+ actot,qthfv(nthfvsize)  353.555237  339.285217
+
+Dug around inside fvinject to try to find the cause of this discrepancy.
+Eventually found that in 
+     vzfvi=min(-vtrange,-vtrange+udrange*ud)
+      vzfva=max(vtrange,vtrange+udrange*ud)
+udrange, which was set at 5. is the culpret. Increasing to 10 I get.
+Finished initialization on grid 50 40 40
+ actot,qthfv(nthfvsize)  353.591309  351.67923
+
+Changed the mesh to be uniform, which together with increasing udrange
+removes the error to of order 0.3%, which is pretty negligible. I don't
+really know if this was a significant issue in the actual runs.
+
+31 Mar
+Try putting the Eneutral acceleration just before the collision. 
+This makes the apparent n-error positive, the opposite sign from before.
+It reduces as the -c enhancement drops. Clearly there is a significant
+effect from the timing of the Eneutral. Final value about 1.04. 
+This is all -kt5 -k1. Slight downward shift of distribution. 
+Try half of the acceleration at end. Get close to 1.00 density. 
+Still some distribution bias (looks similar). 
+Pretty good 0.98 result with -k.1. Pdiag distribution looks way better.
+
+-kt1 also seems to be better with this Eneutral location. Actually somewhat
+better with all of Eneutral at end. But at -k1. we get elevated result
+with that. With half of Eneutral at end, it is still possible to see a
+noticeable asymmetric effect on density at the last cell, with -k1. and
+-d.1. This does not disappear with Eneutral at end. 
+
+-kt5 does not have the visible edge density perturbation at -k1; with 
+Eneutral at end or half at end. This seems to show that there is a substantial
+error arising from the collisional backtracking, which leads to a deficit
+in the last cell on the downstream side (and extra upstream).
+
+-kt1 still has density deficit at -d.01, about .975. -kt5 also, but these
+may be at the noise limit. 
+
+Summary
+_______
+
+A small error (of order 1% in typical conditions) in the fvinject integrations
+was identified and fixed by increasing the velocity ranges.
+
+Moving the Eneutral acceleration to be immediately before the
+collisions has a significant effect increasing the apparent density,
+but proportional to timestep.
+
+The -kt5 scheme of not backtracking substantially reduces the asymmetric
+edge perturbation when collisionality is very strong compared with the
+-kt1 scheme which uses collisional backtracking. 
+
+All of these effects appear to be in the right direction to correct
+residual errors. 
