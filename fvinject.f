@@ -62,7 +62,8 @@ c___________________________________________________________________
 c Calculate the exact vztr: vz transition (where n.v=0),
 c for this vx, costheta. If it is too extreme, try again.
       if(costheta.eq.0.)then
-         vztr=-1.e30
+c         vztr=-1.e30
+         goto 1
       else
          vztr=-vx*sqrt(1.-costheta**2)/costheta
       endif
