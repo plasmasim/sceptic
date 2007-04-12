@@ -351,16 +351,13 @@ c Convert to units of sqrt(T_e/m_i) using Ti value in units of Te.
 c The reinjection position. The surface normal for flux across
 c surface element is the angle corresponding to costheta,
 c which is therefore the inward normal.
-      rs=-r(nr)
+      rs=-r(nr)*0.99999
       xp(3,i)=rs*costheta
       xp(2,i)=(rs*sintheta)*sinphi
       xp(1,i)=(rs*sintheta)*cosphi
 c
 c Obtain angle coordinate and map back to th for phihere.
-c This appears to be in error because costheta is -th in fvinject. 
-c We are getting the angular position of the injection.
-c      ct=xp(3,i)/rs
-      ct=xp(3,i)/r(nr)
+      ct=-costheta
       call invtfunc(th(1),nth,ct,x)
       ic1=x
       ic2=ic1+1
@@ -368,34 +365,38 @@ c      ct=xp(3,i)/rs
 c This expression should work for CIC And NGP.
       phihere=(phi(NRUSED,ic1)+phi(NRFULL,ic1))*0.5*(1.-dc)
      $        +(phi(NRUSED,ic2)+phi(NRFULL,ic2))*0.5*dc
-c Kludge up addition of external energy.
-c      v2=xp(6,i)**2+xp(5,i)**2+xp(4,i)**2
-c      vhfac=sqrt((v2+max(0.,-2.*averein))/v2)
-c      xp(6,i)=vhfac*xp(6,i)
-c      xp(5,i)=vhfac*xp(5,i)
-c      xp(4,i)=vhfac*xp(4,i)
-      
+
+c No longer do this for the new reinjection handling.      
 c Increment the position by a random amount of the velocity.
 c This is equivalent to the particle having started at an appropriately
 c random position prior to reentering the domain.
-      xinc=ran0(idum)*dt
-      do j=1,3
-         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
-      enddo
-
+c      xinc=ran0(idum)*dt
+c      do j=1,3
+c         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
+c      enddo
 c If the third bit (4) of icolntype is set this means we must add the 
 c Eneutral acceleration for the effective prior step. 
-      if(mod(icolntype/4,2).eq.1)xp(6,i)=xp(6,i)+Eneutral*dt
-
-c Deal with possibly non-zero potential. Not yet done. Done above Jul06     
-c      phihere=0.
-      rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+c      if(mod(icolntype/4,2).eq.1)xp(6,i)=xp(6,i)+Eneutral*dt
 c Do the outer flux accumulation.
       spotrein=spotrein+phihere
       nrein=nrein+1
 c Reject particles that are already outside the mesh.
-      if(.not.rp.le.r(nr)*r(nr).or. rp.le.1.)then
-c        write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
+c With new reinjection, this should never happen, but did.
+c Remove when satisfied:
+c...........
+      vp=xp(4,i)**2+xp(5,i)**2+xp(6,i)**2
+      rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+      if(.not.rp.le.r(nr)*r(nr).or. rp.le.1.
+     $     .or. .not.vp.lt.1.e8)then
+         write(*,*)
+         write(*,*)'Launch Error',nrein,sqrt(rp),xp(1,i),xp(2,i),xp(3,i)
+         write(*,*)'velocity:',xp(4,i),xp(5,i),xp(6,i)
+         write(*,*)'cosphi,sinphi,vx,vy,vz',cosphi,sinphi,vx,vy,vz
+         write(*,*)'y,y3,iyfv,pyfv,fyfv,fzfv',y,y3,iyfv,pyfv,fyfv,fzfv
+c        stop
+c trying counting only once.
+         nrein=nrein-1
+c...........
          goto 1
       else
 c Needs th to be initialized, I think.
@@ -409,8 +410,6 @@ c     crt,czt,ceta,cosal
             endif
          endif
       endif
-c trying counting only once.
-c      nrein=nrein+1
 
       end
 c***********************************************************************
@@ -433,7 +432,7 @@ c to the mesh.
       vxfva=vtrange
       vzfvi=min(-vtrange,-vtrange+udrange*ud)
       vzfva=max(vtrange,vtrange+udrange*ud)
-      write(*,*)'vzfvi,vzfva=',vzfvi,vzfva
+c      write(*,*)'vzfvi,vzfva=',vzfvi,vzfva
       do i=0,nxfva
          vxfv(i)=vxfva*i/float(nxfva)
       enddo
@@ -809,8 +808,15 @@ c Formerly .lt. which is an error.
       endif
       goto 200
  210  continue
+
 c Now iql and iqr, Ql and Qr bracket Q
-      x=(y-Ql)/(Qr-Ql)+iql
+c Trap errors caused by flat sections.
+      Qd=Qr-Ql
+      if(Qd.eq.0.)then
+         x=(iql+iqr)/2.
+      else
+         x=(y-Ql)/(Qr-Ql)+iql
+      endif
       end
 c**********************************************************************
 c**********************************************************************

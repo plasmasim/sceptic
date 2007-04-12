@@ -15,6 +15,7 @@ c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c Version of Mar 07 includes icolntypes with bit 3 set to do all
 c collisions at the end of the step.
+c April 07 Moving collisions into this advancing routine
 c Version 2.5; Jan 2005: subcycling of padvnc.
 c Version 2.5; Jan 2005: fixed reinjection flux option.
 c Advance the particles
@@ -32,11 +33,9 @@ c moved to piccom.f      logical lsubcycle
 c temp data:
       real temp
       integer idum
-
 c Data for the domain sub
       real rn0
-
-c Place to read/write on the add particule injection
+c Place to read/write on the add particle injection
       integer nread
       
       nread=mod(step,addhist)+1
@@ -76,15 +75,6 @@ c Zero the sums now these are assigned here.
             vzsum(i,j)=0.
          enddo
       enddo
-c      if(lfixedn)then
-cc  Fixed number of particles. The ninjcomp is already=npartmax.
-c         ipmax=npart
-c      else
-cc Fixed flux. Rely on ninjcomp to terminate the particle slot treatment.
-c         ipmax=npartmax
-c      endif
-c      write(*,*)'Starting cycle',ipmax,ninjcomp
-
 
 c End of setup. Start Cycling through particles.
       if (dsub) then
@@ -131,7 +121,7 @@ c getaccel returns the accel based on the charge-field calculation.
 c We then add on the acceleration due to the neutral-collisions-implied
 c electric field.
 c Trying adding on the Eneutral partially at the end.
-               accel(3)=accel(3)+Eneutral*.5
+               accel(3)=accel(3)+Eneutral
 
 c     write(*,501)accel,(xp(j,i),j=1,3)
 
@@ -184,7 +174,7 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                   endif
                endif
 c Trying adding on the Eneutral partially at the end.
-               xp(6,i)=xp(6,i)+Eneutral*dt*0.5
+c               xp(6,i)=xp(6,i)+Eneutral*dt
 c     Handling boundaries for 'real particles' :
             if(i.le.npart) then
                if(rn.le.r(1)) then

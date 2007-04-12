@@ -46,7 +46,7 @@ c Deal with arguments.
  1    continue
  3    continue
 
-      vrange=max(4.,4.+5.*vd/sqrt(2.*Ti))*sqrt(2.*Ti)
+      vrange=max(4.,4.+8.*vd/sqrt(2.*Ti))*sqrt(2.*Ti)
       do j=-nv,nv
          v(j)=j*vrange/nv
          fv1(j)=0.

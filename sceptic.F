@@ -526,7 +526,6 @@ c                        yvpre=fluxrein/nrein
      $              'Step:SOR Step:SOR Step:SOR',
      $              ' Step:SOR Step:SOR',
      $              '  Flux, Phiedge, Trap,', cfinal
-c     $              '  Flux, Phiedge, Trap, Vp or Rein'
                endif
             endif
             write(*,'(i5,$)')i
@@ -599,10 +598,11 @@ c     Plot radial average velocity and temperatures.
                call vdiagsin(.false.)
             endif
          endif
-c     Main particle advance.
-         call padvnc(dt,icolntype,i)
-c     Collide the particles. See routine in advancing.f.
-         if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
+c     Main particle advance, including collisions.
+         call padvnc(dt,icolntype,colnwt,i)
+c Obsolete separate advance and collide:
+c         call padvnc(dt,icolntype,i)
+c         if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
 c     Reduce back the flux and distribution data from the particle advance.
          call partreduce(i)
 
@@ -700,6 +700,7 @@ c Help section
      $     ' -sa Autodetermination of max steps'
       write(*,*)' -d.ff time step dt (.025);',
      $     ' -c.ff initial accel factor (1)'
+      write(*,*)' -cmax.ff -cmin.ff limits of rho plotting (auto)'
       write(*,*)' -v.ff drift velocity (0.0);',
      $     ' -x.ff max r of domain (5)'
       write(*,*)' -p.ff probe potential (-4.) -pf float -pi insulate;',
@@ -716,10 +717,10 @@ c Help section
      $     ', particle number.'
       write(*,*)' -ernnn radius at which to calculate q,E-force.',
      $     ' -mfff ratio of mass to Z (1.)'
-      write(*,*)' -ktnnn collision type (0: none, 1 nu, 2 mfp const).'
-     $     ,' -k.ff collision density.'
-      write(*,*)' -vn.ff set neutral drift velocity for collisions.'
-      write(*,*)' --at0 set theta acceleration artificially to zero'
+      write(*,*)' -ktnnn collision type (0: none, 1 direct, 2 remote).'
+     $     ,' -k.ff collision freq.'
+      write(*,*)' -vn.ff neutral drift velocity for collisions (0).'
+      write(*,*)' --at0 set theta acceleration artificially to zero.'
       write(*,*)' --localinj use local potential for injection.',
      $     ' --smooth symmetrize in angle.'
       write(*,*)' --fextccccc.. use symmetric potential read from file.'

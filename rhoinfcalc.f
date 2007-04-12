@@ -91,8 +91,9 @@ c smaxflux returns total flux in units of Ti (not 2Ti)
 c            write(*,*) riest
          endif
 
-c         write(*,*)'nrein=',nrein,
-c     $        '  averein=',averein,' riest=',riest
+c         write(*,*)'nrein=',nrein
+c     $        ,'  averein=',averein
+c     $        ,' riest=',riest,' rhoinf=',rhoinf
       else
 c If no valid estimate, just keep it the same.
 c         write(*,*) 'nrein=0'
