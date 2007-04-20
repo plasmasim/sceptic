@@ -13,7 +13,9 @@ c or run the code, you do so at your own risk.
 c
 c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
-c Version 3.0 April 07 Moving collisions into this advancing routine
+c Version of Mar 07 includes icolntypes with bit 3 set to do all
+c collisions at the end of the step.
+c April 07 Moving collisions into this advancing routine
 c Version 2.5; Jan 2005: subcycling of padvnc.
 c Version 2.5; Jan 2005: fixed reinjection flux option.
 c Advance the particles
@@ -31,30 +33,11 @@ c moved to piccom.f      logical lsubcycle
 c temp data:
       real temp
       integer idum
-c Data for the domain subvolume for inner particle injection.
+c Data for the domain sub
       real rn0
 c Place to read/write on the inner particle injection
       integer nread
-      logical lcollide,lcstep
-
-c Choose the collision cycle here and set tau appropriately:
-c icycle of 1 costs about 20% extra cf false. (Mostly alog, I'd guess).
-      if(colnwt.gt.0.)then
-c         icycle=1./(20.*colnwt*dtin)
-c         icycle=1./(50.*colnwt*dtin)
-         icycle=1
-         if(.not.icycle.ge.1) icycle=1
-         ichoose=0
-c         ichoose=ran0(idum)*icycle
-         tau=1./(colnwt*icycle)
-         lcollide=.true.
-      else
-         lcollide=.false.
-         icycle=1
-         ichoose=1
-         tau=1.e20
-      endif
-c
+      
       nread=mod(step,addhist)+1
       idum=1
 c Reset the number of particles that enter the inner domain
@@ -64,7 +47,6 @@ c Reset the number of particles that enter the inner domain
 c Xp is the three x-coordinates followed by the 3 v coordinates.
 c Use a leapfrog scheme, so interpret the v-coords as half a step
 c behind the x-coords. 
-      tisq=sqrt(Ti)
 c If lsubcycle, use multiple fractional steps near inner boundary.
       dt=dtin
       rp2=r(1)**2
@@ -94,22 +76,18 @@ c Zero the sums.
             vzsum(i,j)=0.
          enddo
       enddo
+
+c End of setup. Start Cycling through particles.
       if (dsub) then
-c dsub (true) means we have an inner region with additional particles
-c injected at its boundary sampled from prior crossings. Rarely used.
          ido=npart+npartadd
       else
          ido=npart
       endif
-c      write(*,*)'colnwt,tau,Eneutral,icycle',colnwt,tau,Eneutral,icycle
-c End of setup
-c------------------ Iterate over particles --------------------------
-c No-subcycle default. Never gets changed w/o subcycling.
-      dts=dtin
-      isubcycle=1
+
+
       do i=1,ido
          if(ipf(i).gt.0) then
-c ````````````````````````````````````````` Treatment of active slot.
+c     Is this an active slot?
 c     Find the mesh position and the trigonometry.
 c     Here we do need half quantities.
             ih=1
@@ -120,84 +98,58 @@ c  Now we know where we are in radius rp.
 c  We decide the level of subcycling.
             if(lsubcycle) then
                isubcycle=r(nrfull)/rp
-c          if(mod(i,1000).eq.0) write(*,'(i1,$)')isubcycle
-               dts=dtin/isubcycle*1.00001
+c     if(mod(i,1000).eq.0) write(*,*)isubcycle
+               dt=dtin/isubcycle
+            else
+               isubcycle=1
             endif
-c .................... Subcycle Loop .................
-            remdt=dtin
-            ic=0
-            lcstep=.false.
-c            do 81 ic=1,isubcycle    Obsolete.
-c Here is the start of the modified loop, now explicit.
-c We iterate till we have used up the whole time step dtin (remdt=0).
-c Steps may be shortened by subcycling (above), and collisions (below).
- 80         ic=ic+1
-c If prior step was ended by a collision, restart the particle velocity.
-               if(lcstep)then
-                  call postcollide(i,tisq)
-                  lcstep=.false.
-               endif
-               dt=min(dts,remdt)
-               if(lcollide .and. mod(i,icycle).eq.ichoose)then
-c Here we calculate the time to next collision: cdt
-c Based on random number draw and poisson distribution.
-                  cdt= -alog(ran0(idum))*tau
-c Using this approximation instead saves negligible time:
-c                  cdt= ran0(idum)*tau
-c So I conclude that the only loss of time is initialization.
-                  if(cdt.lt.dt)then
-c Collision at the end of cdt step.
-                     dt=cdt
-                     lcstep=.true.
-                     ncollide=ncollide+1
-                  endif
-               endif
-               remdt=remdt-dt
-c Except for the first time, find new position.
+
+            do 81 ic=1,isubcycle
+
+c     Except for the first time, find new position.
                if(ic.ne.1)then 
                   ih=1
                   hf=77.
                   call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
                endif
-               if(dsub) then
-c Initial radius:
-                  rn0=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
-               endif               
                call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
-c Getaccel returns the accel based on the charge-field calculation.
+c getaccel returns the accel based on the charge-field calculation.
+c We then add on the acceleration due to the neutral-collisions-implied
+c electric field.
+c Trying adding on the Eneutral partially at the end.
                accel(3)=accel(3)+Eneutral
-c For acceleration, when dt is changing, use the average of prior and
-c present values: dtnow.
+
+c     write(*,501)accel,(xp(j,i),j=1,3)
+
+               if(dsub) then
+                  rn2=0.
+                  do j=1,3
+                     rn2=rn2+xp(j,i)**2
+                  enddo
+                  rn0=sqrt(rn2)
+               endif
+               
+c     Fixings for the subcycling
                if(dtprec(i).eq.0.)dtprec(i)=dt
                dtnow=0.5*(dt+dtprec(i))
-c Don't use split steps if Bz=0, for speed gain of 9%.
-               if(Bz.ne.0.)then
-c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-                  enddo
-c B-field rotation
-                  cosomdt=cos(Bz*dtnow)
-                  sinomdt=sin(Bz*dtnow)
-                  temp=xp(4,i)
-                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
-                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
-c Second half of velocity advance
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-                  enddo
-               else
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
-                  enddo
-               endif
-c The acceleration due to the neutral-collisions-implied electric field
-c is applied for this actual timestep, if we want the distribution to 
-c come out right. But there are subtleties here about leapfrogging.
-c               xp(6,i)=xp(6,i)+Eneutral*dt
+c     Parameters for the Lorentz force
+               cosomdt=cos(Bz*dtnow)
+               sinomdt=sin(Bz*dtnow)
 
+c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
+               do j=4,6
+                  xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+               enddo
+c B-field rotation
+               temp=xp(4,i)
+               xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+               xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+c Second half of velocity advance
+               do j=4,6
+                  xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+               enddo
                dtprec(i)=dt
                rn2=0.
                xdv=0.
@@ -214,11 +166,9 @@ c The time prior to step end of closest approach
                rn=sqrt(rn2)
 c  Test if we went through the probe and came back out.
                if((0..lt.tm .and. tm.lt.dt .and.
-     $              (rn2 - tm**2*v2).lt.rp2))then
-c For a long time this had an error: used  tm**2/v2 erroneously. 
-c Corrected 9 Apr 07.
+     $              (rn2 - tm**2/v2).lt.rp2))then
                   if(rn.gt.r(1))then
-c     write(*,*)'Through probe',tm,(rn2 - tm**2*v2)
+c     write(*,*)'Through probe',tm,(rn2 - tm**2/v2)
                      rn=0.
                   endif
                endif
@@ -271,58 +221,39 @@ c     store it. We also update nrealin
                      endif
                      goto 81
                   else
-c Did not leave the grid. Jump to subcycle end.
                      goto 81
                   endif
-c We left. If we haven't exhausted complement, restart particle i.
-                  if(nrein.lt.ninjcomp) then
-                     call reinject(i,dtin,icolntype,bcr)
-                     dtprec(i)=dtin
-                     ipf(i)=1
-                     zmout=zmout+xp(6,i)
-                     if(i.le.norbits) then
-                        if (.not.(orbinit))
-     $                       iorbitlen(i)=0
-                     endif
-c New reinjection handling. Simply use the rest of the time step with
-c the new particle starting just at the edge. Get new position:
-                     ih=1
-                     hf=77.
-                     call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
-     $                    sp,cp,rp,zetap,ih,hf)
-c Set the external step length, (isubcycle=1).
-                     dts=dtin
-c Call the timestep fraction-remaining random.
-                     remdt=dtin*ran0(idum)
-c Jump to subcycle end.
-                     goto 81
-                  else
-                     ipf(i)=0
+c We left. 
+c If we haven't exhausted complement, restart particle i.
+               if(nrein.lt.ninjcomp) then
+                  call reinject(i,dtin,icolntype,bcr)
+                  ipf(i)=1
+                  zmout=zmout+xp(6,i)
+                  if(i.le.norbits) then
+                     if (.not.(orbinit))
+     $                    iorbitlen(i)=0
                   endif
-c Break from subcycles after dealing with a particle that left.
-                  goto 82
                else
-c--------------------------------------------------------------
-c     Additional particles code. If they leave the domain, we
+                  ipf(i)=0
+c                  if(i.gt.190000) write(*,*)'Leaving empty slot',i
+               endif
+c     Break from subcycles.
+               goto 82
+c     Now we care about the add particles. If they leave the domain, we
 c     just reinject them, since we don't use them for diagnostics
 c     as fluxes
-                  if((rn.le.r(1)).or.(rn.ge.rsp)) then
-                     a=nint(ran0(idum)*(addhist-1))+1
-                     b=nint(ran0(idum)*(xpstonum(a)-1))+1
-                     do k=1,6
-                        xp(k,i)=xpstorage(k,b,a)
-                     enddo
-                  endif
+            else
+               if((rn.le.r(1)).or.(rn.ge.rsp)) then
+                  a=nint(ran0(idum)*(addhist-1))+1
+                  b=nint(ran0(idum)*(xpstonum(a)-1))+1
+                  do k=1,6
+                     xp(k,i)=xpstorage(k,b,a)
+                  enddo
                endif
+            endif
  81         continue
-c Explicit cycle controlled by remaining time in step:
-            if(remdt.gt.0.) goto 80
-c .................... End of Subcycle Loop .................
-c Break jump point:
  82         continue
-c------------------------------------------------------------------
             if(ldist) then
-c Start of Various distribution diagnostics.
                rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c     Diagnostics of f_r(rmax):
                if(rn.gt.r(nr-1))then
@@ -366,15 +297,12 @@ c     write(*,503)i,iorbitlen(i),xorbit(iorbitlen(i),i)
 c     $           ,yorbit(iorbitlen(i),i),zorbit(iorbitlen(i),i)
 c     $           ,rorbit(iorbitlen(i),i)
             endif
-c------------------------End distribution diagnostics ---------------
             if(ipf(i).gt.0)iocthis=i
          elseif(nrein.lt.ninjcomp)then
-c ```````````````````````````````````````` Treatment of INactive slot.
 c Case for ipf(i) le 0 (empty slot) but still wanting to inject. 
 c We should not come here unless .not.lfixedn.
 c            write(*,*)'Reinjecting empty slot',i
             call reinject(i,dtin,icolntype,bcr)
-            dtprec(i)=dtin
             ipf(i)=1
             iocthis=i
          elseif(i.ge.iocprev)then
@@ -382,11 +310,8 @@ c Break if inactive slot and we have exhausted the complement of injections.
 c And we have reached the maximum occupied slot of previous run.
             goto 401
          endif
-c---------------- End of padvnc particle iteration ------------------
       enddo
  401  continue
-      NCneutral=ncollide
-c      write(*,*)'ncollide=',ncollide,' icycle=',icycle
 c We just want the diagnostics with the true particles for now
 c      iocthis=min(iocthis,npartmax)
       iocprev=iocthis
@@ -398,7 +323,6 @@ c      if(.not.lfixedn)write(*,504)ninjcomp,nrein,i,iocprev
  501  format('accel=',3f11.4,' xp=',3f11.4)
 
       end
-c***********************************************************************
 c***********************************************************************
 c Version using precalculated functions. About 30% faster.
       subroutine ptomesh(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
@@ -742,6 +666,180 @@ c Must set Eneutral to zero by default.
          stop
       endif
       end
+c***********************************************************************
+c Master Collision subroutine.
+      subroutine collide(dt,colnwt,icolntype)
+      real dt,colnwt
+      integer icolntype
+c Call the appropriate collision routine.
+      if(icolntype.eq.1 .or. icolntype.eq.2
+     $     .or. icolntype.eq.5 .or. icolntype.eq.6)then
+         call nucollide(dt,colnwt,icolntype)
+      elseif(icolntype.gt.8)then
+         call mfpcollide(dt,colnwt,icolntype)
+      else
+         write(*,*)'Incorrect collision type:',icolntype
+         stop
+      endif
+      end
+c******************************************************************
+      subroutine nucollide(dt,cnu,icolntype)
+c Collision type with specified collision frequency.
+c Input dt=timestep, colnwt=cnu=collision freq (\propto target density)
+c icolntype bit 3 (4) if set says do all collisions at step end.
+c That is less accurate for treating multiple collisions but should
+c avoid errors at the boundary from reinjection etc.
+      include 'piccom.f'
+      include 'colncom.f'
+      real accel(3)
+
+c Don't attempt if collision freq is zero.
+      if(cnu.le.0.) return
+      ncollide=0
+      idum=1
+      tisq=sqrt(Ti)
+
+c     Here we need to invert a poisson distribution to tell if we had
+c     a collision. The cumulative poisson distribution is 
+c         P(<t)=1-exp(-nu.t)
+c     Consequently, the time after the start of the last step,
+c     of a collision is t=-(1/nu)ln(1-y) for a random number y, 
+c     and if this is less than dt we collided.
+c     If nu.dt is small, this is approximately t=y/nu, but if not, we
+c     still get a correct answer with the full solution, by repeating
+c     until we have used up the whole time-step.
+c     When nu.dt is very small we gain efficiency by only treating a
+c     subset of the particles. And multiplying the nu by icycle.
+      icycle=1./(20.*cnu*dt)
+c     We keep icycle.nu.dt < 1/20  to avoid bias by the cycle.
+      if(.not.icycle.ge.1) icycle=1
+      ichoose=ran0(idum)*icycle+1
+      if(ichoose.gt.icycle)ichoose=icycle
+      ytestfull=1.-exp(-cnu*icycle*dt)
+c      write(*,*)'nucollide: icycle,ichse,dt,ytstf='
+c     $     ,icycle,ichoose,dt,ytestfull
+c Cycle through all the particles, skipping if necessary.
+      do i=ichoose,iocprev,icycle
+         if(ipf(i).gt.0)then
+c This is an active particle slot.
+            dtd=dt
+            ytest=ytestfull 
+            if(mod(icolntype/4,2).eq.1)then
+c Simple: all collisions at end of step.
+               y=ran0(idum)
+               if(y.lt.ytest)then
+c Get new velocity; reflects neutral maxwellian shifted by vneutral.
+                  xp(4,i)=tisq*gasdev(idum)
+                  xp(5,i)=tisq*gasdev(idum)
+                  xp(6,i)=tisq*gasdev(idum)+ vneutral
+               endif
+            else
+c Start of multiple collision loop           
+ 1             y=ran0(idum)
+               if(y.lt.ytest)then
+c A collision occured at a time dtc during the last [partial] step
+                  ncollide=ncollide+1
+c at a time dtc after its start.
+                  dtc=-alog(1.-y)/(cnu*icycle)
+c Adjust the step duration to that remaining after collision.
+                  dtd=dtd-dtc
+c               write(*,*)i,ytest,y,ytest,dtc,dtd
+c Calculate the probability of a collision in remaining partial step.
+                  ytest=1.-exp(-cnu*icycle*dtd)
+c Get the current acceleration, needed below.
+c We don't bother about the place we calculate this being correct,
+c because that would need more elaborate testing for being inside
+c the computational region, and is a second order effect.
+                  ih=1
+                  hf=66.
+                  call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
+     $                 ,zetap,ih,hf)
+                  call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
+     $                 sp,cp,rp,zetap,ih,hf)
+                  accel(3)=accel(3)+Eneutral
+c Save the position at end of step (inside the grid)
+                  xpi1=xp(1,i)
+                  xpi2=xp(2,i)
+                  xpi3=xp(3,i)
+c Back track the position to the point of last collision
+c [None of this is correct for finite magnetic field. For that we would
+c need a rotation of the perpendicular position/velocity.]
+                  xp(1,i)=xp(1,i)-dtd*xp(4,i)
+                  xp(2,i)=xp(2,i)-dtd*xp(5,i)
+                  xp(3,i)=xp(3,i)-dtd*xp(6,i)
+c Get new velocity; reflects neutral maxwellian shifted by vneutral.
+                  xp(4,i)=tisq*gasdev(idum)
+                  xp(5,i)=tisq*gasdev(idum)
+                  xp(6,i)=tisq*gasdev(idum)+ vneutral
+c Forward track fractional position with new velocity
+                  xp(1,i)=xp(1,i)+dtd*xp(4,i)
+                  xp(2,i)=xp(2,i)+dtd*xp(5,i)
+                  xp(3,i)=xp(3,i)+dtd*xp(6,i)
+                  rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+c Make sure we are inside the grid. If not, it was either because the forward
+c tracking was too much or because this was a reinjected particle itself, so 
+c its apparent prior position was outside grid.
+c Compromise by simply using the end-of-step position which was inside.
+c This may have unintended effects near the boundary. An alternative might
+c be to reinject without a collision possibility.
+                  if(rn.ge.r(NRFULL) .or. rn.le.1.)then
+                     xp(1,i)=xpi1
+                     xp(2,i)=xpi2
+                     xp(3,i)=xpi3
+c                  rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+c                  if(rn.le.1.)write(*,*)'Collide inside error',rn
+                  endif
+c Apply acceleration for the forward step duration. This is always
+c starting from a newly collided particle. Fixes drift bias at high
+c collisionality.
+                  xp(4,i)=xp(4,i)+dtd*accel(1)
+                  xp(5,i)=xp(5,i)+dtd*accel(2)
+                  xp(6,i)=xp(6,i)+dtd*accel(3)
+c Test for another collision
+                  goto 1
+               endif 
+            endif
+         endif
+      enddo
+      NCneutral=ncollide
+      end
+c******************************************************************
+      subroutine mfpcollide(dt,colnwt,icolntype)
+c Collision type icolntype=2: with specified mean free path.
+c Input dt=timestep, colnwt=1/mfp (\propto target density)
+c       ichoose=starting particle icycle=particle-number step.
+      include 'piccom.f'
+
+      icycle=10
+      idum=1
+c Decide which subset of particles to collide.
+      ichoose=ran0(idum)*icycle+1
+      if(ichoose.gt.icycle)ichoose=icycle
+      do i=ichoose,iocprev,icycle
+         if(ipf(i).gt.0)then
+c     The velocity calculation cost about 5%.
+c     It could be avoided if we stored it, perhaps. But actually padvan does
+c     not take the square root, which is the dominant cost.
+            v=sqrt(xp(4,i)**2+xp(6,i)**2+xp(6,i)**2)
+c     Collision length. Should account for velocity dependence of sigma.
+c     Enhance it by a factor of icycle to account for subsetting of collisions.
+c     Account for the collision density, which perhaps should be set to give
+c     collision length of one unit when it is one.
+            xL=1./colnwt/icycle
+c     Just a ran0 call increases the computational burden by about 5%.
+            y=ran0(idum)
+c     Here we need to invert a poisson distribution to tell if we have had
+c     a collision. The cumulative poisson distribution is P(<x)=1-exp(-x/L)
+c     where L=1/n\sigma is the collision length. Consequently,
+c     if the random number is less than 1 - exp(v.dt/L) we have collided.
+c     The exponentiation costs about 8.
+            ytest=1.-exp(-v*dt/xL)
+            if(y.lt.ytest)then
+               write(*,*)'Collision:',y
+            endif
+         endif
+      enddo
+      end
 c*******************************************************************
       subroutine fcalc_infdbl(dt)
       include 'piccom.f'
@@ -765,12 +863,4 @@ c*******************************************************************
       write(*,'($)')" "
 
       end
-c********************************************************************
-      subroutine postcollide(i,tisq)
-      include 'piccom.f'
-      include 'colncom.f'
-c Get new velocity; reflects neutral maxwellian shifted by vneutral.
-      xp(4,i)=tisq*gasdev(idum)
-      xp(5,i)=tisq*gasdev(idum)
-      xp(6,i)=tisq*gasdev(idum)+ vneutral
-      end
+
