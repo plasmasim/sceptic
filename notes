@@ -341,3 +341,21 @@ eliminates the discrepancy, which is highly suggestive.
 Case with low collisionality 5e-4 gives actually a higher rhoinf: 65.0
 but shows signs (at 1000 steps) of non-convergence. Perhaps not surprising
 since there's so little damping.
+
+20 Apr 07
+
+Trying some quasineutral cases. I get a big perturbation at the edge.
+This appears to be caused by incompatibility of the advancingc code with
+the older injection schemes. On reflection: of course! Advancingc does
+its own adjustment of the reinjected particles. All the old versions have
+it in the reinjection code. It has to be removed from all of that.
+Done:
+oreinject
+ogenreinject
+maxreinject
+
+Also, since this changes many files, make the advancingc.f the advancing.f 
+and the old one advancingo.f and adjust makefile. 
+
+Now the transition to the new advancing scheme is hopefully complete. It 
+is not completely tested however.

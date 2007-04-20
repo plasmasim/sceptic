@@ -90,22 +90,24 @@ c from the unit variance random distribution multiplied by sqrt(Ti)=vscale.
       xp(5,i)=((vr*st+ vt*ct)*sp + vp*cp)*vscale
       xp(4,i)=((vr*st+ vt*ct)*cp - vp*sp)*vscale
 
-      rs=-r(nr)
+      rs=-r(nr)*0.99999
       xp(3,i)=rs*ct
       xp(2,i)=(rs*st)*sp
       xp(1,i)=(rs*st)*cp
+c Remove with new advancing code:
 c Increment the position by a random amount of the velocity.
 c This is equivalent to the particle having started at an appropriately
 c random position prior to reentering the domain.
-      xinc=ran0(idum)*dt
-c      xinc=0.
-      do j=1,3
-         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
-      enddo
+c      xinc=ran0(idum)*dt
+cc      xinc=0.
+c      do j=1,3
+c         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
+c      enddo
 c      write(*,'(''vr,vt,vp='',3f8.3)') vr,vt,vp
 c      write(*,501) (xp(j,i),j=1,6)
- 501  format('Reinject xp=',6f10.5)
-      rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+c 501  format('Reinject xp=',6f10.5)
+c      rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
+      rp=rs
 c     
       phihere=phi(NRUSED,ic1)*(1.-dc)+phi(NRUSED,ic2)*dc
       vv2=(vt**2 + vr**2 + vp**2)*vscale**2

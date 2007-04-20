@@ -4,7 +4,7 @@
 #COMPILE-SWITCHES = -O3 -w90 -cm
 
 # g77 default case:
-LIBRARIES = -L/usr/X11R6/lib/ -L./accis/ -laccisX -lXt -lX11 
+LIBRARIES =  -L./accis/ -L/usr/X11R6/lib/ -laccisX -lXt -lX11 
 G77=mpif77
 COMPILE-SWITCHES = -Wall -O2  -I.
 #not necessary -fno-backslash
@@ -24,11 +24,15 @@ REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 # Local versions. 
 
 MPICOMPILE-SWITCHES = -Wall  -Wno-globals -DMPI -O2 -I.
-OBJECTS = initiate.o advancingc.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
+OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
+OBJECTSO = initiate.o advancingo.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
 MPIOBJECTS=sor2dmpi.o mpibbdy.o shielding.o
 
 sceptic : sceptic.F piccom.f  ./accis/libaccisX.a $(OBJECTS) makefile
 	$(G77) $(COMPILE-SWITCHES) -o sceptic sceptic.F $(OBJECTS) $(LIBRARIES)
+
+sceptico : sceptic.F piccom.f  ./accis/libaccisX.a $(OBJECTSO) makefile
+	$(G77) $(COMPILE-SWITCHES) -o sceptico sceptic.F $(OBJECTSO) $(LIBRARIES)
 
 scepticmpi : sceptic.F piccom.f bbdydecl.f ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
 	$(G77) $(MPICOMPILE-SWITCHES) -o scepticmpi  sceptic.F $(OBJECTS) $(MPIOBJECTS) $(LIBRARIES)

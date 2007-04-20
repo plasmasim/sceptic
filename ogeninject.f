@@ -132,7 +132,7 @@ c Used for low debyelen, but really assumes negligible boundary potential.
       endif
 c Install reinjection position
       a1=crt*ceta*sinal+srt*cosal
-      rs=r(nr)
+      rs=r(nr)*0.99999
       xp(1,i)=rs*(czt*a1+szt*seta*sinal)
       xp(2,i)=rs*(-szt*a1+czt*seta*sinal)
       xp(3,i)=rs*(-srt*ceta*sinal + crt*cosal)
@@ -170,22 +170,24 @@ c Install reinjection velocity in Te-scaled units
       xp(4,i)=u*(czt*ua+szt*seta*ua1)
       xp(5,i)=u*(-szt*ua+czt*seta*ua1)
       xp(6,i)=u*(-srt*ceta*ua1 + crt*ua3)
+c Remove with new advancing code:
 c Increment the position by a random amount of the velocity.
 c This is equivalent to the particle having started at an appropriately
 c random position prior to reentering the domain.
-      xinc=ran0(idum)*dt
-c      xinc=0.
-      vdx=0.
-      do j=1,3
-         vdx=vdx+xp(j,i)*xp(j+3,i)
-         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
-      enddo
-      if(vdx.gt.0.)then
-         write(*,*)'Positive projection. u,phi=',u,phihere
- 601     format(a,5G10.5)
-      endif
-      rcyl=xp(1,i)**2+xp(2,i)**2
-      rp=rcyl+xp(3,i)**2
+c      xinc=ran0(idum)*dt
+cc      xinc=0.
+c      vdx=0.
+c      do j=1,3
+c         vdx=vdx+xp(j,i)*xp(j+3,i)
+c         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
+c      enddo
+c      if(vdx.gt.0.)then
+c         write(*,*)'Positive projection. u,phi=',u,phihere
+c 601     format(a,5G10.5)
+c      endif
+c      rcyl=xp(1,i)**2+xp(2,i)**2
+c      rp=rcyl+xp(3,i)**2
+      rp=rs
 c Reject particles that are already outside the mesh.
       if(.not.rp.lt.r(nr)*r(nr))then
 c      if(.not.rp.le.r(nr)*r(nr))then
