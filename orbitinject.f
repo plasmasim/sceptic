@@ -82,12 +82,12 @@ c In this routine we work in velocity units relative to ion thermal till end.
          stop
       endif
 c Pick normal velocity from cumulative Pu
-      y=ran0(idum)
-      call finvtfunc(pu,nvel,y,u)
+      y1=ran0(idum)
+      call finvtfunc(pu,nvel,y1,u)
       iv=u
       dv=u-iv
       u=dv*Vcom(iv+1)+(1.-dv)*Vcom(iv)
-      if(dv.gt.1)write(*,*)'Error in u calculation',iv,dv
+      if(.not.dv.le.1)write(*,*)'Error in u calculation',y1,u,iv,dv
       vdist(iv)=vdist(iv)+1.
 c Pick angle from cumulative Pc.
       y=ran0(idum)
@@ -133,8 +133,9 @@ c Pick angle zt of poloidal impact and angle eta of impact parameter
 c Choose impact parameter, preventing overflow.
       chium2=-averein/Ti/(u+eup)**2
       if(chium2.le.-1.) then
-         write(*,*)'Impossible chium2=',chium2,' averein=', averein,
-     $        ' u=',u,' iv=',iv
+c         write(*,*)'Impossible chium2=',chium2,' averein=', averein,
+c     $        ' u=',u,' iv=',iv
+         goto 1
 c         stop
       endif
 c      if(.not.lfixedn)chium2=0.
@@ -159,7 +160,7 @@ c     one that reached the boundary.
       else
 c Alternative based on analytic orbit calculation.
 c Used for low debyelen, but really assumes negligible boundary potential.
-         call alcossin(brc,chium2,cosal,sinal)
+c         call alcossin(brc,chium2,cosal,sinal)
          cosal=alcos(brc,chium2)
          sinal=alsin(brc,chium2)
       endif
@@ -217,22 +218,29 @@ c      if(vdx.gt.0.)then
 c         write(*,*)'Positive projection. u,phi=',u,phihere
 c 601     format(a,5G10.5)
 c      endif
-c      rcyl=xp(1,i)**2+xp(2,i)**2
-c      rp=rcyl+xp(3,i)**2
+c If we don't recalculate rp, then we don't trap NANs in the random choices.
+      rcyl=xp(1,i)**2+xp(2,i)**2
+      rp=rcyl+xp(3,i)**2
       rp=rs
+c      write(*,*)'oreinject',rp
 c Reject particles that are already outside the mesh.
       if(.not.rp.lt.r(nr)*r(nr))then
 c      if(.not.rp.le.r(nr)*r(nr))then
-c         write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
+         write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
          goto 1
       else
-
 c Do the outer flux accumulation.
 c In order to accumulate the number of launches at infinity, rather than
 c just the number of reinjections, we weight this by ilaunch
          spotrein=spotrein+phihere*ilaunch
          nrein=nrein+ilaunch
          fluxrein=fluxrein+1.
+c Diagnostics of erroneous injects. Should not be needed:
+c         if(.not. xp(1,i).le.400.)then
+c            write(*,*)'Reinject overflow',i,xp(1,i),cosal,sinal
+c     $        ,czt,szt,crt,srt,ceta,seta,brc,chium2,u,Ti,averein
+c     $           ,y1,nvel
+c         endif
          if(istrapped(i))then
             ntrapre=ntrapre+ilaunch
 c            v=sqrt(xp(4,i)**2+xp(5,i)**2+xp(6,i)**2)
@@ -327,7 +335,14 @@ c Formerly .lt. which is an error.
       goto 200
  210  continue
 c Now iql and iqr, Ql and Qr bracket Q
-      x=(y-Ql)/(Qr-Ql)+iql
+c      x=(y-Ql)/(Qr-Ql)+iql
+c Trap errors caused by flat sections.
+      Qd=Qr-Ql
+      if(Qd.eq.0.)then
+         x=(iql+iqr)/2.
+      else
+         x=(y-Ql)/Qd+iql
+      endif
       end
 c**********************************************************************
 C Inverse square law (phi\propto 1/r) injection functions:
@@ -340,7 +355,7 @@ c**********************************************************************
 c**********************************************************************
       real function alcos(s,c)
       real s,c
-      if(s.le.1.e-12*c)then
+      if(abs(s).le.1.e-12*abs(c))then
          alcos=-1.
          return
       else

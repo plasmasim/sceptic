@@ -229,9 +229,6 @@ c PROVIS
          maxsteps=nint(4*rmax/(sqrt(2*Ti)*dtf))
       endif
 
-
-
-
 c      write(*,*)linsulate,diags
 c Set Array sizes, allowed variable.
       if(nr.gt.nrsize)then
@@ -432,9 +429,6 @@ c               xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
                xp(5,k)=0.
             enddo
          endif
-               
-
-
 
          if(i.eq.maxsteps)call pfset(ipfsw)
 c Assign charge to mesh

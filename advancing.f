@@ -152,6 +152,11 @@ c Collision at the end of cdt step.
                      ncollide=ncollide+1
                   endif
                endif
+               if(.not.dt.lt.1000.)then
+c Error trap 
+                  write(*,*)'dt error: dt, cdt, dts, remdt',
+     $                 dt, cdt, dts, remdt
+               endif
                remdt=remdt-dt
 c Except for the first time, find new position.
                if(ic.ne.1)then 
