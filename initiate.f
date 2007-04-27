@@ -229,17 +229,12 @@ c Initializing particles.
       subroutine pinit()
 c Common data:
       include 'piccom.f'
-      logical istrapped
-      logical istrapped2
 
 c For now use the whole array.
-      nrealin=0
       ntries=0
       ntrapped=0
       rmax=r(NRFULL)
-      rsp=r(rsplit)
       rmax2=rmax*rmax
-      rsp2=rsp*rsp
       idum=1
       if(rmax2.le.1.) stop 'Error: rmax is less than 1.'
 
@@ -268,59 +263,15 @@ c If this goto is included then trapped particles are rejected.
 c But that tends to deplete the region close to the probe.
 c            goto 1
 c         endif
-         if(bcr.eq.2) then
+c         if(bcr.eq.2) then
 c     Remove particles with too low vz
-            if (istrapped2(i)) then
-               ntrapped=ntrapped+1
-               goto 1
-            endif
-         endif
-
-c Counting the number of real particles in the inner domain
-         if (sqrt(rc).le.r(rsplit)) then
-            nrealin=nrealin+1
-         endif
-
+c            if (istrapped2(i)) then
+c               ntrapped=ntrapped+1
+c               goto 1
+c            endif
+c         endif
       enddo
 
-c     We now initialize the add particles
-      if (dsub.and.(npartadd.ge.1)) then
-         do i=npartmax+1,npartmax+npartadd
-            ipf(i)=1
- 2          continue
-            ntries=ntries+1
-            xp(1,i)=rsp*(2.*ran0(idum)-1.)
-            xp(2,i)=rsp*(2.*ran0(idum)-1.)
-            xp(3,i)=rsp*(2.*ran0(idum)-1.)
-            rc=0.
-            do j=1,3
-               rc=rc+xp(j,i)**2
-            enddo
-c     If we are not in the inner region, try again.
-            if(rc.ge.rsp2 .or. rc.le.1.) goto 2
-            Ti0=Ti
-            tisq=sqrt(Ti0)
-            xp(4,i)=tisq*gasdev(idum)
-            xp(5,i)=tisq*gasdev(idum)
-            xp(6,i)=tisq*gasdev(idum) + vd
-            if(istrapped(i))then
-               ntrapped=ntrapped+1
-c     If this goto is included then trapped particles are rejected.
-c     But that tends to deplete the region close to the probe.
-c     goto 2
-            endif
-               
-c     Initialize the storage arrays
-            if (i-npartmax.le.10) then
-               do k=1,addhist
-                  do l=1,6
-                     xpstorage(l,i-npartmax,k)=xp(l,i)
-                  enddo
-                  xpstonum(k)=10
-               enddo
-            endif
-         enddo
-      endif
 
 c Set flag of unused slots to 0
 c      do i=npart+1,npartmax

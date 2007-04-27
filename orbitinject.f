@@ -56,10 +56,11 @@ c***********************************************************************
 c***********************************************************************
 c Other versions are in other source files.
       subroutine oreinject(i,dt)
+
+      include 'piccom.f'
       integer i
       real dt
 c Common data:
-      include 'piccom.f'
       parameter (eup=1.e-10)
       external pu
       logical istrapped
@@ -207,16 +208,38 @@ c Remove the following when using new advancing code.
 c Increment the position by a random amount of the velocity.
 c This is equivalent to the particle having started at an appropriately
 c random position prior to reentering the domain.
+
 c      xinc=ran0(idum)*dt
-cc      xinc=0.
+c      xinc=0.
 c      vdx=0.
-c      do j=1,3
-c         vdx=vdx+xp(j,i)*xp(j+3,i)
-c         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
-c      enddo
-c      if(vdx.gt.0.)then
-c         write(*,*)'Positive projection. u,phi=',u,phihere
-c 601     format(a,5G10.5)
+
+c Add magnetic field in the reinjection.
+c ndivinj to add precision in the reinjection. rmoved for now
+c      ndivinj=1
+c      xinc=xinc/ndivinj
+
+c      do k=1,ndivinj
+c         do j=1,3
+c            vdx=vdx+xp(j,i)*xp(j+3,i)
+c         enddo
+c         xp(3,i)=xp(3,i)+xp(6,i)*xinc
+c         if(Bz.eq.0) then
+c            do j=1,2
+c               xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
+c            enddo
+c         else
+c            cosomdt=cos(Bz*xinc)
+c            sinomdt=sin(Bz*xinc)
+c            xp(1,i)=xp(1,i)+(xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
+c            xp(2,i)=xp(2,i)+(xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
+c            temp=xp(4,i)
+c            xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+c            xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt         
+c         endif
+c         
+c         if(vdx.gt.0.)then
+c            write(*,*)'Positive projection. u,phi=',u,phihere
+c 601        format(a,5G10.5)
 c      endif
 c If we don't recalculate rp, then we don't trap NANs in the random choices.
       rcyl=xp(1,i)**2+xp(2,i)**2

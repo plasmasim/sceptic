@@ -31,11 +31,8 @@ c moved to piccom.f      logical lsubcycle
 c temp data:
       real temp
       integer idum
-c Data for the domain subvolume for inner particle injection.
-      real rn0
-c Place to read/write on the inner particle injection
-      integer nread
       logical lcollide,lcstep
+
 
 c Choose the collision cycle here and set tau appropriately:
 c icycle of 1 costs about 20% extra cf false. (Mostly alog, I'd guess).
@@ -54,13 +51,9 @@ c         ichoose=ran0(idum)*icycle
          ichoose=1
          tau=1.e20
       endif
-c
-      nread=mod(step,addhist)+1
+
       idum=1
-c Reset the number of particles that enter the inner domain
-      xpstonum(nread)=0
-      rsp=r(rsplit)
-      rn0=1.
+
 c Xp is the three x-coordinates followed by the 3 v coordinates.
 c Use a leapfrog scheme, so interpret the v-coords as half a step
 c behind the x-coords. 
@@ -94,13 +87,9 @@ c Zero the sums.
             vzsum(i,j)=0.
          enddo
       enddo
-      if (dsub) then
-c dsub (true) means we have an inner region with additional particles
-c injected at its boundary sampled from prior crossings. Rarely used.
-         ido=npart+npartadd
-      else
-         ido=npart
-      endif
+
+      ido=npart
+
 c      write(*,*)'colnwt,tau,Eneutral,icycle',colnwt,tau,Eneutral,icycle
 c End of setup
 c------------------ Iterate over particles --------------------------
@@ -108,12 +97,13 @@ c No-subcycle default. Never gets changed w/o subcycling.
       dts=dtin
       isubcycle=1
       do i=1,ido
+
          if(ipf(i).gt.0) then
 c ````````````````````````````````````````` Treatment of active slot.
 c     Find the mesh position and the trigonometry.
 c     Here we do need half quantities.
             ih=1
-            hf=88. 
+            hf=88.
             call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
      $           ,zetap,ih,hf)
 c  Now we know where we are in radius rp. 
@@ -122,6 +112,7 @@ c  We decide the level of subcycling.
                isubcycle=r(nrfull)/rp
 c          if(mod(i,1000).eq.0) write(*,'(i1,$)')isubcycle
                dts=dtin/isubcycle*1.00001
+
             endif
 c .................... Subcycle Loop .................
             remdt=dtin
@@ -164,28 +155,29 @@ c Except for the first time, find new position.
                   hf=77.
                   call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
-               endif
-               if(dsub) then
-c Initial radius:
-                  rn0=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
-               endif               
+               endif            
                call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
 c Getaccel returns the accel based on the charge-field calculation.
                accel(3)=accel(3)+Eneutral
+
 c For acceleration, when dt is changing, use the average of prior and
 c present values: dtnow.
+
                if(dtprec(i).eq.0.)dtprec(i)=dt
                dtnow=0.5*(dt+dtprec(i))
+
 c Don't use split steps if Bz=0, for speed gain of 9%.
+
                if(Bz.ne.0.)then
+                  
 c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
                   do j=4,6
                      xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
                   enddo
 c B-field rotation
                   cosomdt=cos(Bz*dtnow)
-                  sinomdt=sin(Bz*dtnow)
+                  sinomdt=sin(Bz*dtnow)         
                   temp=xp(4,i)
                   xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
                   xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
@@ -193,27 +185,52 @@ c Second half of velocity advance
                   do j=4,6
                      xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
                   enddo
+
+                  do j=1,3
+                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                  enddo
+
+c     Use cyclotronic integrator
+
+c                  do j=4,6
+c                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
+c                  enddo
+
+c                  cosomdt=cos(Bz*dt)
+c                  sinomdt=sin(Bz*dt)
+c                  xp(3,i)=xp(3,i)+xp(6,i)*dt
+c                  xp(1,i)=xp(1,i)+
+c     $                 (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
+c                  xp(2,i)=xp(2,i)+
+c     $                 (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
+c                  
+c                  temp=xp(4,i)
+c                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+c                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+
+c     Non magnetized case
                else
                   do j=4,6
                      xp(j,i)=xp(j,i)+accel(j-3)*dtnow
                   enddo
+                  do j=1,3
+                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                  enddo          
+
                endif
-c The acceleration due to the neutral-collisions-implied electric field
-c is applied for this actual timestep, if we want the distribution to 
-c come out right. But there are subtleties here about leapfrogging.
-c               xp(6,i)=xp(6,i)+Eneutral*dt
 
                dtprec(i)=dt
                rn2=0.
                xdv=0.
                v2=0.
-c Position advance (and accumulate coordinate terms).
+
+c Position advance
                do j=1,3
-                  xp(j,i)=xp(j,i)+xp(j+3,i)*dt
                   rn2=rn2+xp(j,i)**2
                   xdv=xdv+xp(j,i)*xp(j+3,i)
                   v2=v2+xp(j+3,i)**2
                enddo
+           
 c The time prior to step end of closest approach
                tm=xdv/v2
                rn=sqrt(rn2)
@@ -227,106 +244,83 @@ c     write(*,*)'Through probe',tm,(rn2 - tm**2*v2)
                      rn=0.
                   endif
                endif
-c---------------------------------------------------------
-c Handling boundaries for 'real particles' :
-               if(i.le.npart) then
-                  if(rn.le.r(1)) then
-c Hit sphere.
-                     ninner=ninner+1
-                     nrealin=nrealin-1
+
+c-----------------------------------------------------------------               
+c Handling boundaries :
+               if(rn.le.r(1)) then
+                  ninner=ninner+1
+
 c     Solve for sphere crossing step fraction, s.
 c It ought to be possible to do this with the tm-related information.
-                     a=0.
-                     b=0.
-                     c=0.
-                     do j=1,3
-                        a=a+(dt*xp(j+3,i))**2
-                        b=b-2.*xp(j,i)*(dt*xp(j+3,i))
-                        c=c+xp(j,i)**2
-                     enddo
-                     c=c-r(1)**2
-                     s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
-                     xc=xp(1,i)-s*dt*xp(4,i)
-                     yc=xp(2,i)-s*dt*xp(5,i)
-                     zc=xp(3,i)-s*dt*xp(6,i)
-                     ctc=zc/sqrt(xc**2+yc**2+zc**2)
+                  a=0.
+                  b=0.
+                  c=0.
+                  do j=1,3
+                     a=a+(dt*xp(j+3,i))**2
+                     b=b-2.*xp(j,i)*(dt*xp(j+3,i))
+                     c=c+xp(j,i)**2
+                  enddo
+                  c=c-r(1)**2
+                  s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
+                  xc=xp(1,i)-s*dt*xp(4,i)
+                  yc=xp(2,i)-s*dt*xp(5,i)
+                  zc=xp(3,i)-s*dt*xp(6,i)
+                  ctc=zc/sqrt(xc**2+yc**2+zc**2)
+                  
 c     Interpolate onto the theta mesh as in ptomesh               
-                     ithc=interpth(ctc,tfc)
-                     if(LCIC)then
-                        icell=nint(ithc+tfc)
-                     else
-                        icell=ithc
-                     endif
-                     ninth(icell)=ninth(icell)+1
-                     zmomprobe=zmomprobe+xp(6,i)
-                  elseif(rn.ge.r(nr))then
-c  Left the grid outer boundary.
-                     zmout=zmout-xp(6,i)
-                  elseif(dsub) then
-c     Check if the particle entered the inner domain, and if yes
-c     store it. We also update nrealin
-                     if ((rn0.ge.rsp) .and. (rn.lt.rsp)) then
-                        xpstonum(nread)=xpstonum(nread)+1
-                        do k=1,6
-                           xpstorage(k,xpstonum(nread),nread)=xp(k,i)
-                        enddo  
-                        nrealin=nrealin+1
-                     elseif ((rn.gt.rsp) .and. (rn0.le.rsp)) then
-                        nrealin=nrealin-1
-                     endif
-                     goto 81
+                  ithc=interpth(ctc,tfc)
+                  if(LCIC)then
+                     icell=nint(ithc+tfc)
                   else
-c Did not leave the grid. Jump to subcycle end.
-                     goto 81
+                     icell=ithc
                   endif
-c We left. If we haven't exhausted complement, restart particle i.
-                  if(nrein.lt.ninjcomp) then
-                     call reinject(i,dtin,icolntype,bcr)
-                     dtprec(i)=dtin
-                     ipf(i)=1
-                     zmout=zmout+xp(6,i)
-                     if(i.le.norbits) then
-                        if (.not.(orbinit))
-     $                       iorbitlen(i)=0
-                     endif
-c New reinjection handling. Simply use the rest of the time step with
-c the new particle starting just at the edge. Get new position:
-                     ih=1
-                     hf=77.
-                     call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
-     $                    sp,cp,rp,zetap,ih,hf)
-c Set the external step length, (isubcycle=1).
-                     dts=dtin
-c Call the timestep fraction-remaining random.
-                     remdt=dtin*ran0(idum)
-c Jump to subcycle end.
-                     goto 81
-                  else
-                     ipf(i)=0
-                  endif
-c Break from subcycles after dealing with a particle that left.
-                  goto 82
+                  ninth(icell)=ninth(icell)+1
+                  zmomprobe=zmomprobe+xp(6,i)
+               elseif(rn.ge.r(nr))then
+c     Left the grid outer boundary.
+                  zmout=zmout-xp(6,i)
+c     Did not leave the grid. Jump to subcycle end.
                else
-c--------------------------------------------------------------
-c     Additional particles code. If they leave the domain, we
-c     just reinject them, since we don't use them for diagnostics
-c     as fluxes
-                  if((rn.le.r(1)).or.(rn.ge.rsp)) then
-                     a=nint(ran0(idum)*(addhist-1))+1
-                     b=nint(ran0(idum)*(xpstonum(a)-1))+1
-                     do k=1,6
-                        xp(k,i)=xpstorage(k,b,a)
-                     enddo
-                  endif
+                  goto 81
                endif
- 81         continue
-c Explicit cycle controlled by remaining time in step:
-            if(remdt.gt.0.) goto 80
-c .................... End of Subcycle Loop .................
-c Break jump point:
- 82         continue
-c------------------------------------------------------------------
-            if(ldist) then
+c We left. If we haven't exhausted complement, restart particle i.
+               if(nrein.lt.ninjcomp) then
+                  call reinject(i,dtin,icolntype,bcr)
+                  dtprec(i)=dtin
+                  ipf(i)=1
+                  zmout=zmout+xp(6,i)
+                  if(i.le.norbits) then
+                     if (.not.(orbinit))
+     $                    iorbitlen(i)=0
+                  endif
+
+c     New reinjection handling. Simply use the rest of the time step with
+c     the new particle starting just at the edge. Get new position:
+                  ih=1
+                  hf=77.
+                  call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
+     $                 sp,cp,rp,zetap,ih,hf)
+c     Set the external step length, (isubcycle=1).
+                  dts=dtin
+c     Call the timestep fraction-remaining random.
+                  remdt=dtin*ran0(idum)
+c     Jump to subcycle end.
+                  goto 81
+               else
+                  ipf(i)=0
+               endif
+c Break from subcycles after dealing with a particle that left.
+               goto 82  
+           
+ 81            continue
+c     Explicit cycle controlled by remaining time in step:
+               if(remdt.gt.0.) goto 80
+c     .................... End of Subcycle Loop .................
+c     Break jump point:
+ 82            continue
+c -----------------------------------------------------------
+               
+               if(ldist) then
 c Start of Various distribution diagnostics.
                rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
 c     Diagnostics of f_r(rmax):
@@ -373,29 +367,35 @@ c     $           ,rorbit(iorbitlen(i),i)
             endif
 c------------------------End distribution diagnostics ---------------
             if(ipf(i).gt.0)iocthis=i
+            
          elseif(nrein.lt.ninjcomp)then
+
 c ```````````````````````````````````````` Treatment of INactive slot.
 c Case for ipf(i) le 0 (empty slot) but still wanting to inject. 
 c We should not come here unless .not.lfixedn.
 c            write(*,*)'Reinjecting empty slot',i
+
             call reinject(i,dtin,icolntype,bcr)
             dtprec(i)=dtin
             ipf(i)=1
             iocthis=i
          elseif(i.ge.iocprev)then
-c Break if inactive slot and we have exhausted the complement of injections.
-c And we have reached the maximum occupied slot of previous run.
+c     Break if inactive slot and we have exhausted the complement of
+c     injections.  And we have reached the maximum occupied slot of
+c     previous run.
             goto 401
          endif
 c---------------- End of padvnc particle iteration ------------------
       enddo
  401  continue
+
       NCneutral=ncollide
 c      write(*,*)'ncollide=',ncollide,' icycle=',icycle
 c We just want the diagnostics with the true particles for now
 c      iocthis=min(iocthis,npartmax)
+
       iocprev=iocthis
-c      if(.not.lfixedn)write(*,504)ninjcomp,nrein,i,iocprev
+c     if(.not.lfixedn)write(*,504)ninjcomp,nrein,i,iocprev
  504  format('  ninjcomp=',i6,'  nrein=',i6,'  i=',i6,
      $     '  iocprev=',i6)
  503  format('Orbit',i3,' length=',i5,' position=',4f7.3)
@@ -445,6 +445,7 @@ C Find the cell and cell fraction we are at.
 c The square roots here cost perhaps 1/3 of this routine. 
       rp=sqrt(rsp+z**2)
 c 
+
       if(.not. rp.le.r(nr))then
          write(*,*)'Ptomesh particle outside on entry'
          write(*,*)'xp:',(xp(ipl,i),ipl=1,6)
@@ -684,10 +685,46 @@ c*******************************************************************
       include 'piccom.f'
       real flogfac
       real fluxofangle(nthsize)
+
+c parameters to find the floating potentail in presence of Bz
+      integer nPhi
+      data nPhi/300/
+      real Irep(1:300)
+      real ncs
+      real LS(nthused)
+      real z,iota,dpdr,Tau,eta,beta_e,beta_i
+      data ncs/25./
+c phispan is for floating potential if Bz.ne.0
+      phispan=5
+      beta_e=0
+      iota=0
+
+
       if(linsulate.or.lfloat) then
+
+         if(Bz.ne.0) then
+            beta_i=Bz*sqrt(2/(Ti*pi))
+            beta_e=beta_i*sqrt(Ti)*sqrt(rmtoz*1837.)
+            z=beta_e/(1+beta_e)
+            iota=1-0.0946*z-0.305*z**2+0.95*z**3-2.2*z**4+1.15*z**5
+            
+            do k=1,nthused
+               dpdr=1/phi(1,k)*(-phi(3,k)+4*phi(2,k)-3*phi(1,k))
+     $              /((rcc(3)-rcc(1)))
+               LS(k)=-1/(min(dpdr,-1.01)+1)
+
+c               LS(k)=debyelen/sqrt(1+1/(Ti+rmtoz*vd**2))
+c               LS(k)=debyelen/sqrt(1+1/Ti)
+c               LS(k)=sqrt(LS(k)**2+debyelen*log(1+1/debyelen))
+            enddo
+         endif
+
+
+
          flogfac=0.5*alog(2.*pi/(rmtoz*1837.))
          totflux=0.
          do j=1,nthused
+c     Calculate the flux to each angular cell
             if(lcic)then
                fluxofangle(j)=finthave(j)*(nthused-1.)/
      $              (4.*pi*rhoinf*dt*r(1)**2)
@@ -698,25 +735,77 @@ c*******************************************************************
      $              (4.*pi*rhoinf*dt*r(1)**2)
             endif
             totflux=totflux+fluxofangle(j)
+
+
             if(linsulate)then
+
+               if(Bz.ne.0) then
+                  do k=1,nPhi
+                     Qth=1.-2*(j-1.)/(nthused-1.)
+                     eta=phispan*k/nPhi/beta_e*
+     $                    (1+beta_e/4*(1-exp(-4/(LS(j)*beta_e))))
+                     Tau=eta/(1+eta)
+                     A=0.678*Tau+1.543*Tau**2-1.212*Tau**3
+                     Irep(k)=exp(-phispan*k/nPhi)
+     $             *((2*(A+(1-A)*iota)-1)+2*(1-(A+(1-A)*iota))*abs(Qth))
+                  enddo
+               endif
                if(fluxofangle(j).gt.0.)then
-                  phi(imin,j)=alog(fluxofangle(j))+flogfac
+                  if(Bz.ne.0) then
+                     call invtfunc(Irep,nPhi,exp(flogfac)
+     $                    *fluxofangle(j),x)
+                     phi(imin,j)=
+     $                    (-x*phispan/nPhi+(ncs-1.)*phi(imin,j))/ncs
+                  else
+                     phi(imin,j)=(alog(fluxofangle(j))+flogfac
+     $                    +(ncs-1.)*phi(imin,j))/ncs
+                  endif
                else
-                  phi(imin,j)=vprobe
+                  phi(imin,j)=phi(imin,j)
                endif
             endif
          enddo
+
          if(totflux.gt.0.)then
-            vprobe=alog(totflux/nthused)+flogfac
+            if(Bz.eq.0) then
+               vprobe=(alog(totflux/nthused)+
+     $              flogfac+(ncs-1.)*vprobe)/ncs
+c     comparison with old version
+c               vprobe=alog(totflux/nthused)+flogfac
+            else
+c     calculate the total e- current to the sphere -> Irep
+               do k=1,nPhi
+                  Irep(k)=0
+                  do j=1,nthused
+                     axis=1
+                     if (j.eq.1.or.j.eq.nthused) axis=0.5
+                     Qth=1.-2*(j-1.)/(nthused-1.)
+                     eta=phispan*k/nPhi/beta_e*
+     $                    (1+beta_e/4*(1-exp(-4/(LS(j)*beta_e))))
+                     Tau=eta/(1+eta)
+                     A=0.678*Tau+1.543*Tau**2-1.212*Tau**3
+                     Irep(k)=Irep(k)+axis*exp(-phispan*k/nPhi)
+     $             *((2*(A+(1-A)*iota)-1)+2*(1-(A+(1-A)*iota))*abs(Qth))
+                  enddo
+                  Irep(k)=Irep(k)/(nthused-1)
+               enddo
+               call invtfunc(Irep,nPhi,exp(flogfac)
+     $              *totflux/nthused,x)
+               vprobe=(-x*phispan/nPhi+(ncs-1.)*vprobe)/ncs
+            endif
          endif
+         
+c         write(*,*) vprobe,alog(totflux/nthused)+flogfac
          if(lfloat)then
             do j=1,nthused
                phi(imin,j)=vprobe
             enddo
          endif
-c         write(*,*)
-c         write(*,*)'fluxofangle=',(fluxofangle(j),j=1,NTHUSED)
-c         write(*,*)'phi=',(phi(imin,j),j=1,NTHUSED)
+c     write(*,*)
+c     write(*,*)'fluxofangle=',(fluxofangle(j),j=1,NTHUSED)
+c     write(*,*)'phi=',(phi(imin,j),j=1,NTHUSED)
+
+c If prespecified probe potential
       else
          do j=1,NTHUSED
             phi(imin,j)=vprobe+Ezext*tcc(j)
@@ -741,6 +830,7 @@ c         Eneutral=0.
       elseif(icolntype.eq.0)then
 c Need more code here for other types. Not yet implemented.
 c Must set Eneutral to zero by default.
+
          Eneutral=0.
       else
          write(*,*)'Incorrect icolntype',icolntype
@@ -754,10 +844,9 @@ c*******************************************************************
       imin=1.
 
       call innerbc(imin,dt)
-
       do j=1,NTHUSED
          do k=1,NRUSED
-            phi(k,j)=vprobe/rcc(k)
+            phi(k,j)=vprobe/rcc(k)*exp(-(rcc(k)-rcc(1))/debyelen)
          enddo
       enddo
       do j=1,NTHUSED

@@ -120,12 +120,18 @@ c     In this case, the potential outside the crone is prespecified
 
       elseif(bcphi.eq.3) then
 c     This is the case where dphi/dr=0 on the boundary
+         delredge=rcc(NRFULL)-rcc(NRFULL-1)
+         delcosth=2./(NTHUSED-1.)
+
          do j=0,NTHUSED+1
+               Qth=1.-2*(j-1)/(NTHUSED-1.)
             gpc(j,1)=1
-            gpc(j,2)=0
-            gpc(j,3)=0
+            gpc(j,2)=-delredge/(2*delcosth*rcc(NRUSED))*Qth*(1-Qth**2)
+            gpc(j,3)=-gpc(j,2)
             gpc(j,4)=0
-            gpc(j,5)=-1
+            gpc(j,5)=-1-delredge*((1-Qth**2)/(2.*rcc(NRUSED))
+     $           +(1-Qth**2)**(1.5)/debyelen)
+c            write(*,*) j,gpc(j,1),gpc(j,2),gpc(j,3),gpc(j,4),gpc(j,5)
          enddo
       endif
 c     Set inner Boundary conditions

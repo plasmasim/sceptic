@@ -35,12 +35,15 @@ c___________________________________________________________________
 c Pick a random th: pth
       idum=1
  1    y1=ran0(idum)*qthfv(nthfvsize)
+      
       call f1invtfunc(qthfv,nthfvsize,y1,pth)
+      
       ipth=pth
       fpth=pth-ipth
       costheta=(1.-fpth)*fvth(ipth)+ fpth*fvth(ipth+1)
 c      write(*,'(a,2f10.5,i4,2f10.5)')'y,ymax,ipth,fpth,cos ',
 c     $     y1,qthfv(nthfvsize),ipth,fpth,costheta
+
 c___________________________________________________________________
 c Pick a random vx: pxfv
  2    y2=ran0(idum)*((1.-fpth)*qxfv(nxfva,ipth)+fpth*qxfv(nxfva,ipth+1))
@@ -58,6 +61,7 @@ c     $     ((1.-fpth)*qxfv(nxfva,ipth)+fpth*qxfv(nxfva,ipth+1))
 c     $     ,ixfv,fxfv,vx
 
 c      write(*,*)(qfv(j,ixfv,ipth+1),j=nxfvi,nxfva)
+
 c___________________________________________________________________
 c Calculate the exact vztr: vz transition (where n.v=0),
 c for this vx, costheta. If it is too extreme, try again.
@@ -69,19 +73,20 @@ c         vztr=-1.e30
       endif
       if(costheta.gt.0.)then
          if(vztr.gt.vzfv(nzfva))then
-c            write(*,*)'Impossible vztr',vztr,costheta,' trying again'
+c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
             goto 2
          elseif(vztr.lt.vzfv(nzfvi))then
             vztr=vzfv(nzfvi)+1.e-4
          endif
       else
          if(vztr.lt.vzfv(nzfvi))then
-c            write(*,*)'Impossible vztr',vztr,costheta,' trying again'
+c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
             goto 2
          elseif(vztr.gt.vzfv(nzfva))then
             vztr=vzfv(nzfva)-1.e-4
          endif         
       endif
+
 c___________________________________________________________________
 c Pick a random vz: pzfv
       s=(1.-fpth)*(1.-fxfv)
@@ -153,6 +158,7 @@ c        write(*,'(8e10.3)') (qfv(j,ixfv,ipth),j=nzfvi,nzfva)
       endif
       y3=ran0(idum)*qz(nzfva)
       call f1invtfunc(qz,nzfva-nzfvi+1,y3,pzfv)
+
       izfv=pzfv
       fzfv=pzfv-izfv
 c      write(*,*)'izfv,fzfv=',izfv,fzfv
@@ -330,6 +336,7 @@ c Pick a random vx: pxfv
       y=ran0(idum)
       call f2invtfunc(fqvxvz(nxfvi,izfv),fqvxvz(nxfvi,izfv+1)
      $     ,nxfva-nxfvi+1,y,pyfv,(1.-fzfv),fzfv)
+
 c      write(*,*) pyfv,y,fzfv
       iyfv=pyfv
       fyfv=pyfv-iyfv
@@ -357,8 +364,12 @@ c which is therefore the inward normal.
       xp(1,i)=(rs*sintheta)*cosphi
 c
 c Obtain angle coordinate and map back to th for phihere.
+
       ct=-costheta
+
       call invtfunc(th(1),nth,ct,x)
+
+
       ic1=x
       ic2=ic1+1
       dc=x-ic1

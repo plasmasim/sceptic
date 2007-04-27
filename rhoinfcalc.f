@@ -34,6 +34,7 @@ c Combination equivalent to phihere usage.
 c The following statement requires us to call this routine after 
 c (part at least of) chargediag has been done. 
          averein=(diagphi(NRFULL)+diagphi(NRUSED))*.5
+
          if(averein.gt.0.5*Ti)then
 c This is necessary to prevent smaxflux errors. smaxflux is not correct
 c for repulsive potentials.

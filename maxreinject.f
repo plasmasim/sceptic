@@ -35,7 +35,7 @@ c Common data:
       idum=1
  1    continue
       y=ran0(idum)
- 2    continue
+
 c Pick angle from cumulative Q.
       call invtfunc(Qcom,nQth,y,x)
       ic1=x
@@ -48,14 +48,22 @@ c Pick angle from cumulative Q.
 c      if(ic1.ge.nQth)ic1=ic1-1
       ic2=ic1+1
       dc=x-ic1
+ 2    continue
+      x=dc+ic1
       yy=ran0(idum)
+c Quick fixing to prevent some errors
+      if(yy.gt.1-1e-6) then
+c         write(*,*) yy,nrein,idum
+         yy=1-1e-6
+      endif
 c Pick normal velocity from cumulative G.
       call invtfunc(Gcom(1,ic1),nvel,yy,v1)
       call invtfunc(Gcom(1,ic2),nvel,yy,v2)
       vr=dc*v2+(1.-dc)*v1
+
       if(vr.lt.1. .or. vr.ge.nvel) then
          write(*,*) 'REINJECT V-Error'
-         write(*,*) yy,v1,v2,ic1,ic2,nvel
+         write(*,*) yy,v1,v2,ic1,ic2,nvel,vr,nQth
          goto 2
       endif
       iv=vr
@@ -65,9 +73,9 @@ c New angle interpolation.
       ct=1.-2.*(x-1.)/(nQth-1)
 c Map back to th for phihere.
       call invtfunc(th(1),nth,ct,x)
-      ic1=x
-      ic2=ic1+1
-      dc=x-ic1
+      ic1h=x
+      ic2h=ic1h+1
+      dch=x-ic1h
 c Old version used th() directly.
 c      ct=th(ic1)*(1.-dc)+th(ic2)*dc
 c      write(*,*)'ic1,ic2,dc,ct',ic1,ic2,dc,ct
@@ -94,29 +102,19 @@ c from the unit variance random distribution multiplied by sqrt(Ti)=vscale.
       xp(3,i)=rs*ct
       xp(2,i)=(rs*st)*sp
       xp(1,i)=(rs*st)*cp
-c Remove with new advancing code:
-c Increment the position by a random amount of the velocity.
-c This is equivalent to the particle having started at an appropriately
-c random position prior to reentering the domain.
-c      xinc=ran0(idum)*dt
-cc      xinc=0.
-c      do j=1,3
-c         xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
-c      enddo
-c      write(*,'(''vr,vt,vp='',3f8.3)') vr,vt,vp
-c      write(*,501) (xp(j,i),j=1,6)
-c 501  format('Reinject xp=',6f10.5)
-c      rp=xp(1,i)**2+xp(2,i)**2+xp(3,i)**2
-      rp=rs
-c     
-      phihere=phi(NRUSED,ic1)*(1.-dc)+phi(NRUSED,ic2)*dc
-      vv2=(vt**2 + vr**2 + vp**2)*vscale**2
-      vz2=(xp(6,i))**2
 
+c With a magnetic field, phihere is only calculated on top of the probe
+      if (Bz.eq.0) then
+         phihere=phi(NRUSED,ic1h)*(1.-dch)+phi(NRUSED,ic2h)*dch
+      else
+         phihere=averein
+      endif
+
+      vv2=(vt**2 + vr**2 + vp**2)
+      vz2=(xp(6,i)/vscale)**2
 c Reject particles that have too low an energy
 c bcr=1 means isotropic reinjection
 c bcr=2 means adiabatic, so the velocity increase is only on the z direction
-c PROVIS removed the vscale
       if (bcr.ne.2) then
 c The angle is chosen by the distribution of injinit, so if fail, keep the same
          if(.not.vv2.gt.-2.*phihere) goto 2
@@ -128,15 +126,46 @@ c If Adiabatic launch fails, chose again an angle
          if(.not.vz2.gt.-2.*phihere) goto 1
       endif
 
-c Do the outer flux accumulation.
-      spotrein=spotrein+phihere
-      nrein=nrein+1
 
-c Reject particles that are already outside the mesh.
-      if((.not.rp.lt.r(nr)*r(nr)).or.(rp.le.r(1)**2))then
-c    if(rp.le.r(1)**2) write(*,*)'Relaunch',rp,xp(1,i),xp(2,i),xp(3,i)
-         goto 1
-      endif
+c Increment the position by a random amount of the velocity.
+c This is equivalent to the particle having started at an appropriately
+c random position prior to reentering the domain.
+c      xinc=ran0(idum)*dt
+c      xinc=0.
+
+c Suppress the initial advance with the new advancing.f
+c         do j=1,3
+c            vdx=vdx+xp(j,i)*xp(j+3,i)
+c         enddo
+c         xp(3,i)=xp(3,i)+xp(6,i)*xinc
+c         if(Bz.eq.0) then
+c            do j=1,2
+c               xp(j,i)=xp(j,i)+xp(j+3,i)*xinc
+c            enddo
+c         else
+c            cosomdt=cos(Bz*xinc)
+c            sinomdt=sin(Bz*xinc)
+c            xp(1,i)=xp(1,i)+(xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
+c            xp(2,i)=xp(2,i)+(xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
+c            temp=xp(4,i)
+c            xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+c            xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+c         endif
+
+         rcyl=xp(1,i)**2+xp(2,i)**2
+         rp=rcyl+xp(3,i)**2
+
+c Do the outer flux accumulation.
+         spotrein=spotrein+phihere
+         nrein=nrein+1
+
+c     Reject particles that are already outside the mesh.
+         if(.not.rp.lt.r(nr)*r(nr))then
+c Do the outer flux accumulation because it's like an additional
+c particle has been reinjected
+            goto 1
+         endif
+
 
 c Direct ic1 usage
       end
@@ -158,8 +187,6 @@ c Random interpolates
       sq2=1./sqrt(2.)
       Qcom(1)=0.
       dqp=0.
-
-
 
       do i=1,nQth
          t=NTHUSED*i/nQth

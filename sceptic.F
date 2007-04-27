@@ -25,6 +25,7 @@ c     For now, put maxsteps in piccom
       logical readpart,writepart
       logical lsmooth,lcolcont,lpstore
       logical rmaxauto,lfcalcl
+      logical live
 
 c Communicator and id for the sor communicator
 c In the case of sorparallel=false, myid2=0 only
@@ -107,11 +108,11 @@ c     bcphi : BC on potential
       bcphi=0
 c     bcr : BC on reinjection
       bcr=0
-      dsub=.false.
       Bz=0.
       infdbl=.false.
       orbinit=.false.
       lsubcycle=.false.
+      live=.false.
 c Signal that fvcom is not initialized. After initialization it is .ne.0
       qthfv(nthfvsize)=0.
 
@@ -159,7 +160,6 @@ c restore defaults on read error.
  262        continue
          endif
          if(string(1:4) .eq. '--bz') read(string(5:),*)Bz
-         if(string(1:4) .eq. '--ds') dsub=.true.
          if(string(1:4) .eq. '--sp') sorparallel=.true.
          if(string(1:3) .eq. '-sa') then
             rmaxauto=.true.
@@ -191,7 +191,11 @@ c restore defaults on read error.
             read(string(3:),*)vprobe
          endif
          if(string(1:2) .eq. '-z') read(string(3:),*)Ezext
-         if(string(1:2) .eq. '-l') read(string(3:),*)debyelen
+         if(string(1:2) .eq. '-l') then
+            read(string(3:),*)debyelen
+         elseif(string(1:4) .eq. '-liv') then
+            live=.true.
+         endif
          if(string(1:3) .eq. '-nr') read(string(4:),*)nr
          if(string(1:3) .eq. '-nt') read(string(4:),*)nth
          if(string(1:3) .eq. '-ni') read(string(4:),*)npart
@@ -207,7 +211,12 @@ c restore defaults on read error.
          if(string(1:7) .eq. '--bcphi') read(string(8:),*)bcphi
          if(string(1:7) .eq. '-infdbl') infdbl=.true.
          
-         if(string(1:2) .eq. '-o') read(string(3:),*)norbits
+         if(string(1:3) .eq. 'oi') then
+            read(string(4:),*)norbits
+            orbinit=.true.
+         elseif(string(1:2) .eq. '-o') then
+            read(string(3:),*)norbits
+         endif
          if(string(1:3) .eq. '-kt')then
             read(string(4:),*)icolntype
          elseif(string(1:2) .eq. '-k') then
@@ -224,9 +233,10 @@ c            call exit(0)
          endif
  1    continue
  3    continue
-c PROVIS
+
+c Auto determination of the number of steps
       if (rmaxauto) then
-         maxsteps=nint(4*rmax/(sqrt(2*Ti)*dtf))
+         maxsteps=nint(4*rmax/(sqrt(2*Ti)*dtf))+500
       endif
 
 c      write(*,*)linsulate,diags
@@ -259,10 +269,9 @@ c Set Array sizes, allowed variable.
          NTHFULL=nth
       endif
 
-c Inner domain parameter
-      rsplit=nint(NRUSED/2.)
-
-c Orbit tracking setting
+c Orbit tracking setting. This is when we want to follow orbits of particles
+c having a thermal speed directed in the z direction, but different impact
+c parameters
       trackinit=maxsteps/2
       
       if(myid.eq.0)then
@@ -395,7 +404,6 @@ c     Timing
       endif
 c Main Stepping loop.
       do i=1,maxsteps
-
 c Plot at some subset of steps.
 c         write(*,*)mod(i-1,ipstep),i,ipstep
          lplot=lpstore.and.(mod(i-1,ipstep).eq.0)
@@ -403,6 +411,7 @@ c Acceleration for first 1/3rd of steps.
          bdtnow=max(1.,(bdt-1.)*(maccel-i+2)/(maccel+1.)+1.)
 c         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
          dt=bdtnow*dtf
+c         write(*,*) colnwt,Eneutral
 c         write(*,*)'bdtnow,btd,maccel,dt,dtf=',bdtnow,bdt,maccel,dt,dtf
          ninjcomp=bdtnow*ninjcomp0
 c     Here there is a problem if we have ipstep!=1 because it is
@@ -415,16 +424,17 @@ c     As a result the last plot is only saved if it is on the maxsteps step.
 c     If this flag is on, then we force the tracked particles to have the
 c     following properties.
 
+
          if (myid.eq.0.and.i.eq.trackinit.and.orbinit) then 
             h=1./2*rmax
             do k=1,norbits
                iorbitlen(k)=0
                xp(3,k)=-2./3*rmax
-c               xp(1,k)=h*k/norbits*cos(2*pi*k/norbits)
-c               xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
+               xp(1,k)=0
+               xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
                xp(1,k)=h*k/norbits
                xp(2,k)=0
-               xp(6,k)=vd*1.
+               xp(6,k)=sqrt(2*Ti)*1.
                xp(4,k)=0.
                xp(5,k)=0.
             enddo
@@ -434,6 +444,7 @@ c               xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
 c Assign charge to mesh
 
          call chargetomesh()
+
 c Collect the partial sums of moments of distribution.
          call sumreduce()
          call aveupstep()
@@ -456,7 +467,9 @@ c     Plot density contours.
                   call pltinit(0.,1.,0.,1.)
                endif
             endif
+
             call rhocalc(lsmooth)
+               
          endif
 
 #ifdef MPI
@@ -477,13 +490,16 @@ c Calculate rhoinf
             call rhoinfcalc(dt,icolntype,colnwt)
          endif
 
+ 
 c If we use floating potential, the slaves may need rhoinf and fluxes
 #ifdef MPI
-         if (sorparallel.and.(linsulate.or.lfloat)) then
+c     Needs to bcast rhoinf in any case to get the last line of the
+c     particles diagnostic file right, ie if -w
+c         if (sorparallel.and.(linsulate.or.lfloat)) then
             call MPI_BCAST(rhoinf,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
             call MPI_BCAST(finthave,nthused,MPI_REAL,0,
      $           MPI_COMM_WORLD,ierr)
-         endif
+c         endif
 #endif
          if(myid.eq.0) then
 c  Write step information.
@@ -566,6 +582,11 @@ c     in diags, called only by myid=0, not myid2=0
 #endif
 
          if (myid.eq.0) then
+c Liveoutput. Saves the potential distribution at each step to look at waves
+            if(i.ge.0.75*maxsteps.and.live)
+     $           call outputlive(dt,i,icolntype)
+
+
 c     Damping on ion motion by artificial potential modification.
             if(.not.lfext.and.damplen.gt.0.) call damp(dt,damplen)
             
@@ -583,7 +604,7 @@ c     Evaluate total charge and z-forces. Not yet implemented for NGP.
             
          endif
 
-         
+
 c     Plot radial average velocity and temperatures.
          if(lplot)then
             call vrdiag()
@@ -592,11 +613,15 @@ c     Plot radial average velocity and temperatures.
                call vdiagsin(.false.)
             endif
          endif
+
 c     Main particle advance, including collisions.
+
          call padvnc(dt,icolntype,colnwt,i)
+
 c Obsolete separate advance and collide:
 c         call padvnc(dt,icolntype,i)
 c         if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
+
 c     Reduce back the flux and distribution data from the particle advance.
          call partreduce(i)
 
@@ -645,8 +670,13 @@ c Restore the permanent plotting switch.
       if(writepart) call partwrt()
       
       diags=.true.
+
       call chargetomesh()
+
       call sumreduce()
+
+
+
 c Draw some final diagnostic figures, if flag set.    
       if(finaldiags.and.myid.eq.0)then
          call multiframe(0,0,0)
@@ -679,6 +709,8 @@ c Write the output file.
 
       call MPI_FINALIZE(rc)
 #endif
+
+
 c Use call exit to avoid silly fortran message.
       call exit(0)
 
@@ -699,8 +731,9 @@ c Help section
      $     ' -x.ff max r of domain (5)'
       write(*,*)' -p.ff probe potential (-4.) -pf float -pi insulate;',
      $     ' -b.ff Boundary factor (4)'
-      write(*,*)' -l.ff Debye length (.1); -onnn Orbits to plot (0)',
-     $     '; -z.ff External Ez (0)'
+      write(*,*) ' -l.ff Debye length (.1) ; -z.ff External Ez (0)'
+      write(*,*) '-onnn Rand Orbits to plot (0) ; -oinnn Aligned',
+     $     'orbits (0)'
       write(*,*)' -e[ir,it] distribution function diagnostics',
      $     ' [in cell ir,it](1,1);'
       write(*,*)' -r read particle data (no), -w write ptcl. data (no)'
@@ -722,11 +755,11 @@ c Help section
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
       write(*,*)' --rhoinf.ff specify constant injection rate, rather',
      $     ' than particle number.'
-      write(*,*)' --bz.ff Bz (0),--ds subdivide the domain, --sp use',
-     $     'parallel bloc solver'
+      write(*,*)' --sp use parallel bloc solver, ',
+     $     ' -liv save phi(nr,nt) for the last 75% steps'
       write(*,*)' --bcphi(0) BC potl (0:spherical sym, ',
      $     '1 : Quasi neutrality on outer 15%,',
-     $     '    2: Phiout=0, 3: dPhiout/dr=0)'
+     $     '    2: Phiout=0, 3: dPhiout/dz=0)'
       write(*,*)' --bcr(0) BC reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
       write(*,*)' --subcyc use step subcycling near probe.'

@@ -24,8 +24,11 @@ REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 # Local versions. 
 
 MPICOMPILE-SWITCHES = -Wall  -Wno-globals -DMPI -O2 -I.
-OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
+
+OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o outputlive.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
+
 OBJECTSO = initiate.o advancingo.o randc.o randf.o diags.o outputs.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
+
 MPIOBJECTS=sor2dmpi.o mpibbdy.o shielding.o
 
 sceptic : sceptic.F piccom.f  ./accis/libaccisX.a $(OBJECTS) makefile
@@ -82,7 +85,7 @@ clean :
 	rm -f *.html
 	rm -f sihh snew Orbits.txt
 	rm -f *~
-
+	rm -f *.liv
 
 ftnchek :
 	ftnchek -nocheck -nof77 -calltree=text,no-sort -mkhtml -quiet -brief sceptic.F *.f

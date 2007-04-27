@@ -14,28 +14,10 @@ c
 c Version 2.6 Aug 2005.
 c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c Version 2.5; Aug 2004   
-      integer npartmax,npart,nr,nth,ndim,np,npartadd,addhist
+      integer npartmax,npart,nr,nth,ndim,np
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
       parameter (npartmax=200000,np=1,ndim=6)
-c Start of inner domain additions ----------------
-c Number of additional particles in the inner domain
-      parameter (npartadd=100000)
-c History size for the additional part inejection
-      parameter (addhist=100)
-c nr where the domain is split
-      integer rsplit
-c Storage of incoming particles in the inner domain
-      real xpstorage(ndim,2000,addhist)
-c Number of stored particles at a certain time step
-      real xpstonum(addhist)
-c Number of real particles in the inner domain
-      integer nrealin
-c Use of inner region with particles injected at its boundary sampled from
-c prior crossings.
-      logical dsub
-c End of inner domain additions -----------------
-
 c Use of particle advance subcycling in inner regions for accuracy.
       logical lsubcycle
 c CIC definitions
@@ -44,13 +26,13 @@ c CIC definitions
       parameter (LCIC=.true.)
       integer nrsize,nthsize
 c These correspond to nrfull and nthfull.
-      parameter (nrsize=400,nthsize=201)
+      parameter (nrsize=100,nthsize=101)
 c Positions and velocities of particles (6-d phase-space).
-      real xp(ndim,npartmax+npartadd)
+      real xp(ndim,npartmax)
 
-      real dtprec(npartmax+npartadd)
+      real dtprec(npartmax)
 c Flag of particle slot status (e.g. in use or not)
-      integer ipf(npartmax+npartadd)
+      integer ipf(npartmax)
 c The particle number
       real psum(0:nrsize,0:nthsize)
 c The sum of particle radial velocities
@@ -87,8 +69,7 @@ c Highest occupied particle slot.
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
-     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,xpstorage,
-     $     xpstonum,nrealin,dsub,rsplit,lsubcycle
+     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)

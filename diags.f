@@ -32,12 +32,24 @@ c Calculate rhoplot,diagphi,diagrho,rho1theta,rhomidtheta
          rhoplot(i)=0.
          phiave(i)=0.
          nrp=0
-         do j=NTHUSED/2,NTHUSED
-            nrp=nrp+1
+         if(bcr.ne.0.and.Bz.ne.0) then 
+c     Just take the top of the domain when there is a mag-field so that
+c     if we have a mag field, no acceleration in the magnetic shadow. if
+c     B=0, keep old system (Be careful when comparing B=0 and B=eps)
+            do j=1*NTHUSED/2,3*NTHUSED/4
+               nrp=nrp+1
 c     rhoplot is unnormalized. All others are normalized.
-            rhoplot(i)=rhoplot(i)+rho(i,j)*rhoinf
-            phiave(i)=phiave(i)+phi(i,j)
-         enddo
+               rhoplot(i)=rhoplot(i)+rho(i,j)*rhoinf
+               phiave(i)=phiave(i)+phi(i,j)
+            enddo
+         else
+            do j=NTHUSED/2,NTHUSED
+               nrp=nrp+1
+c     rhoplot is unnormalized. All others are normalized.
+               rhoplot(i)=rhoplot(i)+rho(i,j)*rhoinf
+               phiave(i)=phiave(i)+phi(i,j)
+            enddo
+         endif
          rhoplot(i)=rhoplot(i)/nrp
          phiave(i)=phiave(i)/nrp
          diagphi(i)=(diagphi(i)*(nstepsave-1)+

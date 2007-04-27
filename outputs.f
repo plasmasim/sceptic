@@ -36,7 +36,11 @@ c Using the routines in strings_names.f
          call nameappendint(filename,'r',ifix(r(nr)),2)
       endif
       call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
-      call nameappendexp(filename,'L',debyelen,1)
+      if (infdbl) then
+         call nameappendexp(filename,'L',1e5,1)
+      else
+         call nameappendexp(filename,'L',debyelen,1)
+      endif
       if(Bz.ne.0.) call nameappendexp(filename,'B',Bz,2)
       if(icolntype.eq.1.or.icolntype.eq.5)
      $     call nameappendexp(filename,'c',colnwt,1)
@@ -71,7 +75,8 @@ c -log(rhoinf)
       nastep=0
       do k=1,i
          write(10,*)(ninthstep(j,k),j=1,NTHUSED)
-         if(k.gt.i/2)then
+c     Just save the last quarter for the average
+         if(k.gt.3*i/4)then
             nastep=nastep+1
             do j=1,NTHUSED
                ninth(j)=ninth(j)+ninthstep(j,k)
@@ -79,7 +84,7 @@ c -log(rhoinf)
          endif
       enddo
       write(10,'(a,a)')'Particle angular distrib summed over last'
-     $     ,' half of steps, numbering:'
+     $     ,' quarter of steps, numbering:'
       write(10,*)nastep
       write(10,*)(ninth(j),j=1,NTHUSED)
       write(10,'(a,i4,i4)')'Mesh potential. Grid',NRUSED,NTHUSED
@@ -103,7 +108,7 @@ c -log(rhoinf)
       call outsums(dt,i+1)
 
 c Output time-averages of z-force components stored in zmom(nstepmax,*,*).
-c Particle units nTr^2, Electric nT lambda_D^2. 
+c Particle units nTr^2, Electric nT lambda_D^2.
       total1=zmom(nstepmax,fieldz,1)*debyelen**2
      $     +zmom(nstepmax,epressz,1)+zmom(nstepmax,partz,1)
       total2=zmom(nstepmax,fieldz,2)*debyelen**2

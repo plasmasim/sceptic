@@ -72,7 +72,7 @@ c Construct an exp-formatted value with ip significant figures.
          iti=.99999*10.**ip
          it2=9
       else
-         iti=nint(alog10(value)-0.49)
+         iti=nint(alog10(value)-0.49)-(ip-1)
          it2=nint(value/10.**iti)
       endif
       write(string(1:),form)it2
