@@ -25,7 +25,8 @@ c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
 c bpc=0 -> Use the spherical symmetry approximation (Hutch paper2)
 c bpc=1 -> Quasineutrality on the 15% outer crone
 c bpc=2 -> Phiout=0
-c bpc=3 -> dPhi/drout=0
+c bpc=3 -> dPhi/dzout=0
+c bcp=4 -> dPhi/drout=-Phiout/r (Use at high collisionality)
 
 c Potential calculation in the shielding region
       if(bcphi.eq.1) then
@@ -119,7 +120,7 @@ c     In this case, the potential outside the crone is prespecified
          enddo
 
       elseif(bcphi.eq.3) then
-c     This is the case where dphi/dr=0 on the boundary
+c     This is the case where "dphi/dr=0" on the boundary
          delredge=rcc(NRFULL)-rcc(NRFULL-1)
          delcosth=2./(NTHUSED-1.)
 
@@ -133,8 +134,22 @@ c     This is the case where dphi/dr=0 on the boundary
      $           +(1-Qth**2)**(1.5)/debyelen)
 c            write(*,*) j,gpc(j,1),gpc(j,2),gpc(j,3),gpc(j,4),gpc(j,5)
          enddo
+      elseif(bcphi.eq.4) then
+c     This is to impose a 1/r potential at the outer edge, valid for
+c     high collisionality.
+         delredge=rcc(NRFULL)-rcc(NRFULL-1)
+         do j=0,NTHUSED+1
+            gpc(j,1)=1
+            gpc(j,2)=0
+            gpc(j,3)=0
+            gpc(j,4)=0
+            gpc(j,5)=-1-delredge/rcc(NRUSED)
+c     write(*,*) j,gpc(j,1),gpc(j,2),gpc(j,3),gpc(j,4),gpc(j,5)
+         enddo
+         
       endif
 c     Set inner Boundary conditions
+
 
       call innerbc(imin,dt)
       

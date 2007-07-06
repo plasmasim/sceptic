@@ -211,7 +211,7 @@ c restore defaults on read error.
          if(string(1:7) .eq. '--bcphi') read(string(8:),*)bcphi
          if(string(1:7) .eq. '-infdbl') infdbl=.true.
          
-         if(string(1:3) .eq. 'oi') then
+         if(string(1:3) .eq. '-oi') then
             read(string(4:),*)norbits
             orbinit=.true.
          elseif(string(1:2) .eq. '-o') then
@@ -434,7 +434,7 @@ c     following properties.
                xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
                xp(1,k)=h*k/norbits
                xp(2,k)=0
-               xp(6,k)=sqrt(2*Ti)*1.
+               xp(6,k)=vd+0*sqrt(2*Ti)*1.
                xp(4,k)=0.
                xp(5,k)=0.
             enddo
@@ -759,7 +759,7 @@ c Help section
      $     ' -liv save phi(nr,nt) for the last 75% steps'
       write(*,*)' --bcphi(0) BC potl (0:spherical sym, ',
      $     '1 : Quasi neutrality on outer 15%,',
-     $     '    2: Phiout=0, 3: dPhiout/dz=0)'
+     $     '    2: Phiout=0, 3: dPhiout/dz=0, 4: dPhiout/dr=-Phiout/r)'
       write(*,*)' --bcr(0) BC reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
       write(*,*)' --subcyc use step subcycling near probe.'
@@ -975,7 +975,7 @@ c*****************************************************************
      $     zmomave,fezave,zmoutave,qprobeave,epzave)
       include 'piccom.f'
       real phiout
-c     Average the flux to the probe from the second half of the run.
+c     Average the flux to the probe from the last 3 quarters of the run.
 c Also average the z-momentum components for the second half and 
 c place them in zmom(nstepmax,*,*). maxsteps is limited to be nstepmax-1.
 c The average is what is output. 
@@ -991,7 +991,7 @@ c The average is what is output.
          zmom(nstepmax,j,2)=0.
       enddo
       if(itotsteps.ge.2)then
-         m2=itotsteps/2
+         m2=3*itotsteps/4
          do k=m2,itotsteps
             fave=fave+fluxprobe(k)
             do j=1,4
@@ -1110,6 +1110,16 @@ c     the process does not belong to the communicator
 
       idim1=nint(sqrt(numprocs*NRUSED/NTHUSED*1.))
       idim2=nint(numprocs/idim1*1.)
+
+      if((idim1.ge.numprocs)) then
+         idim1=numprocs
+         idim2=1
+      elseif((idim2.ge.numprocs)) then
+         idim2=numprocs
+         idim1=1
+      endif
+
+
 
       nprocsor=idim1*idim2
 

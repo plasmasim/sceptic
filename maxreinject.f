@@ -35,6 +35,11 @@ c Common data:
       idum=1
  1    continue
       y=ran0(idum)
+c Quick fixing to prevent some errors
+      if(y.gt.1-1e-6) then
+c         write(*,*) y,nrein
+         y=1-1e-6
+      endif
 
 c Pick angle from cumulative Q.
       call invtfunc(Qcom,nQth,y,x)
@@ -53,7 +58,7 @@ c      if(ic1.ge.nQth)ic1=ic1-1
       yy=ran0(idum)
 c Quick fixing to prevent some errors
       if(yy.gt.1-1e-6) then
-c         write(*,*) yy,nrein,idum
+c         write(*,*) yy,nrein
          yy=1-1e-6
       endif
 c Pick normal velocity from cumulative G.
@@ -104,14 +109,14 @@ c from the unit variance random distribution multiplied by sqrt(Ti)=vscale.
       xp(1,i)=(rs*st)*cp
 
 c With a magnetic field, phihere is only calculated on top of the probe
-      if (Bz.eq.0) then
-         phihere=phi(NRUSED,ic1h)*(1.-dch)+phi(NRUSED,ic2h)*dch
-      else
+c      if (Bz.eq.0) then
+c         phihere=phi(NRUSED,ic1h)*(1.-dch)+phi(NRUSED,ic2h)*dch
+c      else
          phihere=averein
-      endif
+c      endif
 
-      vv2=(vt**2 + vr**2 + vp**2)
-      vz2=(xp(6,i)/vscale)**2
+      vv2=(vt**2 + vr**2 + vp**2)*vscale**2
+      vz2=xp(6,i)**2
 c Reject particles that have too low an energy
 c bcr=1 means isotropic reinjection
 c bcr=2 means adiabatic, so the velocity increase is only on the z direction

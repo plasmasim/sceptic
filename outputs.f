@@ -46,8 +46,11 @@ c Using the routines in strings_names.f
      $     call nameappendexp(filename,'c',colnwt,1)
       if(icolntype.eq.2.or.icolntype.eq.6)
      $     call nameappendexp(filename,'C',colnwt,1)
-      idf=nbcat(filename,'.dat')
+     
+      if(vneutral.ne.0)
+     $     call nameappendint(filename,'N',nint(100*vneutral),3)
 
+      idf=nbcat(filename,'.dat')
 c Write out averaged results.
       open(10,file=filename)
       write(10,'(a,a)')'  dt    vd     Ti     steps  rhoinf ' ,
@@ -55,7 +58,7 @@ c Write out averaged results.
       write(10,'(2f7.4,f7.3,i5,f8.1,f7.3,f8.4,f8.3,f8.3,f6.2,f7.3,$)')
      $     dt,vd,Ti,i,rhoinf,log(rhoinf),fave,debyelen,vprobe,damplen,Bz
       if(icolntype.gt.0)then
-         write(10,'(i2,f8.5)')icolntype,colnwt
+         write(10,'(i2,f8.4)')icolntype,colnwt
       else
          write(10,*)
       endif

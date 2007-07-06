@@ -18,6 +18,7 @@ c Version 2.5; Jan 2005: subcycling of padvnc.
 c Version 2.5; Jan 2005: fixed reinjection flux option.
 c Advance the particles
       subroutine padvnc(dtin,icolntype,colnwt,step)
+
       integer step
       real dtin
 c Common data:
@@ -106,6 +107,17 @@ c     Here we do need half quantities.
             hf=88.
             call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
      $           ,zetap,ih,hf)
+
+c .................... Subcycle Loop .................
+            remdt=dtin
+            ic=0
+            lcstep=.false.
+c            do 81 ic=1,isubcycle    Obsolete.
+c Here is the start of the modified loop, now explicit.
+c We iterate till we have used up the whole time step dtin (remdt=0).
+c Steps may be shortened by subcycling and collisions.
+ 80         ic=ic+1
+
 c  Now we know where we are in radius rp. 
 c  We decide the level of subcycling.
             if(lsubcycle) then
@@ -114,19 +126,16 @@ c          if(mod(i,1000).eq.0) write(*,'(i1,$)')isubcycle
                dts=dtin/isubcycle*1.00001
 
             endif
-c .................... Subcycle Loop .................
-            remdt=dtin
-            ic=0
-            lcstep=.false.
-c            do 81 ic=1,isubcycle    Obsolete.
-c Here is the start of the modified loop, now explicit.
-c We iterate till we have used up the whole time step dtin (remdt=0).
-c Steps may be shortened by subcycling (above), and collisions (below).
- 80         ic=ic+1
+
 c If prior step was ended by a collision, restart the particle velocity.
+
                if(lcstep)then
                   call postcollide(i,tisq)
                   lcstep=.false.
+c     Because postcollide selects the velocity and the position at the
+c     same time, we need to set dtprec to zero, in order to offset v and
+c     x by half a time step properly.
+                  dtprec(i)=0
                endif
                dt=min(dts,remdt)
                if(lcollide .and. mod(i,icycle).eq.ichoose)then
@@ -149,6 +158,7 @@ c Error trap
      $                 dt, cdt, dts, remdt
                endif
                remdt=remdt-dt
+
 c Except for the first time, find new position.
                if(ic.ne.1)then 
                   ih=1
@@ -164,7 +174,7 @@ c Getaccel returns the accel based on the charge-field calculation.
 c For acceleration, when dt is changing, use the average of prior and
 c present values: dtnow.
 
-               if(dtprec(i).eq.0.)dtprec(i)=dt
+c               if(dtprec(i).eq.0.)dtprec(i)=dt
                dtnow=0.5*(dt+dtprec(i))
 
 c Don't use split steps if Bz=0, for speed gain of 9%.
@@ -172,41 +182,41 @@ c Don't use split steps if Bz=0, for speed gain of 9%.
                if(Bz.ne.0.)then
                   
 c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-                  enddo
-c B-field rotation
-                  cosomdt=cos(Bz*dtnow)
-                  sinomdt=sin(Bz*dtnow)         
-                  temp=xp(4,i)
-                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
-                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
-c Second half of velocity advance
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-                  enddo
-
-                  do j=1,3
-                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
-                  enddo
-
-c     Use cyclotronic integrator
-
 c                  do j=4,6
-c                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
+c                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
 c                  enddo
-
-c                  cosomdt=cos(Bz*dt)
-c                  sinomdt=sin(Bz*dt)
-c                  xp(3,i)=xp(3,i)+xp(6,i)*dt
-c                  xp(1,i)=xp(1,i)+
-c     $                 (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
-c                  xp(2,i)=xp(2,i)+
-c     $                 (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
-c                  
+c B-field rotation
+c                  cosomdt=cos(Bz*dtnow)
+c                  sinomdt=sin(Bz*dtnow)         
 c                  temp=xp(4,i)
 c                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
 c                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+c Second half of velocity advance
+c                  do j=4,6
+c                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+c                  enddo
+
+c                  do j=1,3
+c                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+c                  enddo
+
+c     Use cyclotronic integrator
+
+                  do j=4,6
+                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
+                  enddo
+
+                  cosomdt=cos(Bz*dt)
+                  sinomdt=sin(Bz*dt)
+                  xp(3,i)=xp(3,i)+xp(6,i)*dt
+                  xp(1,i)=xp(1,i)+
+     $                 (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
+                  xp(2,i)=xp(2,i)+
+     $                 (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
+                  
+                  temp=xp(4,i)
+                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
 
 c     Non magnetized case
                else
@@ -293,6 +303,10 @@ c We left. If we haven't exhausted complement, restart particle i.
                      if (.not.(orbinit))
      $                    iorbitlen(i)=0
                   endif
+c If an ion is reinjected but was to collide outside, it should not collide
+c after reinjection !
+                  lcstep=.false.
+
 
 c     New reinjection handling. Simply use the rest of the time step with
 c     the new particle starting just at the edge. Get new position:
@@ -302,8 +316,13 @@ c     the new particle starting just at the edge. Get new position:
      $                 sp,cp,rp,zetap,ih,hf)
 c     Set the external step length, (isubcycle=1).
                   dts=dtin
+c     The ion is reinjected with v and x synchronized. We set dtprec to
+c     zero to offset v and x by half a timestep
+                  dtprec(i)=0
 c     Call the timestep fraction-remaining random.
                   remdt=dtin*ran0(idum)
+
+
 c     Jump to subcycle end.
                   goto 81
                else
@@ -715,7 +734,7 @@ c phispan is for floating potential if Bz.ne.0
 
 c               LS(k)=debyelen/sqrt(1+1/(Ti+rmtoz*vd**2))
 c               LS(k)=debyelen/sqrt(1+1/Ti)
-c               LS(k)=sqrt(LS(k)**2+debyelen*log(1+1/debyelen))
+c               LS(k)=LS(k)+debyelen*log(1+1/debyelen)
             enddo
          endif
 

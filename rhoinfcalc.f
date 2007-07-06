@@ -44,22 +44,33 @@ c            write(*,*)'Excessive averein',averein,' capped'
 
 c     We have to calculate rhoinf consistently with the reinjection
 
+c Begin with the standard case
+         if(bcr.eq.0) then
+            
          if(icolntype.eq.1.or.icolntype.eq.5) then
 c Using general fvinject, injecting at the computational boundary.
 c  qthfv(nthfvsize) contains the one-way flux density
 c integrated dcos(theta) in 2Ti-normalized units.
+
             riest=(nrein/dt) /
-     $           (sqrt(2.*Ti)*
-     $           qthfv(nthfvsize)*2.*3.141593
-     $           *r(NRFULL)**2 )
+     $           ((sqrt(2.*Ti)/2*qthfv(nthfvsize))
+     $           *4.*3.141593*r(NRFULL)**2)
+
+c Correction for collisional drag solution in outer region.
+c            riest=riest
+c     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
+
+
 c Hack up the effect of attracting edge potential.
 c This extra term is not correct for large collisionality and probably 
 c should not be applied. However, it does then give the same answer as 
 c the kt2 approach.
 c     $           /(1-averein/(Ti+0.*vd**2))
 c Correction for collisional drag in outer region. Usually negligible.
-            riest=riest
-     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
+
+c            riest=riest
+c     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
+
 c Hack test of changing the rhoinfinity.
 c            riest=.95*riest
          elseif(icolntype.eq.2 .or. icolntype.eq.6)then
@@ -70,26 +81,36 @@ c Flux/(2\pi riest v_n rmax^2) = pu1(1) - averein*pu2(1)
      $           2.*3.1415926**2*(pu1(1)-pu2(1)*averein/Ti)
      $           *r(NRFULL)**2 )
 c Correction for collisional drag solution in outer region.
-            riest=riest
-     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
+c            riest=riest
+c     $           +finnerave*colnwt/(4.*3.1415926*dt*(1.+Ti)*r(NRFULL))
 c last is correction for diffusion.
-         elseif (bcr.eq.0) then
+         else
 c smaxflux returns total flux in units of Ti (not 2Ti)
             riest=(nrein/dt) /
      $           (sqrt(Ti)*
      $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
      $           *r(NRFULL)**2 )
-         elseif (bcr.eq.1) then
-            riest=(nrein/dt) /
-     $           (sqrt(Ti)*
-     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-     $           *r(NRFULL)**2 )
-         elseif (bcr.eq.2) then
-            riest=(nreintry/dt) /
-     $           (sqrt(Ti)*
-     $           smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
-     $           *r(NRFULL)**2 )
-c            write(*,*) riest
+         endif
+
+c Now deal with custom reinject. For example if the neutral velocity is vd,
+c we need to reinject a Maxwellian, not the collisional distribution
+         else
+c Set averein =0, because we should not consider the potential at the outer
+c boundary for the reinjection
+            averein=0
+            if (bcr.eq.1) then
+               riest=(nrein/dt) /
+     $              (sqrt(Ti)*
+     $              smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
+     $              *r(NRFULL)**2 )
+            elseif (bcr.eq.2) then
+               riest=(nreintry/dt) /
+     $              (sqrt(Ti)*
+     $              smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))
+     $              *r(NRFULL)**2 )
+c     write(*,*) riest
+            endif
+            
          endif
 
 c         write(*,*)'nrein=',nrein
