@@ -1,15 +1,13 @@
 # Attempts to get a general make file going.
-# Primary source is now in linux.
-ifeq ($(G77),gfortran)
-	G77no=gfortran -fno-backslash
-	#G77=gfortran
-	#NOBACKSLASH=
-else
-	G77=g77 -L.
-	G77no=g77 -fno-backslash
+ifeq ("$(G77)","")
+	export G77=g77 -L.
+	export G77no=g77 -fno-backslash
 	NOBACKSLASH= -fno-backslash
-# -g  -ffortran-bounds-check 
+else
+	export G77no=$(G77) -fno-backslash
 endif
+
+# -g  -ffortran-bounds-check 
 
 object_files= \
 autopl.o \
@@ -131,7 +129,7 @@ clean :
 	rm -f plottest
 	rm -f hidtest
 	rm -f fontshow
-	g77 -fno-backslash -c drwstr.f          
+	$(G77) -fno-backslash -c drwstr.f          
 
 % : %.f libaccis.a
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  -laccisX $(libraries)
