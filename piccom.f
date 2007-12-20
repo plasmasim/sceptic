@@ -20,15 +20,18 @@ c Don't change anything else.
       parameter (npartmax=200000,np=1,ndim=6)
 c Use of particle advance subcycling in inner regions for accuracy.
       logical lsubcycle
+c Integrator type. True=old, False=new symplectic schemes
+      logical verlet
 c CIC definitions
       logical LCIC
       integer NRUSED,NTHUSED,NRFULL,NTHFULL
       parameter (LCIC=.true.)
       integer nrsize,nthsize
 c These correspond to nrfull and nthfull.
-      parameter (nrsize=150,nthsize=101)
+      parameter (nrsize=100,nthsize=101)
 c Positions and velocities of particles (6-d phase-space).
       real xp(ndim,npartmax)
+      real vzinit(npartmax)
 
       real dtprec(npartmax)
 c Flag of particle slot status (e.g. in use or not)
@@ -65,11 +68,11 @@ c Highest occupied particle slot.
       logical lfixedn
       integer myid,numprocs
       real rmtoz
-      common /piccom/xp,npart,psum,dtprec,
+      common /piccom/xp,npart,vzinit,psum,dtprec,
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
-     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle
+     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle,verlet
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)
@@ -131,12 +134,19 @@ c Total particle flux to probe
       real fluxprobe(nstepmax)
 c Total z-momentum flux to probe
       real zmomprobe 
+c Total z-momentum at injection for collected particles
+      real collmom
+c Total energy collected
+      real enerprobe
 c Z-momentum flux across outer boundary.
       real zmout
 c Combined zmom data: charge, fields, electron pressure, ion momentum.
 c For inner 1, outer 2.
       real zmom(nstepmax,4,2)
-
+c collmomtot is the reduced collmom for each time-step
+      real collmomtot(nstepmax)
+c enertot is the reduced enerprobe for each time-step
+      real enertot(nstepmax)
 c Number of particles striking probe in theta cell
       integer ninthstep(nthsize,0:nstepmax)
       integer ninth(nthsize)
@@ -160,7 +170,8 @@ c Cell in which to accumulate distribution functions
      $     diagchi,nrein,nreintry,ninner,fluxprobe,ninthstep,ninth,
      $     rhoinf,diagvr,vrdiagin,vtdiagin,
      $     spotrein,averein,fluxrein,ntrapre,adeficit,
-     $     ircell,itcell,zmout,zmomprobe,finthave,zmom
+     $     ircell,itcell,zmout,zmomprobe,collmom,finthave,zmom,
+     $     collmomtot,enerprobe,enertot
 c*********************************************************************
 c Poisson coefficients for iterative solution, etc.
 

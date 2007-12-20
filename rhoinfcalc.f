@@ -19,10 +19,11 @@ c per step.
       subroutine rhoinfcalc(dt,icolntype,colnwt)
       real dt
       integer icolntype
-      real colnwt
+      real colnwt,driftout,densred
       include 'piccom.f'
       include 'fvcom.f'
       real riave
+      real fluxofangle(nthsize)
       save
 
 c This allows us to restart with nstepsave .ne. 1 if rhoinf is set.
@@ -55,6 +56,39 @@ c integrated dcos(theta) in 2Ti-normalized units.
             riest=(nrein/dt) /
      $           ((sqrt(2.*Ti)/2*qthfv(nthfvsize))
      $           *4.*3.141593*r(NRFULL)**2)
+
+            if(bcphi.eq.4) then
+
+c     bcphi4 is for the stationary continuum regime. Need the total flux
+c     to use fluid boundary conditions on the density at the outer boundary
+
+               totflux=0.
+               do j=1,nthused
+c     Calculate the flux to each angular cell
+                  if(lcic)then
+                     fluxofangle(j)=finthave(j)*(nthused-1.)/
+     $                    (4.*pi*rhoinf*dt*r(1)**2)
+                     if(j.eq.1 .or. j.eq.nthused)
+     $                    fluxofangle(j)=fluxofangle(j)*2.
+                  else
+                     fluxofangle(j)=finthave(j)*(nthused)/
+     $                    (4.*pi*rhoinf*dt*r(1)**2)
+                  endif
+                  totflux=totflux+fluxofangle(j)
+               enddo
+               totflux=totflux/nthused
+
+c     For stationary strongly collisional plasmas, the outer
+c     distribution function is, for rb>>rp, a radially shifted
+c     Maxwellian with velocity driftout.
+               driftout=totflux/rcc(nrused)**2
+c     But riest is calculated assuming a stationary Maxwellian (valid at
+c     nu=0). Hence rescale riest
+               densred=1+driftout*sqrt(pi)/sqrt(2*Ti)           
+               if(densred<0.5) fluxred=0.5
+               
+               riest=riest/densred
+            endif
 
 c Correction for collisional drag solution in outer region.
 c            riest=riest
@@ -95,10 +129,10 @@ c smaxflux returns total flux in units of Ti (not 2Ti)
 c Now deal with custom reinject. For example if the neutral velocity is vd,
 c we need to reinject a Maxwellian, not the collisional distribution
          else
+            if (bcr.eq.1) then
 c Set averein =0, because we should not consider the potential at the outer
 c boundary for the reinjection
-            averein=0
-            if (bcr.eq.1) then
+               averein=0
                riest=(nrein/dt) /
      $              (sqrt(Ti)*
      $              smaxflux(vd/sqrt(2.*Ti),(-averein/Ti))

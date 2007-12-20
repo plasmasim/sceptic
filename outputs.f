@@ -37,7 +37,7 @@ c Using the routines in strings_names.f
       endif
       call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
       if (infdbl) then
-         call nameappendexp(filename,'L',1e5,1)
+         call nameappendexp(filename,'LI',debyelen,1)
       else
          call nameappendexp(filename,'L',debyelen,1)
       endif
@@ -122,6 +122,10 @@ c Particle units nTr^2, Electric nT lambda_D^2.
       write(10,*)(zmom(nstepmax,j,2),j=1,4),total2
       if(rmtoz.ne.1.) write(10,'(''rmtoz='',f10.4)')rmtoz
       write(10,*)'Collisions: Type,Weight,Eneutral,vneutral,Tneutral'
+      write(10,*) 'Ion momentum collection at infinity'
+      write(10,*) collmomtot(nstepmax)
+      write(10,*) 'Energy flux to the probe'
+      write(10,*) enertot(nstepmax)
       if(icolntype.ne.0) write(10,701)
      $     icolntype,colnwt,Eneutral,vneutral,Tneutral
  701  format(10x,i3,4f10.5)

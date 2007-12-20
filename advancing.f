@@ -11,8 +11,14 @@ c
 c No warranty, explicit or implied, is given. If you choose to build
 c or run the code, you do so at your own risk.
 c
-c Version 2.6 Aug 2005.
-c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
+c     Version 2.6 Aug 2005.
+c___
+c     c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
+
+
+c Version 3.5 Dec 07 a) Changed the integrator to account for the
+c     external E-field in the drift part of the integrator. b) Include
+c     storage of collected energy, and collected momentum at infinity
 c Version 3.0 April 07 Moving collisions into this advancing routine
 c Version 2.5; Jan 2005: subcycling of padvnc.
 c Version 2.5; Jan 2005: fixed reinjection flux option.
@@ -71,6 +77,8 @@ c Zero the sums.
       fluxrein=0.
       ntrapre=0
       zmomprobe=0.
+      enerprobe=0.
+      collmom=0.
       zmout=0.
       iocthis=0.
       do j=1,nth
@@ -168,64 +176,85 @@ c Except for the first time, find new position.
                endif            
                call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
-c Getaccel returns the accel based on the charge-field calculation.
-               accel(3)=accel(3)+Eneutral
+
 
 c For acceleration, when dt is changing, use the average of prior and
 c present values: dtnow.
-
 c               if(dtprec(i).eq.0.)dtprec(i)=dt
                dtnow=0.5*(dt+dtprec(i))
 
-c Don't use split steps if Bz=0, for speed gain of 9%.
+               if(.not.verlet) then  
 
-               if(Bz.ne.0.)then
-                  
-c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
-c                  do j=4,6
-c                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-c                  enddo
-c B-field rotation
-c                  cosomdt=cos(Bz*dtnow)
-c                  sinomdt=sin(Bz*dtnow)         
-c                  temp=xp(4,i)
-c                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
-c                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
-c Second half of velocity advance
-c                  do j=4,6
-c                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-c                  enddo
+     
+c     New integrators accounting for the fact that we know what an orbit
+c     is in a uniform E-field parallel to a uniform B.
 
-c                  do j=1,3
-c                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
-c                  enddo
-
-c     Use cyclotronic integrator
-
+c     Kick (Because of the E-field from the probe)
                   do j=4,6
                      xp(j,i)=xp(j,i)+accel(j-3)*dtnow
                   enddo
 
-                  cosomdt=cos(Bz*dt)
-                  sinomdt=sin(Bz*dt)
-                  xp(3,i)=xp(3,i)+xp(6,i)*dt
-                  xp(1,i)=xp(1,i)+
-     $                 (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
-                  xp(2,i)=xp(2,i)+
-     $                 (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
-                  
-                  temp=xp(4,i)
-                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
-                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+c     Drift with Bz.ne.0 (Cyclotronic integrator) Perpendicular direction
+                  if(Bz.ne.0) then
+                     cosomdt=cos(Bz*dt)
+                     sinomdt=sin(Bz*dt)
+                     xp(1,i)=xp(1,i)+
+     $                    (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
+                     xp(2,i)=xp(2,i)+
+     $                    (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
+                     
+                     temp=xp(4,i)
+                     xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+                     xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+                  else
+                     do j=1,2
+                        xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                     enddo          
+                  endif
 
-c     Non magnetized case
+c     Additional drift of the z position and velocity due to the
+c     external E-field (if neutral collisions)
+                  xp(3,i)=xp(3,i)+xp(6,i)*dt+0.5*Eneutral*dt**2
+                  xp(6,i)=xp(6,i)+Eneutral*dt
+
                else
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
-                  enddo
-                  do j=1,3
-                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
-                  enddo          
+c     Old Verlet integrator
+
+
+c     Getaccel returns the accel based on the charge-field calculation.
+                  accel(3)=accel(3)+Eneutral
+
+                  if(Bz.eq.0.)then
+c     Don't use split steps if Bz=0, for speed gain of 9%.
+                     do j=4,6
+                        xp(j,i)=xp(j,i)+accel(j-3)*dtnow
+                     enddo
+                     do j=1,3
+                        xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                     enddo
+
+                  else
+c Old Boris integrator
+
+c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
+                     do j=4,6
+                        xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+                     enddo
+c B-field rotation
+                     cosomdt=cos(Bz*dtnow)
+                     sinomdt=sin(Bz*dtnow)         
+                     temp=xp(4,i)
+                     xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+                     xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+c Second half of velocity advance
+                     do j=4,6
+                        xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+                     enddo
+                     
+                     do j=1,3
+                        xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                     enddo
+                  endif
 
                endif
 
@@ -285,7 +314,10 @@ c     Interpolate onto the theta mesh as in ptomesh
                      icell=ithc
                   endif
                   ninth(icell)=ninth(icell)+1
+c     Collected momentum and energy
                   zmomprobe=zmomprobe+xp(6,i)
+                  enerprobe=enerprobe+0.5*v2
+                  collmom=collmom+vzinit(i)
                elseif(rn.ge.r(nr))then
 c     Left the grid outer boundary.
                   zmout=zmout-xp(6,i)
@@ -299,6 +331,7 @@ c We left. If we haven't exhausted complement, restart particle i.
                   dtprec(i)=dtin
                   ipf(i)=1
                   zmout=zmout+xp(6,i)
+                  vzinit(i)=xp(6,i)
                   if(i.le.norbits) then
                      if (.not.(orbinit))
      $                    iorbitlen(i)=0

@@ -113,6 +113,7 @@ c     bcr : BC on reinjection
       orbinit=.false.
       lsubcycle=.false.
       live=.false.
+      verlet=.false.
 c Signal that fvcom is not initialized. After initialization it is .ne.0
       qthfv(nthfvsize)=0.
 
@@ -180,6 +181,8 @@ c restore defaults on read error.
          if(string(1:2) .eq. '-x') read(string(3:),*)rmax
          if(string(1:3) .eq. '-vn') then
             read(string(4:),*)vneutral
+         elseif(string(1:4) .eq. '-ver') then
+            verlet=.true.            
          elseif(string(1:2) .eq. '-v')then
             read(string(3:),*)vd
          endif
@@ -429,7 +432,7 @@ c     following properties.
             h=1./2*rmax
             do k=1,norbits
                iorbitlen(k)=0
-               xp(3,k)=-2./3*rmax
+               xp(3,k)=-4*rmax/5;
                xp(1,k)=0
                xp(2,k)=h*k/norbits*sin(2*pi*k/norbits)
                xp(1,k)=h*k/norbits
@@ -630,6 +633,8 @@ c     Adjust to the flux that would have occurred for standard step size.
 c     
          zmom(i,partz,1)=zmom(i,partz,1)/dt
          zmom(i,partz,2)=zmom(i,partz,2)/dt
+         collmomtot(i)=collmomtot(i)/dt
+         enertot(i)=enertot(i)/dt
          
 c Small mesh written diagnostics.   
     
@@ -759,10 +764,12 @@ c Help section
      $     ' -liv save phi(nr,nt) for the last 75% steps'
       write(*,*)' --bcphi(0) BC potl (0:spherical sym, ',
      $     '1 : Quasi neutrality on outer 15%,',
-     $     '    2: Phiout=0, 3: dPhiout/dz=0, 4: dPhiout/dr=-Phiout/r)'
+     $     '    2: Phiout=0, 3: dPhiout/dz=0,',
+     $     '    4: dPhiout/dr=-Phiout/r. use with vd=0 and k>1)'
       write(*,*)' --bcr(0) BC reinject (0:spherical sym, 1: Simple',
      $     'Maxwellian, 2: Adiabatic)'
       write(*,*)' --subcyc use step subcycling near probe.'
+      write(*,*) ' -ver Old verlet integrator.'
 
       end
 
@@ -911,6 +918,10 @@ c***********************************************************************
      $        MPI_COMM_WORLD,ierr)
          call MPI_REDUCE(zmout,zmom(i,partz,2),1,MPI_REAL,MPI_SUM,0,
      $        MPI_COMM_WORLD,ierr)
+         call MPI_REDUCE(collmom,collmomtot(i),1,MPI_REAL,MPI_SUM,0,
+     $        MPI_COMM_WORLD,ierr)
+         call MPI_REDUCE(enerprobe,enertot(i),1,MPI_REAL,MPI_SUM,0,
+     $        MPI_COMM_WORLD,ierr)
          if(diags)then
             call MPI_REDUCE(nvdiag,nvdiagtot,nvmax,MPI_REAL,
      $           MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -948,6 +959,8 @@ c This shuffle is necessary to accommodate the reduce.
          enddo
          zmom(i,partz,1)=zmomprobe
          zmom(i,partz,2)=zmout
+         collmomtot(i)=collmom
+         enertot(i)=enerprobe
 #endif
 c         write(*,*)'zmomstep=',zmomstep(i),'  zoutstep=',zmoutstep(i)
          nrein=nreintot
@@ -976,9 +989,9 @@ c*****************************************************************
       include 'piccom.f'
       real phiout
 c     Average the flux to the probe from the last 3 quarters of the run.
-c Also average the z-momentum components for the second half and 
-c place them in zmom(nstepmax,*,*). maxsteps is limited to be nstepmax-1.
-c The average is what is output. 
+c     Also average the z-momentum components for the last 3 quarters and
+c     place them in zmom(nstepmax,*,*). maxsteps is limited to be
+c     nstepmax-1.  The average is what is output.
       fave=0.
       zmomave=0.
       zmoutave=0.
@@ -990,6 +1003,8 @@ c The average is what is output.
          zmom(nstepmax,j,1)=0.
          zmom(nstepmax,j,2)=0.
       enddo
+      collmomtot(nstepmax)=0.
+      enertot(nstepmax)=0.
       if(itotsteps.ge.2)then
          m2=3*itotsteps/4
          do k=m2,itotsteps
@@ -998,6 +1013,9 @@ c The average is what is output.
                zmom(nstepmax,j,1)=zmom(nstepmax,j,1)+zmom(k,j,1)
                zmom(nstepmax,j,2)=zmom(nstepmax,j,2)+zmom(k,j,2)
             enddo
+            collmomtot(nstepmax)=collmomtot(nstepmax)+collmomtot(k)
+            enertot(nstepmax)=enertot(nstepmax)+enertot(k)
+
             zmomave=zmomave+zmom(k,partz,1)
             fezave=fezave+zmom(k,fieldz,1)
             zmoutave=zmoutave+zmom(k,partz,2)
@@ -1020,8 +1038,17 @@ c     normalize to rhoinf and the probe area to give normalized flux density
          zmoutave=zmoutave/(itotsteps-m2+1)/(rhoinf)
          zmoutvar=zmoutvar/(itotsteps-m2+1)/(rhoinf**2)-zmoutave**2
          epzave=epzave/(itotsteps-m2+1)
+         collmomtot(nstepmax)=
+     $        collmomtot(nstepmax)/(itotsteps-m2+1)/rhoinf
+         enertot(nstepmax)=
+     $        enertot(nstepmax)/(itotsteps-m2+1)/rhoinf
+
          write(*,501)fave
  501     format('Probe flux density=',f8.4)
+         write(*,502)collmomtot(nstepmax)
+ 502     format('Momentum coll from infinity=',f8.4)
+         write(*,503)enertot(nstepmax)
+ 503     format('Probe energy flux=',f8.4)
          total1=zmom(nstepmax,fieldz,1)*debyelen**2
      $        +zmom(nstepmax,epressz,1)+zmom(nstepmax,partz,1)
          total2=zmom(nstepmax,fieldz,2)*debyelen**2

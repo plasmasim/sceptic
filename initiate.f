@@ -270,6 +270,11 @@ c               ntrapped=ntrapped+1
 c               goto 1
 c            endif
 c         endif
+
+c     vzinit is the z momentum a particle had when reinjected. allows to
+c     get the usual Fc (collection force)
+         vzinit(i)=xp(6,i)
+
       enddo
 
 
