@@ -12,6 +12,9 @@ c     sor_comm is the subset of MPI_COMM_WORLD communicator used for
 c     the bloc sor
       integer sor_comm
       real phislopeconst(0:nth+1),phislopefac(0:nth+1)
+c Correct the type of temporary variable (IHH). Better use initial letter.
+      integer c
+
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
 
       rjac=1.-4./max(10,NRUSED)**2

@@ -18,7 +18,7 @@ c The top of uppermost, with iblock=idims(n)) is indicated
 c by a value pointing to 1 minus the length of u in that dimension.
 c example only     integer iorig(idim1+1,idim2+1,idim3+1)
 c The number of dimensions of the cartesian topology. (2 for 2d)
-      integer ndims
+c      integer ndims
 c The length of each topology dimension
       integer idims(ndims)
 c For each topology dimension whether it is periodic or not.

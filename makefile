@@ -6,8 +6,7 @@
 # g77 default case:
 LIBRARIES =  -L./accis/ -L/usr/X11R6/lib/ -laccisX -lXt -lX11 
 G77=mpif77
-COMPILE-SWITCHES = -Wall -O2  -I.
-#not necessary -fno-backslash
+COMPILE-SWITCHES = -Wall -Wno-unused-variable -Wno-unused-labels -O2  -I.
 # For debugging.
 #  -g  -ffortran-bounds-check
 # For profiling
@@ -20,10 +19,7 @@ COMPILE-SWITCHES = -Wall -O2  -I.
 # Current: To allow both collisional and collision free:
 REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 
-# MPI version needs the beowulf libraries. Edit the MPILIBS to point to your
-# Local versions. 
-
-MPICOMPILE-SWITCHES = -Wall  -Wno-globals -DMPI -O2 -I.
+MPICOMPILE-SWITCHES = -DMPI $(COMPILE-SWITCHES)
 
 OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o outputlive.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
 
