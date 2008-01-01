@@ -1,11 +1,9 @@
-# Intel fortran compiler case:
-#LIBRARIES = -L/usr/X11R6/lib/ -L/home/hutch/accis/ifc/ -laccisX -lXt -lX11 -lPEPCF90 -lSM -lICE
-#G77=ifc
-#COMPILE-SWITCHES = -O3 -w90 -cm
 
-# g77 default case:
 LIBRARIES =  -L./accis/ -L/usr/X11R6/lib/ -laccisX -lXt -lX11 
 G77=mpif77
+ifeq ($(FC),f77)
+	NOGLOBALS=-Wno-globals
+endif
 COMPILE-SWITCHES = -Wall -Wno-unused-variable -Wno-unused-labels -O2  -I.
 # For debugging.
 #  -g  -ffortran-bounds-check
@@ -19,7 +17,7 @@ COMPILE-SWITCHES = -Wall -Wno-unused-variable -Wno-unused-labels -O2  -I.
 # Current: To allow both collisional and collision free:
 REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 
-MPICOMPILE-SWITCHES = -DMPI $(COMPILE-SWITCHES)
+MPICOMPILE-SWITCHES = $(NOGLOBALS) -DMPI $(COMPILE-SWITCHES)
 
 OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o outputlive.o chargefield.o  $(REINJECT) damp.o stringsnames.o rhoinfcalc.o
 
