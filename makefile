@@ -1,9 +1,10 @@
 
 LIBRARIES =  -L./accis/ -L/usr/X11R6/lib/ -laccisX -lXt -lX11 
 G77=mpif77
-ifeq ($(FC),f77)
-	NOGLOBALS=-Wno-globals
-endif
+
+# To silence warnings when compiling with g77 uncomment the next statement:
+#NOGLOBALS=-Wno-globals
+
 COMPILE-SWITCHES = -Wall -Wno-unused-variable -Wno-unused-labels -O2  -I.
 # For debugging.
 #  -g  -ffortran-bounds-check
