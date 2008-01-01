@@ -1,16 +1,3 @@
-c___________________________________________________________________________
-c
-c This code is copyright (c) Ian H Hutchinson (2004) hutch@psfc.mit.edu.
-c
-c  It may be used freely with the stipulation that any scientific or
-c scholarly publication concerning work that uses the code must give an
-c acknowledgement referring to the paper I.H.Hutchinson, Plasma Physics
-c and Controlled Fusion, vol 44, p 1953 (2002).  The code may not be
-c redistributed except in its original package.
-c
-c No warranty, explicit or implied, is given. If you choose to build or run
-c the code, you do so at your own risk.
-c___________________________________________________________________________
       program orbitint
       include 'piccom.f'
       real cflux(nthsize)

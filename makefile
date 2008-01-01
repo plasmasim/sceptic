@@ -63,13 +63,13 @@ fvinject.o : fvinject.f fvcom.f piccom.f
 % : %.F makefile
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(LIBRARIES)
 
-sceptic.tar.gz : ./accis/libaccisX.a sceptic
-#	make -C accis/ifc clean
+sceptic.tar.gz : ./accis/libaccisX.a sceptic scepticmpi
 	make -C accis mproper
 	make -C tools clean
 	make clean
 	./copyattach.sh
-	tar chzf sceptic.tar.gz -C .. SCEPTIC
+	tar chzf sceptic.tar.gz -C .. sceptic
+	./copyremove.sh
 
 clean :
 	rm -f *.o
