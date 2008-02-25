@@ -55,7 +55,7 @@ c Set to dashed line plotting, only polylines are dashed:
 c Do a log autoplot of the arrays. x logarithmic, y linear.
       call lautoplot(x,y,length,.true.,.false.)
 c Label the axes using different fonts.
-      call axlabels('X-axis \Alabel\@ back','Y-\Baxis\A label')
+      call axlabels('X-axis !Alabel!@ back','Y-!Baxis!A label')
 c Overplot markers (6:stars) on the middle half of the points,
 c not dashed because doesn't use polyline.
       call polymark(x(length/4),y(length/4),length/2,6)

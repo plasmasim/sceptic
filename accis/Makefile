@@ -35,10 +35,9 @@ vec3.o \
 examine.o \
 axon.o \
 arrowplot.o\
-sysfont.o\
-vecnp.o 
+sysfont.o
 
-noback_object_files = drwstr.o 
+noback_object_files = drwstr.o vecnp.o 
 
 object_files=$(standard_object_files) $(noback_object_files)
 
@@ -90,7 +89,7 @@ vecx.o : vecx.c $(MAKEFILE)
 # The file drwstr.f must be compiled with this switch which disables
 # for gnu compilers the interpretation of backslashes as escapes.
 # drwstr needs the NOBACKSLASH switch (and can't be in :: rule above). 
-$(noback_object_files) : drwstr.f $(headers) $(MAKEFILE)
+$(noback_object_files) : drwstr.f vecnp.f $(headers) $(MAKEFILE)
 	$(F77) -c $(NOBACKSLASH) $*.f
 
 #pattern rule, compile using the external definitions of commons
