@@ -120,7 +120,7 @@ syncunity : libaccisX.a
 
 mproper : clean
 	rm -f *.a
-	rm makefile
+	rm -f makefile
 
 clean :
 	rm -f *.o
