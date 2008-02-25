@@ -14,12 +14,15 @@ c Convert a line of char*1, and return total length including cr,lf.
 	 if(ch.eq.char(10))goto 3
     2 continue
     3 nrdline=i
-      write(*,*)charb
+      write(*,*)charb(1:nrdline)
       return
       end
 c********************************************************************
 c Version 2, uses triple fonts, 384 characters,(cgi)
 C Currently broken because of the input problems.
+c Feb 08 now somewhat runs, but don't know where the font files are
+c that are actually built into accis. I switched to using sserif
+c a long time ago. 
       subroutine getfont(fontname)
       character*12 fontname
       include 'plotcom.h'
@@ -28,13 +31,28 @@ C Currently broken because of the input problems.
       integer nrdline
 
       i=0
-      j=0
+
 c Open and read in the whole file. This is the broken bit.
-      open(11,FILE=fontname,STATUS='old',form='formatted',
-     $  access='sequential',err=99)
-      read(11,'(A1)',END=98) (chrsfont(j),j=1,buffer)
-      write(*,*)chrsfont
-   98 close(11)
+c      open(11,FILE=fontname,STATUS='old',form='formatted',
+c     $  access='sequential',err=99)
+c      read(11,'(A1)',END=98) (chrsfont(j),j=1,buffer)
+c      write(*,*)chrsfont
+c   98 close(11)
+c 
+c Reading one line at a time.
+      j=0
+      open(11,FILE=fontname,STATUS='old',err=99)
+      do k=1,10000
+         read(11,'(a)',END=98) charb
+         ilen=istrnonspace(charb)
+         do kc=1,ilen
+            chrsfont(j+kc)=charb(kc:kc)
+         enddo
+         chrsfont(j+ilen+1)=char(13)
+         chrsfont(j+ilen+2)=char(10)
+         j=j+ilen+2
+      enddo 
+ 98   close(11)
       write(*,*)'j=',j
 c Read the data bytes length from the header
       j=nrdline(chrsfont(1),charb)

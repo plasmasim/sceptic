@@ -35,6 +35,7 @@ c No axes.
       end
 c************************************************************************
       subroutine autocolcont(z,ildx,imax,jmax)
+      common/cont1stlast/c1st,clast
       integer ildx,imax,jmax
 c Color (only) Contour of z on rectangular mesh.
       real z(ildx,jmax)
@@ -46,6 +47,7 @@ c Color (only) Contour of z on rectangular mesh.
       call contourl(z,ppathdummy,ildx,imax,jmax,
      $     cldummy,0,xdummy,ydummy,48)
       call axbox
+      call gradlegend(c1st,clast,-.2,0.,-.2,1.,.03,.false.) 
       end
 c************************************************************************
       subroutine contourl(z,ppath,l,imax,jmax,cl,nc,x,y,consw)
@@ -83,6 +85,7 @@ c Maximum length of a single contour. Increase if necessary.
       real minz,maxz,xfac,xtic,x1st,xlast
       real xd(4),yd(4)
       parameter (ngradcol=240)
+      common/cont1stlast/c1st,clast
 
 c save charsize
       cw=chrswdth
@@ -309,8 +312,11 @@ c Found a new starting point.
 c*************************************************************************
       subroutine mesh2w(xc,yc,ic,x,y,l,consw)
 c Transform xc,yc(ic) to the mesh x,y, depending on switch consw.
+c On Input: xc,yc are the cell (fractional) positions relative to the mesh. 
+c x,y are the mesh itself.
+c On Ouput: xc,yc are in the units of x and y.  
       integer ic,L,consw
-      real xc(ic),yc(ic),x(1),y(1)
+      real xc(ic),yc(ic),x(*),y(*)
       real t1,t2,dx,dy
       integer ix,iy,iv,ipx,ipy,i
 
@@ -532,6 +538,14 @@ c      parameter (ngradcol=256)
       real xd(4),yd(4)
       include 'plotcom.h'
       data laxlog/.false./
+
+      if(c1.eq.c2)then
+         if(c1.eq.0.)then
+            c2=1.
+         else
+            c2=1.001*c1
+         endif
+      endif
 
       if(colwidth.eq.0.)colwidth=.01
       th=atan2(y2-y1,x2-x1)

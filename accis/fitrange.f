@@ -39,7 +39,11 @@ c             lying outside the range (xmin,xmax).
       elseif(xtic.le.10.0001)then
 	 xtic=10.
       else
-	 write(*,'('' Fitrange error 2'')')
+	 write(*,'('' Fitrange error NAN. Range:'',2g10.4)'),xmin,xmax
+         xtic=1.
+         nxfac=0.
+         sfac=1.
+         xfac=1.
       endif
       xtic=xtic*sfac
       xtic=sign(xtic,span)

@@ -2,9 +2,9 @@
 c Draw a 3-d web of z(x,y), dim(iLx\nx,ny), viewed from (xe,ye,ze) scaled.
 c Second byte of level gives web color. Third gives axis color.
 c Lowest byte: 
-c   abs(level)=0 or 1 scale to fit the region, 1-d x,y.
-c   abs(level)=4 scale to fit region 2-d x,y, don't hide, just wiremesh.
-c   abs(level)=2 perform no scaling and use last perspective.
+c   abs(level)=1 scale to fit the region, 1-d x,y vectors.
+c   abs(level)=2 scale to fit region, 2-d x,y, don't hide, just wiremesh.
+c   abs(level)=0 perform no scale-setting and use last perspective...
 c   level.lt.0 draw no axes.
 c Eye obtained from file eye.dat, or default if none exists.
       integer iLx, nx,ny,level
@@ -12,6 +12,8 @@ c Eye obtained from file eye.dat, or default if none exists.
       integer icorner,colw,cola
       real x2,y2,z2
       real zmin,zmax
+      integer ihd
+      data ihd/99/
       save
 
       cola=level/256
@@ -25,42 +27,43 @@ c color of axes is next 8 bits.
          call geteye(x2,y2,z2)
       endif
       if(colw.ne.0) call color(colw)
-      if(abs(level).le.1)then
-c Set the top and bottom horizons.
-	 call hidinit(0.,1.)
-c Set to hiding 3-D calls.
-	 call hdprset(1,0.)
-c Set the perspective transform.
-	 call trn32(0.,0.,0.,x2,y2,z2,1)
+      if(abs(level).eq.1)then
+         ihd=1
+         ixy=1
 c Set the scaling.
-	 call minmax2(z,iLx,nx,ny,zmin,zmax)
-         itics=5
-         call fitrange(zmin,zmax,itics,ipow,fac10,delta,first,xlast)
-         zmin=first
-         zmax=xlast
-	 call scale3(x(1),x(nx),y(1),y(ny),zmin,zmax)
-         call webdrw(x,y,z,iLx,nx,ny,icorner)
-      elseif(abs(level).eq.4)then
-c Set the top and bottom horizons.
-	 call hidinit(0.,1.)
-c Set to non-hiding 3-D calls.
-	 call hdprset(0,0.)
-c Set the perspective transform.
-	 call trn32(0.,0.,0.,x2,y2,z2,1)
+         xmin=x(1)
+         xmax=x(nx)
+         ymin=y(1)
+         ymax=y(ny)
+      elseif(abs(level).eq.2)then
+         ihd=0
+         ixy=2
 c Set the scaling.	 call minmax2(z,iLx,nx,ny,zmin,zmax)
-         itics=5
-         call fitrange(zmin,zmax,itics,ipow,fac10,delta,first,xlast)
-         zmin=first
-         zmax=xlast
 	 call minmax2(x,iLx,nx,ny,xmin,xmax)
 	 call minmax2(y,iLx,nx,ny,ymin,ymax)
-c         write(*,*)'xmin,xmax',xmin,xmax
-c         write(*,*)'ymin,ymax',ymin,ymax
-	 call scale3(xmin,xmax,ymin,ymax,zmin,zmax)
-c Hacked
-         call webdr2(x,y,z,iLx,nx,ny,icorner)
+      endif
+c Set the top and bottom horizons.
+      call hidinit(0.,1.)
+c Set to non-hiding (ihd=0) or hiding (ihd=1) 3-D calls.
+      call hdprset(ihd,0.)
+      if(abs(level).ne.0)then
+c Set the perspective transform.
+         call trn32(0.,0.,0.,x2,y2,z2,1)
+         itics=5
+         call minmax2(z,iLx,nx,ny,zmin,zmax)
+         call fitrange(zmin,zmax,itics,ipow,fac10,delta,first,xlast)
+         zmin=first
+         zmax=xlast
+         call scale3(xmin,xmax,ymin,ymax,zmin,zmax)
       endif
 c Draw the web
+      if(ihd.eq.99)then
+         write(*,*)'hidweb error. Scaling not set, but non-setting call'
+         stop
+      else
+         if(ixy.eq.1)call webdrw(x,y,z,iLx,nx,ny,icorner)
+         if(ixy.eq.2)call webdr2(x,y,z,iLx,nx,ny,icorner)
+      endif
       if(cola.ne.0) call color(cola)
       if(level.ge.0)then
 c Draw cube.
@@ -166,7 +169,7 @@ c                 Reverse the outer diagonal loop-order.
       endif
       do 1 id1=d1start,d1end,d1step
 	 ud=0
-	 do 2 id2=-min(id1,2*ny-1-id1),min(id1,2*nx-1-id1)
+         do 2 id2=-min(id1,2*ny-1-id1),min(id1,2*nx-1-id1)
 	    kxi=(id1+id2)/2 +1
 	    kyi=(id1-id2)/2 +1
 	    if(icorner.eq.2 .or. icorner.eq.4) kyi=ny+1-kyi

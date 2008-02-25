@@ -46,8 +46,18 @@ c If so, interpolate for the intersection points and draw.
 	       do 2100 k=1,4
 		  zd1=zc(k)-zl
 		  zd2=zl-zc(k+1)
-		  if(zd1*zd2)2100,9,10
-    9		  if(zd2)2100,11,2100
+c		  if(zd1*zd2)2100,9,10
+		  if(zd1*zd2.lt.0.)then
+                     goto 2100
+                  elseif(zd1*zd2.gt.0.)then
+                     goto 10
+                  endif
+c    9		  if(zd2)2100,11,2100
+    9		  if(zd2.ne.0)then 
+                     goto 2100
+                  else
+                     goto 11
+                   endif
    11		  if(zd1.eq.0) then
 		  k0=k0+1
 		  goto 2100

@@ -191,7 +191,7 @@ c            call gaxis(wx3min,wx3max,ngpow,0.,0.,
 c     $           -scbx3,scbx3,-scbz3,-scbz3,.true.,.false.)
             chrscos=1.
             chrssin=0.
-            call jdrwstr(0.,-scby3,xaxlab,0.)
+            call jdrwstr(0.,-scbz3+xticoff-2.*chrshght,xaxlab,0.)
 	 else
 c corner 3 or 4 draw x-axis + to - as a y-axis
             call hdprset(-2,scby3)

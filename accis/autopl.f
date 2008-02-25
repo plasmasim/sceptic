@@ -3,7 +3,7 @@ c Automatic plotting of an array versus its index
       subroutine yautoplot(y,n)
       include 'plotcom.h'
       integer n
-      real y(1)
+      real y(n)
       real xmin,xmax,ymin,ymax
       real xfac,xdelta
       integer nxfac
@@ -19,7 +19,7 @@ c********************************************************************
 c crude plotting of y versus its index. No dashed line capability.
       subroutine ypolyline(y,n)
       integer n,i
-      real y(1)
+      real y(n)
       call vecw(1.,y(1),0)
       do 1 i=2,n
 	 call vecw(float(i),y(i),1)
@@ -28,7 +28,7 @@ c crude plotting of y versus its index. No dashed line capability.
 c********************************************************************
 c         Automatic plotting of Arrays*/
       subroutine autoplot(x, y, n)
-      real x(1),y(1)
+      real x(n),y(n)
       integer n
       call autoinit(x,y,n)
       call axis()
@@ -37,7 +37,7 @@ c         Automatic plotting of Arrays*/
       end
 c******************************************************************
       subroutine autoinit(x,y,n)
-      real x(1),y(1)
+      real x(n),y(n)
       integer n
       include 'plotcom.h'
       real xmin,xmax,ymin,ymax
@@ -52,7 +52,7 @@ c******************************************************************
 c********************************************************************
 c    Automatic symbol plotting of Arrays*/
       subroutine automark(x, y, n, isym)
-      real x(1),y(1)
+      real x(n),y(n)
       integer n,isym
       call autoinit(x,y,n)
       call axis()
@@ -61,7 +61,7 @@ c    Automatic symbol plotting of Arrays*/
       end
 c******************************************************************
       subroutine auto3init(x,y,z,n)
-      real x(1),y(1),z(1)
+      real x(n),y(n),z(n)
       integer n
       save
       include 'plotcom.h'
@@ -116,7 +116,7 @@ c      call axis()
 c******************************************************************
       subroutine poly3line(x,y,z,n)
       integer n,i
-      real x(1),y(1),z(1)
+      real x(n),y(n),z(n)
       call vec3w(x(1),y(1),z(1),0)
       do 1 i=2,n
 	 call vec3w(x(i),y(i),z(i),1)
