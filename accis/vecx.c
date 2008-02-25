@@ -1,14 +1,16 @@
 /* Xwindow driver for accis plotting */
 /* Fortran callable routines */
-/* This version compatible with linux g77 and ifc and  Sun Apr 2003*/
+/* This version compatible with linux g77 and ifc and Sun Apr 2003*/
 /* ********************************************************************** */
-/*
-Refreshing version.
-*/
+
 #include <stdio.h>
 #include  <X11/StringDefs.h> 
 #include  <X11/Intrinsic.h> 
 #include  <X11/Core.h> 
+
+/* Argument-passing typdef */
+
+typedef int FORT_INT;
 
 /* Globals for these routines*/
 Widget accis_wshell;
@@ -93,9 +95,9 @@ int accis_argc=0;
 /* Get the command line arguments from fortran main using getargs etc. */
 void getcmdargs_()
 {
-  long iargc=0; 
+  FORT_INT iargc=0; 
   static char argv[512];
-  long charlen=512;
+  FORT_INT charlen=512;
   extern ifcargs_();
   int i,j;
 
@@ -125,17 +127,6 @@ short *scrxpix, *scrypix, *vmode, *ncolor;
   XWindowAttributes attributes_return;
   int *svga_argc;
   char **svga_argv;
-  /*
-#ifndef IFC
-               get the command line arguments in g77 form
-	       This is less portable than the fortran call. It does not
-	       work for ifc or the Sun compiler.
-  extern int f__xargc;
-  extern char **f__xargv;
-  svga_argc=&f__xargc;
-  svga_argv=f__xargv;
-  #else
- */
   accis_nodisplay=0;
   /* Call fortran routine to get arguments into accis_ globals*/
   if(second == 0) {
@@ -144,8 +135,6 @@ short *scrxpix, *scrypix, *vmode, *ncolor;
     svga_argv=accis_argv;
 /*      for(n=0;n<*svga_argc;n++){printf("%d:%s:\n",n,svga_argv[n]);} */
   }
-  /*#endif*/
-
 
   if(second == 0){
     accis_wshell = XtInitialize("accis","Accis", NULL, 0,
@@ -196,8 +185,6 @@ short *scrxpix, *scrypix, *vmode, *ncolor;
   XFlush(accis_display);
   XClearWindow(accis_display,accis_window);
   XSetForeground(accis_display,accis_gc,accis_pixels[0]);  
-  /* Clear the window to background color. VMS doesn't do correctly.
-     But also this seems to fix the bad match error. */
   XFillRectangle(accis_display,accis_window,accis_gc,0,0,
 		 s_s.width,s_s.height);
   /* Clear the pixmap  */
@@ -205,13 +192,17 @@ short *scrxpix, *scrypix, *vmode, *ncolor;
 		 s_s.width,s_s.height);
   XSetForeground(accis_display,accis_gc,accis_pixels[15]); 
   XRaiseWindow(accis_display, accis_window);
-  XGetWindowAttributes (accis_display, accis_window,&attributes_return);
-  /* Then set the focus. We should not get a bad match that way*/
-  if(attributes_return.map_state == IsViewable){
-    /* XSetInputFocus(accis_display, accis_window, RevertToPointerRoot,
+  /* Attempts to use XSetInputFocus without BadMatch errors */
+  XSync(accis_display,False); /* Wait till all X events processed */
+  ManageEvents();
+  /*  if(XGetWindowAttributes(accis_display, accis_window,&attributes_return)== 
+      Success && attributes_return.map_state == IsViewable){;*/
+  /*XSetInputFocus(accis_display, accis_window, RevertToParent,
        CurrentTime);
-    Sometimes it is easier not to do this. */
-  }
+       /*It is best not to do this here because if one has repetitive plotting
+       then it keeps getting set, even if theres no call for input. 
+       It is best to set focus only when input is being called for.*/
+      /*}*/
   return 0;
 }
 
@@ -269,6 +260,10 @@ int txtmode_()
 {
   XEvent event; 
   XFlush(accis_display);
+  ManageEvents();
+  /* Try to get the focus into this window for keyboard control.*/
+    XSetInputFocus(accis_display, accis_window, RevertToParent,
+      CurrentTime);/**/
   do{
     /*    printf("Executing XtNextEvent"); */
     XtNextEvent(&event);
@@ -276,9 +271,6 @@ int txtmode_()
     XtDispatchEvent(&event);  
     /*    printf("The event type: %d\n",event); */
   }while(event.type != ButtonPress && event.type != KeyPress );
-  /* Here we should give the focus back to parent, but I don't see how.
-    XSetInputFocus(accis_display, ??, PointerRoot,
-		   CurrentTime); */
 }
 
 /* ******************************************************************** */
@@ -291,7 +283,7 @@ int accisflush_()
 
 /* ********************************************************************* */
 /* Subroutine */ int scolor_(li)
-long *li;
+FORT_INT *li;
 {
   /* *ncolor=*li; */
   if((*li < a_maxPixels) && (*li >= 0)){
@@ -304,7 +296,7 @@ long *li;
 
 /* ******************************************************************** */
 /* Subroutine */ int vec_(px, py, ud)
-long *px, *py, *ud;
+FORT_INT *px, *py, *ud;
 { /*  Draw vector on screen, with pen up or down. */
     static int px1=0,py1=0,px2=0,py2=0;
     extern XPoint accis_path[];
@@ -380,7 +372,7 @@ ManageEvents()
     XtDispatchEvent(&event);  
   }
 }
-
+/* ******************************************************************** */
 float xeye,yeye,zeye;
 float xeye0,yeye0,zeye0;
 float accis_x0,accis_y0;
@@ -420,6 +412,20 @@ XEvent *event;
   viewrot_(&xmoved,&ymoved,&xeye0,&yeye0,&zeye0,&xeye,&yeye,&zeye);
   cubeupd_(&xeye,&yeye,&zeye);
 }
+
+void accis_keypress(w,data,event)
+Widget w;
+caddr_t data;
+XEvent *event;
+{
+  /* Testing only 
+  printf("Key event keycode: %u keysym:%x",event->xkey.keycode,
+	 (int)XLookupKeysym(&(event->xkey),0)); */
+  /* This breaks the interface. Don't do it. ManageEvents();*/
+  XSetInputFocus(accis_display, accis_window, RevertToParent,
+       CurrentTime);
+}
+
 /* ******************************************************************** */
 int eye3d_(value)
      int *value;
@@ -431,19 +437,33 @@ int eye3d_(value)
 
   if(accis_nodisplay){ *value=0; return 0; }
   XFlush(accis_display);  
+  ManageEvents();
+  /*Without this, the keyboard does not focus to this window.*/
+  XSetInputFocus(accis_display, accis_window, RevertToParent,
+       CurrentTime);
   XtAddEventHandler(accis_drawing,ButtonPressMask,FALSE,
 		      accis_butdown,NULL);
-
   XtAddEventHandler(accis_drawing,ButtonReleaseMask,FALSE,
 		      accis_butup,NULL);
   XtAddEventHandler(accis_drawing,ButtonMotionMask,FALSE,
 		      accis_moved,NULL);
+  /* A handler seems to be needed if we are to recognize keys. Even if
+     it does not do anything much.*/
+  XtAddEventHandler(accis_drawing,KeyPressMask,FALSE,
+		      accis_keypress,NULL);
+  XtAddEventHandler(accis_drawing,EnterWindowMask,FALSE,
+		      accis_keypress,NULL);
   /* Wait for a button press */
   do{
     XtNextEvent(&event);
     XtDispatchEvent(&event);  
-/*        printf("First loop:The event type: %d, %d\n",event.type,ButtonPress);  */
-  }while(event.type != ButtonPress);
+/*   printf("First loop:The event type: %d, %d\n",event.type,ButtonPress);  */
+  }while(event.type != ButtonPress && event.type != KeyPress);
+  /* Recognize KeyPress as sign to exit.*/
+  if(event.type == KeyPress) {
+    *value=(int)XLookupKeysym(&(event.xkey),0);
+    return *value;
+  }
   do{
 /*      printf("Executing XtNextEvent "); */
     XtNextEvent(&event);
@@ -458,7 +478,8 @@ int eye3d_(value)
 /* Routines for using 240 color gradients in preference to 16 fixed colors.*/
 /************** Setup The Gradient **********************/
 int accisgradinit_(r1,g1,b1,r2,g2,b2)
-     long *r1,*g1,*b1,*r2,*g2,*b2;
+     FORT_INT *r1,*g1,*b1,*r2,*g2,*b2;
+     /* On 64 bit machine this seems to need int *r1,*g1,*b1,*r2,*g2,*b2;*/
      /* RGB are specified in the range 0 to 65535 */
 {
   int i,j,status;
@@ -507,66 +528,14 @@ int accisgradinit_(r1,g1,b1,r2,g2,b2)
 /************** Setup Default Gradient Grey-scale **********************/
 int accisgraddef_()
 { 
-  long top=65535;
-  long bot=0;
+  FORT_INT top=65535;
+  FORT_INT bot=0;
   accisgradinit_(&bot,&bot,&bot,&top,&top,&top);
 }
 /**********************************************************************/
-int accisgraddefobsolete_()
-{
-  int i,j,status;
-  unsigned long white;
-  XColor theRGBcolor;
-  /*Lookup numeric white*/
-  if(accis_nodisplay){
-    status=1;
-  }else {
-  /*See if this is a sensible 24 bit display or not */
-    theRGBcolor.red=255*256;
-    theRGBcolor.green=127*256;
-    theRGBcolor.blue=2*256;
-    XAllocColor(accis_display,accis_colormap,&theRGBcolor);
-    if(theRGBcolor.pixel==((255*256+127)*256+2)){
-      status=1;
-      /*fprintf(stderr,"True color shortcut.\n");*/
-    }else{
-      status=0;
-      fprintf(stderr,"True Color 24 bit Status false: pixel:%d\n",
-              theRGBcolor.pixel);
-    }
-  }
-  /* If we have a true or direct color display, just scale. */
-  if(status){
-    for (i=0;i<a_gradPixno;i++){
-      j=(i* 65535)/(a_gradPixno-1.) ;
-/*        a_gradPix[i]=white*i/(a_gradPixno-1.); */
-      a_gradred[i]=theRGBcolor.red=j;
-      a_gradgreen[i]=theRGBcolor.green=j;
-      a_gradblue[i]=theRGBcolor.blue=j;
-      a_gradPix[i]=
-	((theRGBcolor.red/256)*256+(theRGBcolor.green/256))*256
-	+(theRGBcolor.blue/256);
-        fprintf(stderr,"a_gradPix[%d]=%d\n",i,a_gradPix[i]);
-    }
-  }else{ /* Have to do the network-expensive lookups */
-    for (i=0;i<a_gradPixno;i++){
-      j=(i* 65535)/(a_gradPixno-1.) ;
-      a_gradred[i]=theRGBcolor.red=j;
-      a_gradgreen[i]=theRGBcolor.green=j;
-      a_gradblue[i]=theRGBcolor.blue=j;
-      if(XAllocColor(accis_display,accis_colormap,&theRGBcolor)){
-	/*     fprintf(stderr,"Allocated Color %d=%d\n",j,theRGBcolor.pixel);*/
-	a_gradPix[i]=theRGBcolor.pixel;
-      }else{
-	a_gradPix[i]=BlackPixel(accis_display,0);
-      }
-    }
-  }
-  a_grad_inited=1;
-}
 /********** Use a gradient color out of 240 *********************************/
 /* Subroutine */ int acgradcolor_(li)
-long *li;
+FORT_INT *li;
 {
     /*Default gradient is a gray-scale.*/
     /*If not inited already init by default.*/
@@ -581,7 +550,7 @@ long *li;
 }
 /********** Tell the current rgb color ********************************
 /* Subroutine */ int getrgbcolor_(ipixel,red,green,blue)
-long *ipixel,*red,*green,*blue;
+FORT_INT *ipixel,*red,*green,*blue;
 {
     /*If not inited already init by default.*/
   if(!a_grad_inited)accisgraddef_();
@@ -610,7 +579,7 @@ the color is set when writing a print file.
 XQueryColor is painfully slow.
  So not using this.
 int getrgbcolor_(ipixel,red,green,blue)
-long *ipixel,*red,*blue,*green;
+FORT_INT *ipixel,*red,*blue,*green;
 {
   XColor theRGBcolor;
   if(!a_grad_inited)accisgraddef_();
