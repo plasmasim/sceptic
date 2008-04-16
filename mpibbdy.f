@@ -1,8 +1,33 @@
+c___________________________________________________________________________
+c
+c     This code is copyright (c)
+c              Ian H Hutchinson    hutch@psfc.mit.edu.
+c              Leonardo Patacchini patacchi@mit.edu
+c
+c     It may be used freely with the stipulation that any scientific or
+c     scholarly publication concerning work that uses the code must give
+c     an acknowledgement referring to the relevant papers
+c
+c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
+c     1953 (2002), vol 45, p 1477 (2003).
+c
+c     L. Patacchini and I.H. Hutchinson, Plasma Physics and Controlled
+c     Fusion, vol 49, p1193 (2007), vol 49, p 1719 (2007).
+c
+c     I.H. Hutchinson and L. Patacchini, Physics of Plasmas, vol 14,
+c     p013505 (2007)
+c
+c     The code may not be redistributed except in its original package.
+c
+c     No warranty, explicit or implied, is given. If you choose to build
+c     or run the code, you do so at your own risk.
+c___________________________________________________________________________
+
 c***********************************************************************
 c Block bioundary communication.
-      subroutine bbdy(sor_comm,iLs,iuds,u,kc,iorig,
-     $     ndims,idims,lperiod,icoords,iLcoords,myside,myorig,
-     $     myorig1,myorig2,icommcart,mycartid,myid,lflag,out)
+      subroutine bbdy(sor_comm,iLs,iuds,u,kc,iorig, ndims,idims,lperiod
+     $     ,icoords,iLcoords,myside,myorig, myorig1,myorig2,icommcart
+     $     ,myid,lflag,out)
 
       integer sor_comm
 c Dimensional structure of u, for 2d should be (1,Li,Lj), 
@@ -101,6 +126,9 @@ c an argument to allow us to reset. Not done yet.
       logical lflag
 c      data lflag/.false./
       save
+
+
+      
 
       if(.not.lflag)then
 
@@ -333,10 +361,16 @@ c--------------------------------------------------------------------
 c         return
 
       endif
+
+      
+
+
+
 c--------------------------------------------------------------------
 c (First and) Subsequent calls. Do the actual communication
 c--------------------------------------------------------------------
       if(kc.eq.-1)goto 100
+
                
 c Even-odd pacing. We use all blocks each step but we transmit either
 c the odd or the even data to the left, even or odd to right.
@@ -350,16 +384,22 @@ c Send even/odd data to left, receive even/odd data from right
       itag=100
 c      write(*,*)'ko,ke,iobindex',ko,ke,iobindex
 c Origin of left face (the same for all dimensions)
+
+         
       iolp=iorig(iobindex)
+  
       do n=1,ndims
 c         write(*,*)'iolp,n,ndims,iLcoords',iolp,n,ndims,iLcoords
 c Origin of right face (i.e. of block to right)
+         
          iorp=iorig(iobindex+iLcoords(n))
+         
 c      write(*,*)'iorp=',iorp
 c iolp is for receiving +1 shift, iorp is for sending +1 shift.
          iolm=iolp+iLs(n)
          iorm=iorp+iLs(n)
 c iorm is for receiving -1 shift, iolm is for sending -1 shift.
+
          if(idebug.ge.2)then
          if(n.eq.1) write(*,*)' n,ko,ke,iolp,iorp,iolm,iorm,',
      $        'iddr,isdr,iddl(n),isdl(n)'
@@ -367,6 +407,7 @@ c iorm is for receiving -1 shift, iolm is for sending -1 shift.
      $        iddr(n),isdr(n),iddl(n),isdl(n)
          endif
 c Send odd/even data to right, receive odd/even data from left
+
          if(iddr(n).ne.-1) call MPI_SEND(u(iorp),1,iface(n,ko,ibt(n)),
      $        iddr(n),itag,icommcart,ierr)
          if(isdr(n).ne.-1) call MPI_RECV(u(iolp),1,iface(n,ko,ibt(n)),
@@ -384,7 +425,9 @@ c shift in the direction left (-1).
          if(isdl(n).ne.-1) call MPI_RECV(u(iorm),1,iface(n,ke,ibt(n)),
      $        isdl(n),itag,icommcart,status,ierr)
 
+
       enddo
+
 
       return
 c------------------------------------------------------------------
@@ -637,7 +680,7 @@ c At each level there are 2**(nn-1) types in prior level
          do iold=iprior,iprior+2**(nn-1)-1
 c            write(*,*)'iold,icount,istride,ktype(iold),inew',
 c     $           iold,icount,istride,ktype(iold),inew
-            call MPI_TYPE_CREATE_HVECTOR(icount,ilen,istride,
+            call MPI_TYPE_HVECTOR(icount,ilen,istride,
      $           ktype(iold),ktype(inew),ierr)
 c We only commit the top level that we are going to use.
             if(nn.eq.ndims)call MPI_TYPE_COMMIT(ktype(inew),ierr)

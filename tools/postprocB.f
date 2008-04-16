@@ -306,7 +306,7 @@ c     We do a simple bubble sort
          enddo
          temp=0
       endif
-
+     
       if (temp.eq.(narg-1)) goto 901
       temp=temp+1
       goto 900
@@ -655,15 +655,24 @@ c Read the data file:
 c__________________________________________________________________
       open(10,file=filename,status='old',err=101)
 c Line for nothing.
-      read(10,*)charin
 
-      read(10,'(2f8.5, f8.4, i6, f12.4, f11.5, f8.4, 2f14.5, f8.3,
-     $     f8.4)',err=201) dt,vd,Ti,isteps,rhoinf,phiinf,fave,
-     $     debyelen,vprobe,damplen,Bz
+      read(10,*)charin
+      read(10,'(a)')charin
+c      write(*,*)charin
+      read(charin,*,err=201,end=201)
+     $     dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe,damplen,Bz
+     $     ,icolntype,colnwt
  201  continue
-      write(*,*)'Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,Vp'
-      write(*,*)Bz,dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe
-      read(10,*,err=202)nrTi
+      write(*,'(a,a)')'  dt    vd     Ti     steps  rhoinf ' ,
+     $       'phiinf  fave  debyelen Vp damplen  Bz...'
+      write(*,'(2f7.4,f7.3,i5,f8.1,f7.3,f8.4,f8.3,f8.3,f6.2,f7.3,$)')
+     $     dt,vd,Ti,isteps,rhoinf,phiinf,fave,debyelen,vprobe,damplen,Bz
+      if(icolntype.gt.0)then
+         write(*,'(i2,f7.3)',err=212)icolntype,colnwt
+      else
+         write(*,*)
+      endif
+ 212  read(10,*,err=202)nrTi
       nrhere=nrTi
 c      write(*,*)'nrTi=',nrTi
       do i=1,nrTi

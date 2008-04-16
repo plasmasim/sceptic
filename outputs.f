@@ -1,3 +1,28 @@
+c___________________________________________________________________________
+c
+c     This code is copyright (c)
+c              Ian H Hutchinson    hutch@psfc.mit.edu.
+c              Leonardo Patacchini patacchi@mit.edu
+c
+c     It may be used freely with the stipulation that any scientific or
+c     scholarly publication concerning work that uses the code must give
+c     an acknowledgement referring to the relevant papers among
+c
+c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
+c     1953 (2002), vol 45, p 1477 (2003).
+c
+c     L. Patacchini and I.H. Hutchinson, Plasma Physics and Controlled
+c     Fusion, vol 49, p1193 (2007), vol 49, p 1719 (2007).
+c
+c     I.H. Hutchinson and L. Patacchini, Physics of Plasmas, vol 14,
+c     p013505 (2007)
+c
+c     The code may not be redistributed except in its original package.
+c
+c     No warranty, explicit or implied, is given. If you choose to build
+c     or run the code, you do so at your own risk.
+c___________________________________________________________________________
+
 c***********************************************************************
 c Version 2.6 outputs two files. T...frc traces the force evolution.
 
@@ -97,14 +122,14 @@ c     Just save the last quarter for the average
 
 c Output time-averages of z-force components stored in zmom(nstepmax,*,*).
 c Particle units nTr^2, Electric nT lambda_D^2.
-      total1=zmom(nstepmax,fieldz,1)*debyelen**2
-     $     +zmom(nstepmax,epressz,1)+zmom(nstepmax,partz,1)
-      total2=zmom(nstepmax,fieldz,2)*debyelen**2
-     $     +zmom(nstepmax,epressz,2)+zmom(nstepmax,partz,2)
+      total1=zmom(nstepmax,fieldz,1)*debyelen**2 +zmom(nstepmax,epressz
+     $     ,1)+zmom(nstepmax,partz,1)+zmom(nstepmax,collision,1)
+      total2=zmom(nstepmax,fieldz,2)*debyelen**2 +zmom(nstepmax,epressz
+     $     ,2)+zmom(nstepmax,partz,2)+zmom(nstepmax,collision,2)
       write(10,*)'Charge      E-field       Electrons',
-     $     '      Ions     Total'
-      write(10,*)(zmom(nstepmax,j,1),j=1,4),total1
-      write(10,*)(zmom(nstepmax,j,2),j=1,4),total2
+     $     '      Ions     Coll     Total'
+      write(10,*)(zmom(nstepmax,j,1),j=1,5),total1
+      write(10,*)(zmom(nstepmax,j,2),j=1,5),total2
       if(rmtoz.ne.1.) write(10,'(''rmtoz='',f10.4)')rmtoz
       write(10,*)'Collisions: Type,Weight,Eneutral,vneutral,Tneutral'
       if(icolntype.ne.0) write(10,701) icolntype,colnwt,Eneutral

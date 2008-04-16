@@ -1,11 +1,37 @@
+c___________________________________________________________________________
+c
+c     This code is copyright (c)
+c              Ian H Hutchinson    hutch@psfc.mit.edu.
+c              Leonardo Patacchini patacchi@mit.edu
+c
+c     It may be used freely with the stipulation that any scientific or
+c     scholarly publication concerning work that uses the code must give
+c     an acknowledgement referring to the relevant papers
+c
+c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
+c     1953 (2002), vol 45, p 1477 (2003).
+c
+c     L. Patacchini and I.H. Hutchinson, Plasma Physics and Controlled
+c     Fusion, vol 49, p1193 (2007), vol 49, p 1719 (2007).
+c
+c     I.H. Hutchinson and L. Patacchini, Physics of Plasmas, vol 14,
+c     p013505 (2007)
+c
+c     The code may not be redistributed except in its original package.
+c
+c     No warranty, explicit or implied, is given. If you choose to build
+c     or run the code, you do so at your own risk.
+c___________________________________________________________________________
+
 c***********************************************************************
       subroutine chargetomesh()
 c Common data:
       include 'piccom.f'
 
 c      ninner=0
-      do i=0,nr
-         do j=0,nth+1
+      
+      do j=0,nth+1
+         do i=0,nr
             psum(i,j)=0.
             vrsum(i,j)=0.
             vtsum(i,j)=0.
@@ -52,6 +78,12 @@ c Charge summation.
       psum(irl,ithl+1)=psum(irl,ithl+1) + (1.-rf)*thf
       psum(irl+1,ithl+1)=psum(irl+1,ithl+1) + rf*thf
 
+      vz=xp(6,i)
+      vzsum(irl,ithl)=vzsum(irl,ithl) + (1.-rf)*(1.-thf)*vz
+      vzsum(irl+1,ithl)=vzsum(irl+1,ithl) + rf*(1.-thf)*vz
+      vzsum(irl,ithl+1)=vzsum(irl,ithl+1) + (1.-rf)*thf*vz
+      vzsum(irl+1,ithl+1)=vzsum(irl+1,ithl+1) + rf*thf*vz
+
       if(diags .or. irl.le.2) then
       vxy=xp(4,i)*cp + xp(5,i)*sp
       vr=vxy*st + xp(6,i)*ct
@@ -89,12 +121,7 @@ c Charge summation.
       vtp2sum(irl+1,ithl)=vtp2sum(irl+1,ithl) + rf*(1.-thf)*vtp2
       vtp2sum(irl,ithl+1)=vtp2sum(irl,ithl+1) + (1.-rf)*thf*vtp2
       vtp2sum(irl+1,ithl+1)=vtp2sum(irl+1,ithl+1) + rf*thf*vtp2
-
-      vz=xp(6,i)
-      vzsum(irl,ithl)=vzsum(irl,ithl) + (1.-rf)*(1.-thf)*vz
-      vzsum(irl+1,ithl)=vzsum(irl+1,ithl) + rf*(1.-thf)*vz
-      vzsum(irl,ithl+1)=vzsum(irl,ithl+1) + (1.-rf)*thf*vz
-      vzsum(irl+1,ithl+1)=vzsum(irl+1,ithl+1) + rf*thf*vz
+     
       endif
       end
 c***********************************************************************
@@ -358,13 +385,14 @@ c Trap errors.
 c***********************************************************************
 
 c**********************************************************************
-      subroutine esforce(ir,qp,fz,epz)
+      subroutine esforce(ir,qp,fz,epz,collf,colnwt)
       include 'piccom.f'
 c Version to specify radius node ir at which to calculate force.
 c Return the charge qp, esforce fz, and electron pressure force epz.
       
       real ercoef(nthsize),etcoef(nthsize),ertcoef(nthsize)
       real qpcoef(nthsize)
+      real vy,frac,partsum
 
       logical lnotinit
       data lnotinit/.true./
@@ -466,4 +494,34 @@ c      write(*,*)fz
       fz=fz
       qp=qp
       epz=-epz*r(k)**2
+
+c Calculate collisional force (E-field + Neutral drag)
+      vz=0.
+      partsum=0.
+      if(ir.ne.1) then
+         do j=1,nthused
+            do i=1,ir-1
+               vz=vz+vzsum(i,j)
+               partsum=partsum+psum(i,j)
+            enddo
+         enddo
+         i=ir
+         if(i.ne.nrused) then
+c     We only sum the inner half of the last radial cell.  frac\sim 0.5
+c     is the volume ratio of the first half of a cell (radial direction)
+c     over the full cell (first order in delr/rcc(i))
+            frac=(rcc(i)-0.5*delr)/(2*rcc(i))
+         else
+c if ir.eq.nrused, the cell is already half the size
+            frac=1.
+         endif
+         do j=1,nthused
+            vz=vz+frac*vzsum(i,j)
+            partsum=partsum+frac*psum(i,j)
+         enddo
+         collf=-colnwt*(vz-partsum*vd)
+      else
+         collf=0.
+      endif
+
       end

@@ -1,71 +1,71 @@
+c___________________________________________________________________________
+c
+c     This code is copyright (c)
+c              Ian H Hutchinson    hutch@psfc.mit.edu.
+c              Leonardo Patacchini patacchi@mit.edu
+c
+c     It may be used freely with the stipulation that any scientific or
+c     scholarly publication concerning work that uses the code must give
+c     an acknowledgement referring to the relevant papers
+c
+c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
+c     1953 (2002), vol 45, p 1477 (2003).
+c
+c     L. Patacchini and I.H. Hutchinson, Plasma Physics and Controlled
+c     Fusion, vol 49, p1193 (2007), vol 49, p 1719 (2007).
+c
+c     I.H. Hutchinson and L. Patacchini, Physics of Plasmas, vol 14,
+c     p013505 (2007)
+c
+c     The code may not be redistributed except in its original package.
+c
+c     No warranty, explicit or implied, is given. If you choose to build
+c     or run the code, you do so at your own risk.
+c___________________________________________________________________________
+
 c Here are stored the common declarations for the parallel bloc solver
 
-
-
-c     Iteration counter and maximum nb of iterations
-      integer isor_k,isor_mi
-
-c     Iteration parameters
-      real sor_jac,sor_eps,sor_del
-
-      common /sor_decl/ isor_k,isor_mi,sor_jac,sor_eps,sor_del
-
-
-cccc    Parallel data    ccccc
-c ---------------------------------------------
-
+      
 c     Number of participating processors
       integer nprocs
 
-c     Process ID in cartesian topology
-      integer mycartid
 
 c     Cartesian communicator
       integer icommcart
 
+      parameter(ndims=2)
+c Declared Dimensional structure of u must be (Li,Lj,Lk,..) passed using
+c iLs, which embodies pointer steps. For 2d iLs=(1,Li,Li*Lj), 
+c 3d (1,Li,Li*Lj,Li*Lj*Lk) etc 
+      integer iLs(ndims+1)
+c iuds used dimensions of u
+      integer iuds(ndims)
+
 c     dimension of each topology (nb of blocks)
-      integer idims(2)
+      integer idims(ndims)
 
 c     cartesian topology coords of this process (block)
-      integer icoords(2)
+      integer icoords(ndims)
+
+c     structure of icoords (1,(idims(1)+1),(idims(1)+1)*(idims(2)+1),...)
+      integer iLcoords(ndims+1)
 
 c     origin of the blocks (in the total i,j frame), in a linear referencing
-      integer iorig(5,5)
-
-c     side length of each block (in the total i,j frame) for each dimension
-c     iside(*,1) is the general value, iside(*,2) the uppermost value
-      integer iside(2,2)
+      parameter (norigmax=1000)
+      integer iorig(norigmax)
 
 c     dimension of my block (in the total i,j frame)
-      integer myside(2)
+      integer myside(ndims)
 
-c     Whether the topology dimension is periodic or not
-      logical lperiod(2)
+c     myorig1 is just the origin of the 1st dimension
+      integer myorig,myorig1,myorig2
 
-c     iface is a new datatype containing the indexes of the points
-c     to transmit to the neighbors on the linear array u
-c     Arguments : ndims, parity, bulk or top
-      integer iface(2,2,2)
+      integer ifull(ndims)
 
-      integer ktype(20)
-
-      integer ibt(2)
-
-      integer isdl(2),iddl(2),isdr(2),iddr(2)
-
-      common /sor_parallel/ nprocs,icommcart,idims,icoords,iorig,
-     $     iside,myside,lperiod,mycartid,iface,ktype,
-     $     isdl,iddl,isdr,iddr,ibt
-
-c ---------------------------------------------
-
-c     Arrays for constructing Alltoall calls
-      parameter (maxprocs=100)
-      integer isdispls(0:maxprocs),irdispls(0:maxprocs)
-      integer istypes(0:maxprocs),irtypes(0:maxprocs)
-      integer iscounts(0:maxprocs),ircounts(0:maxprocs)
-      integer iconp(10)
-      integer isizeofreal,ith0
-
-      common /alltoall/isdispls,irdispls,istypes,irtypes,
-     $     iscounts,ircounts,iconp,isizeofreal,ith0
+c     If we are on the border or not, for the BC
+      logical out
+      
+c      common /sor_parallel/ nprocs,icommcart,iLs,iuds,idims,icoords
+c     $     ,iorig,ifull,myside,mycartid,myorig,myorig1,myorig2
+      common/sor_parallel/iLcoords,icommcart,ifull,iorig,iuds,idims,iLs
+     $     ,icoords,myside,myorig,myorig1,myorig2,out

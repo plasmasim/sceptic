@@ -1,3 +1,28 @@
+c___________________________________________________________________________
+c
+c     This code is copyright (c)
+c              Ian H Hutchinson    hutch@psfc.mit.edu.
+c              Leonardo Patacchini patacchi@mit.edu
+c
+c     It may be used freely with the stipulation that any scientific or
+c     scholarly publication concerning work that uses the code must give
+c     an acknowledgement referring to the relevant papers
+c
+c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
+c     1953 (2002), vol 45, p 1477 (2003).
+c
+c     L. Patacchini and I.H. Hutchinson, Plasma Physics and Controlled
+c     Fusion, vol 49, p1193 (2007), vol 49, p 1719 (2007).
+c
+c     I.H. Hutchinson and L. Patacchini, Physics of Plasmas, vol 14,
+c     p013505 (2007)
+c
+c     The code may not be redistributed except in its original package.
+c
+c     No warranty, explicit or implied, is given. If you choose to build
+c     or run the code, you do so at your own risk.
+c___________________________________________________________________________
+
 c***********************************************************************
 c r and th are the radius and cosine theta meshes.
 c rcc and tcc are the center-cell values, where the charge assigned to
@@ -211,7 +236,7 @@ c Zero the ninth storage.
       end
 c***********************************************************************
 c Initializing particles.
-      subroutine pinit()
+      subroutine pinit(icolntype)
 c Common data:
       include 'piccom.f'
 
@@ -241,7 +266,16 @@ c     If we are not in the plasma region, try again.
          tisq=sqrt(Ti0)
          xp(4,i)=tisq*gasdev(idum)
          xp(5,i)=tisq*gasdev(idum)
-         xp(6,i)=tisq*gasdev(idum) + vd
+
+c     If collisions, start with a distribution function that at least
+c     has the right temperature (It would maybe be better to start with
+c     the good distribution). This allows quicker convergence in when
+c     the collisionality is very low but non-zero
+         if(icolntype.eq.0) then
+            xp(6,i)=tisq*gasdev(idum) + vd
+         else
+            xp(6,i)=sqrt(Ti0+vd**2)*gasdev(idum)+vd
+         endif
 c         if(istrapped(i))then
 c            ntrapped=ntrapped+1
 c If this goto is included then trapped particles are rejected.

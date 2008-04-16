@@ -1,3 +1,28 @@
+c___________________________________________________________________________
+c
+c     This code is copyright (c)
+c              Ian H Hutchinson    hutch@psfc.mit.edu.
+c              Leonardo Patacchini patacchi@mit.edu
+c
+c     It may be used freely with the stipulation that any scientific or
+c     scholarly publication concerning work that uses the code must give
+c     an acknowledgement referring to the relevant papers
+c
+c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
+c     1953 (2002), vol 45, p 1477 (2003).
+c
+c     L. Patacchini and I.H. Hutchinson, Plasma Physics and Controlled
+c     Fusion, vol 49, p1193 (2007), vol 49, p 1719 (2007).
+c
+c     I.H. Hutchinson and L. Patacchini, Physics of Plasmas, vol 14,
+c     p013505 (2007)
+c
+c     The code may not be redistributed except in its original package.
+c
+c     No warranty, explicit or implied, is given. If you choose to build
+c     or run the code, you do so at your own risk.
+c___________________________________________________________________________
+
 c Version 2.5; Aug 2004   
       integer npartmax,npart,nr,nth,ndim,np
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
@@ -13,7 +38,7 @@ c CIC definitions
       parameter (LCIC=.true.)
       integer nrsize,nthsize
 c These correspond to nrfull and nthfull.
-      parameter (nrsize=100,nthsize=101)
+      parameter (nrsize=300,nthsize=101)
 c Positions and velocities of particles (6-d phase-space).
       real xp(ndim,npartmax)
       real vzinit(npartmax)
@@ -113,8 +138,8 @@ c diagnostic data
 cIHH      real diagchi(nthsize)
       real diagchi(0:nthsize)
       real diagvr(nrsize,nthsize)
-      integer partz,fieldz,epressz,enccharge
-      parameter(enccharge=1,fieldz=2,epressz=3,partz=4)
+      integer collision,partz,fieldz,epressz,enccharge
+      parameter(enccharge=1,fieldz=2,epressz=3,partz=4,collision=5)
 c Total particle flux to probe
       real fluxprobe(nstepmax)
 c Total z-momentum flux to probe
@@ -127,7 +152,7 @@ c Z-momentum flux across outer boundary.
       real zmout
 c Combined zmom data: charge, fields, electron pressure, ion momentum.
 c For inner 1, outer 2.
-      real zmom(nstepmax,4,2)
+      real zmom(nstepmax,5,2)
 c collmomtot is the reduced collmom for each time-step
       real collmomtot(nstepmax)
 c enertot is the reduced enerprobe for each time-step
