@@ -316,7 +316,7 @@ c Can't use these formulas for Uc exactly equal to zero.
      $           +(Uc**2 +0.5)*pu2(i)
          enddo
       endif
-      call srand(myid)
+      call srand(myid+1)
       end
 c***********************************************************************
 c***********************************************************************

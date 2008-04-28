@@ -172,6 +172,6 @@ c      work(1,1)=' '
      
  501  format(a,11f8.4)
       idum=4
-      call srand(myid)
+      call srand(myid+1)
       end
 

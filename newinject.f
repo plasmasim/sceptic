@@ -180,7 +180,7 @@ c Range of velocities (times (Ti/m_i)^(1/2)) permitted for injection.
      $        +(Uc**2 +0.5)*pu2(i)
       enddo
 
-      call srand(myid)
+      call srand(myid+1)
       end
 c***********************************************************************
 c Calculate the cumulative probability for velocity index iu such that

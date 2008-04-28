@@ -40,12 +40,12 @@ endif
 
 LIBRARIES =  -L$(XLIB) -L$(ACCISLIB) -laccisX -lXt -lX11 
 
-# To silence warnings when compiling with g77 uncomment the next statement:
-ifeq ("$(G77)","g77")
-	NOGLOBALS=-Wno-globals
+#Default No Warnings
+ifeq ("$(NOWARN)","")
+	NOWARN=""
 endif
 
-COMPILE-SWITCHES = -Wall -Wno-unused-variable   -O2  -I.
+COMPILE-SWITCHES =-Wall -Wno-unused-variable   -O2  -I.
 # For debugging.
 #  -g  -ffortran-bounds-check
 # For profiling
@@ -53,7 +53,7 @@ COMPILE-SWITCHES = -Wall -Wno-unused-variable   -O2  -I.
 
 REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o
 
-MPICOMPILE-SWITCHES = $(NOGLOBALS) -DMPI $(COMPILE-SWITCHES)
+MPICOMPILE-SWITCHES = $(NOWARN) -DMPI $(COMPILE-SWITCHES)
 
 OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o	\
 outputlive.o chargefield.o $(REINJECT) damp.o stringsnames.o		\

@@ -321,5 +321,5 @@ c We store the integral over theta of Gcoms in G(3,1 and 2)
          write(*,*)'pu1(1),pu2(1)      ',pu1(1),pu2(1)
          write(*,*)'Gcom(3,1),Gcom(3,2)',Gcom(3,1),Gcom(3,2)
       endif
-      call srand(myid)
+      call srand(myid+1)
       end

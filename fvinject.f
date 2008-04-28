@@ -503,7 +503,7 @@ c This might be a good check.
 c Calculate fqvxvz, the perpendicular cumulative distibution.
       call calcfqx()
 
-      call srand(myid)
+      call srand(myid+1)
       end
 c******************************************************************
 c Calculate cumulative flux in direction given by 
