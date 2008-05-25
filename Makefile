@@ -108,9 +108,10 @@ fvinject.o : fvinject.f fvcom.f piccom.f
 sceptic.tar.gz : ./accis/libaccisX.a sceptic scepticmpi
 	make -C accis mproper
 	make -C tools clean
+	make makefile
 	make clean
 	./copyattach.sh
-	tar chzf sceptic.tar.gz -C .. sceptic
+	tar chzf sceptic.tar.gz  --exclude *.tar.gz -C .. sceptic
 	./copyremove.sh
 
 clean :
@@ -122,6 +123,7 @@ clean :
 	rm -f Orbits.txt
 	rm -f *~
 	rm -f *.liv
+	rm -f sceptic.tar.gz
 
 cleanall :
 	make clean
