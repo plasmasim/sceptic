@@ -1,4 +1,4 @@
-c___________________________________________________________________________
+c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c
 c     This code is copyright (c)
 c              Ian H Hutchinson    hutch@psfc.mit.edu.
@@ -6,7 +6,7 @@ c              Leonardo Patacchini patacchi@mit.edu
 c
 c     It may be used freely with the stipulation that any scientific or
 c     scholarly publication concerning work that uses the code must give
-c     an acknowledgement referring to the relevant papers among
+c     an acknowledgement referring to the relevant papers
 c
 c     I.H. Hutchinson, Plasma Physics and Controlled Fusion, vol 44, p
 c     1953 (2002), vol 45, p 1477 (2003).
@@ -21,7 +21,10 @@ c     The code may not be redistributed except in its original package.
 c
 c     No warranty, explicit or implied, is given. If you choose to build
 c     or run the code, you do so at your own risk.
-c___________________________________________________________________________
+c
+c     Version:  1.25   Sun May 25 19:10:02 EDT 2008
+c
+c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 
 c***********************************************************************
 c Version 2.6 outputs two files. T...frc traces the force evolution.

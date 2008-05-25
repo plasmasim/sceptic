@@ -1,4 +1,4 @@
-c___________________________________________________________________________
+c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 c
 c     This code is copyright (c)
 c              Ian H Hutchinson    hutch@psfc.mit.edu.
@@ -21,7 +21,10 @@ c     The code may not be redistributed except in its original package.
 c
 c     No warranty, explicit or implied, is given. If you choose to build
 c     or run the code, you do so at your own risk.
-c___________________________________________________________________________
+c
+c     Version:  1.25   Sun May 25 19:10:02 EDT 2008
+c
+c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___c___
 
 c***********************************************************************
 c Block bioundary communication.
