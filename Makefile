@@ -105,7 +105,7 @@ fvinjecttest : fvinjecttest.F makefile fvinject.o reinject.o initiate.o advancin
 fvinject.o : fvinject.f fvcom.f piccom.f
 	$(G77) -c $(COMPILE-SWITCHES) fvinject.f
 
-sceptic.tar.gz : ./accis/libaccisX.a sceptic scepticmpi
+sceptic.tar.gz : makefile ./accis/libaccisX.a sceptic $(MPIexecutable)
 	make -C accis mproper
 	make -C tools clean
 	make makefile
@@ -113,6 +113,8 @@ sceptic.tar.gz : ./accis/libaccisX.a sceptic scepticmpi
 	./copyattach.sh
 	tar chzf sceptic.tar.gz  --exclude *.tar.gz -C .. sceptic
 	./copyremove.sh
+
+tars : sceptic.tar.gz
 
 clean :
 	rm -f makefile

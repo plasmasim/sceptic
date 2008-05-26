@@ -7,6 +7,7 @@ if [ -x "`which mpif77`" ] ; then
 # By default use mpif77
    echo choosing compiler mpif77
    COMPILER=mpif77
+   MPIE=scepticmpi
    # COMPILE-SWITCHES choice
    if [ -n "`$COMPILER --version | grep GNU`" ] ; then
        echo changing compile switches
@@ -53,6 +54,7 @@ cat > makefile <<EOF
 G77=$COMPILER
 XLIB=$LIB
 NOWARN=$NW
+MPIexecutable=$MPIE
 # That ends by having the original Makefile tacked on the end.
 ###################################################################
 EOF
