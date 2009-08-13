@@ -585,6 +585,7 @@ c     Calculate the potential field, unless it is fixed.
             endif
          endif
          
+c         write(*,*)'Called fcalc'
 c     Broadcast back to the slaves.
 #ifdef MPI
          call MPI_BCAST(phi,(nrsize+1)*(nthsize+1),
@@ -634,7 +635,10 @@ c     Plot radial average velocity and temperatures.
 
 c     Main particle advance, including collisions.
 
+c         write(*,*)'Calling padvnc'
          call padvnc(dt,icolntype,colnwt,i)
+
+c         write(*,*)'Called padvnc'
 
 c Obsolete separate advance and collide:
 c         call padvnc(dt,icolntype,i)
@@ -730,6 +734,7 @@ c Write the output file.
       call MPI_FINALIZE(rc)
 #endif
 
+c      call plotinject(Ti)
 
 c Use call exit to avoid silly fortran message.
       call exit(0)
@@ -983,6 +988,7 @@ c         write(*,*)'zmomstep=',zmomstep(i),'  zoutstep=',zmoutstep(i)
          fluxrein=fluxreintot
          fluxprobe(i)=nintot
          ninner=nintot
+c         write(*,*)'ninner=',ninner,'nrein=',nrein
          end
 c***************************************************************
       subroutine aveupstep()

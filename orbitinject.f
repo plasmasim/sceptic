@@ -70,11 +70,14 @@ c In this routine we work in velocity units relative to ion thermal till end.
       endif
 c Pick normal velocity from cumulative Pu
       y1=ran0(idum)
-      call finvtfunc(pu,nvel,y1,u)
-      iv=u
-      dv=u-iv
+      call finvtfunc(pu,nvel,y1,u0)
+      iv=u0
+      dv=u0-iv
       u=dv*Vcom(iv+1)+(1.-dv)*Vcom(iv)
       if(.not.dv.le.1)write(*,*)'Error in u calculation',y1,u,iv,dv
+c      if(u.eq.0.)then 
+c         write(*,*)'Zero u in oreinject.',y1,u0,u,iv,dv
+c      endif
       vdist(iv)=vdist(iv)+1.
 c Pick angle from cumulative Pc.
       y=ran0(idum)
@@ -128,13 +131,14 @@ c         stop
 c      if(.not.lfixedn)chium2=0.
       brcsq=ran0(idum)*(1.+chium2)
 c Reject a particle that will not reach boundary.
-      if(brcsq.lt.0.) then
+c Was brcsq.lt.0. which gave segfaults.
+      if(brcsq.le.0.) then
          goto 1
       endif
       brc=sqrt(brcsq)
 c Get cosine and sine of impact angle relative to distant position.
 c Based on integration.
-      p2=brcsq*2.*Ti*u**2
+      p2=brcsq*2.*Ti*(u+eup)**2
       ierr=0
       if(debyelen.gt..001)then
 c Orbit integration angle calculation.
@@ -164,6 +168,11 @@ c Obtain angle coordinate and map back to th for phihere.
       ic1=x
       ic2=ic1+1
       dc=x-ic1
+      if(ic1.lt.0 .or. ic2.lt.0)then
+         write(*,*)'Orbitinj x,ic1,ic2,ct',x,ic1,ic2,ct
+         write(*,*)'cosal,sinal,brc,chium2',cosal,sinal,brc,chium2
+         write(*,*)'averein,Ti,u,eup',averein,Ti,u,eup
+      endif
 c This expression should work for CIC And NGP.
       phihere=(phi(NRUSED,ic1)+phi(NRFULL,ic1))*0.5*(1.-dc)
      $        +(phi(NRUSED,ic2)+phi(NRFULL,ic2))*0.5*dc
@@ -171,7 +180,7 @@ c Section to correct the injection velocity and direction (but not the
 c position) to account for local potential. 26 July 2004.
       if(localinj)then
          brcsq=(brcsq*(1.-phihere/Ti/(u+eup)**2)/(1.+chium2))
-         if(brcsq.lt. 0.) then
+         if(brcsq.le. 0.) then
 c     This launch cannot penetrate at this angle. But it would have done
 c     if the potential were equal here to averein. Thus it probably
 c     should not be counted as part of the launch effort. So
@@ -257,6 +266,7 @@ c            write(*,*)'Trapped',vdx/rp,u,v,sqrt(u**2-2.*averein)
 c crt,czt,ceta,cosal
          endif
       endif
+c      write(*,*)'averein,adeficit',averein,adeficit
       end
 c********************************************************************
 c Initialize the distributions describing reinjected particles

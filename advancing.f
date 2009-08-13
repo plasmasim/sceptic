@@ -310,6 +310,9 @@ c     Did not leave the grid. Jump to subcycle end.
 c We left. If we haven't exhausted complement, restart particle i.
                if(nrein.lt.ninjcomp) then
                   call reinject(i,dtin,icolntype,bcr)
+c Diagnostics
+                  call diaginject(xp(1,i))
+
                   dtprec(i)=dtin
                   ipf(i)=1
                   zmout=zmout+xp(6,i)
@@ -410,6 +413,9 @@ c We should not come here unless .not.lfixedn.
 c            write(*,*)'Reinjecting empty slot',i
 
             call reinject(i,dtin,icolntype,bcr)
+c Diagnostics
+                  call diaginject(xp(1,i))
+
             dtprec(i)=dtin
             ipf(i)=1
             iocthis=i
