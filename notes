@@ -1,0 +1,361 @@
+Started 6 Mar 
+
+Planning to include the vzsum and its derived momentum contribution
+in the outputs. 
+
+added vzsum to all places where there's a corresponding vtp2sum,
+including output.
+
+added into the tools. 
+However, the problem with that is that the tools are then not going
+to work with old outputs that don't have the vrsum. Because there's
+the wrong number of variables. So made that read conditional. 
+
+Got Leo's fgen to fgencol and modified that too. 
+
+postproc seems to work still.
+
+10 Mar
+Found that there's a problem with mpi on unity. It appears to be able to
+run scepticmpi but it does not complete.
+
+Rebooted mpd on all nodes.
+
+Made a trivial mpitest program. Tried to run it. Got
+
+[hutch@unity sceptic]$ mpiexec -n 20 ./mpitest
+problem with execution of ./mpitest  on  node30:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node02:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node26:  [Errno 2] No such file or directory 
+
+[hutch@unity sceptic]$ mpiexec -n 36 ./mpitest
+problem with execution of ./mpitest  on  node21:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node05:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node06:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node01:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node17:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node30:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node02:  [Errno 2] No such file or directory 
+problem with execution of ./mpitest  on  node26:  [Errno 2] No such file or directory 
+
+Obviously what this means is that some of the unity nodes do not have access
+to up-to-date versions of /beo_codes/hutch/src/sceptic. They can't find
+the program I just created. This probably means that there are incompatible
+versions of scepticmpi running on different nodes. NFS problem, I'm sure.
+
+
+14 Mar 07
+
+Trying to track down the forces associated with collisions and the 
+related asymmetries. 
+
+There are inaccuracies associated with exit, reinjection and collisions. 
+
+The test for leaving the domain is done after moving but before colliding.
+Colliding addresses possible collisions for the step just taken. However
+if a particle has exited the domain, it is then not included for possible
+collision in the prior step. A collision, if it had occurred before the
+particle exited, might have prevented the exit. Therefore, particles have
+a tendency to leave more rapidly than they should. 
+
+Reinjection moves the reinjected particle by an amount that is a
+random fraction of the assumed prior step, placing it inside the
+domain.  When a collision of this reinjected particle is detected, it
+is backtracked then collided. The backtracking might mean that the
+particle collided outside the domain. If it does, it may not make it
+into the domain on the succeeding fractional step. In that case,
+currently, the particle is reinjected at the original end-of-step but
+with the collided velocity. This is an approximation that will tend
+to place particles inside the domain with on-average lower inward normal
+velocity than they should have. It might be better to ignore collisions
+that occur outside the domain (when backtracked).
+
+Both of these effects appear to bias the particle injection by causing
+particles to leave the domain faster than they should. However, the
+effect definitely ought to decrease as timestep is decreased, since it
+is proportional to \nu dt.
+
+16 Mar
+
+Established that decreasing dt while s.dt is constant does not substantially
+change the error.
+
+Revisiting single processor verifications.  Modified pdiag to document
+some upstream versus downstream comparisons, and to limit the r-range.
+
+Found that there appears to be a significant discrepancy at low
+collisionality between the observed ion distribution and the analytic,
+but not at high collisionality. But doubling dt seems to reduce it and
+the distribution is then pretty correct.
+
+Also found there is a density discrepancy in the costheta plus versus
+minus regions, which appears systematic. When dealing with x30, we need
+an upstream/downstream asymmetry of about 30/ \pi rmax^2 to give a force
+of 30 units (nT r_p^2). This requires about 1% asymmetry. This much is
+present in the sums I get, although the potential asymmetry is somewhat
+below this = few x 10^-3 
+
+23 Mar
+
+Implemented angle distribution testing in fvinjecttest. We get the 
+mean and 1st moment correct to better than 1 part in 1000 for 1M 
+injections. Thus the reinjection is correct, as far as one can tell. 
+This can't give anything like the 1% asymmetry.
+
+28 Mar 
+Implemented kt5 kt6 which do no backtracking. They now seem to work
+and kt5 gives good particle distributions, but there are still force
+errors and density drop. Therefore it does not seem that I have 
+succeeded in fixing the problems with reinjection.
+
+29 Mar
+Showed that v1 kt5 k.1 gives comparable density drop (.97) for s1000 d.1 and 
+s5000 d.02, showing that the density drop is not a function of timestep.
+With k.001 the density drop is reduced (~.99), so it seems that collision
+frequency is important. Similarly, k.01 is ~99.
+
+k1 starts with a big density drop ~0.8 and then drifts up slowly through
+the run, ending with about 0.94. 
+There's a slight error on the downstream side of the distribution function.
+The observed distribution there, rises above the analytic, so the
+distribution is a little less shifted overall than analytic. I wonder if
+this error is enough to be significant.
+The initial error is substantially lower (~.93) when run with .d02, which shows
+perhaps that there is a timestep issue at these high collisionalities.
+This might be a multiple-collision issue, I suppose. The pdiag error is
+much reduced by the smaller timestep. But the density drop error, while
+not quite as large, is still substantial: 0.96.
+
+Therefore there is an error that is d-dependent but there's also one that
+is not. The one that is not is rather weakly dependent on the actual
+collisionality. 
+
+Try artificially multiplying riest by .95. Got density ~1.03 as expected.
+That hack gives the response expected.
+
+Try increasing nthfvsize to 150. Get about .99 this seems better than the
+previous kt5, k.1, d.1, s1000 (.97). Yes it definitely is.
+Try nthfvsize 300. Does not run correctly for some reason. 
+It's a dependency problem touching makefile makes it work.
+There might have been a problem with my prior change. This one seems
+to have about .975. So we don't have clear convergence. nthfvsize=100
+seems to have about .98. Not clear that we are chasing a real effect.
+
+30 Mar
+
+Implemented independent test of angle integration in fvinjecttest.
+This prints out the difference between its evaluation actot and that
+of fvinjinit: qthfv(nthfvsize). Athough the agreement is not bad, there
+are significant discrepancies:
+./fvinjecttest -ni1000 -v1. -t.01
+actot,qthfv(nthfvsize)  3.63838959  3.54334331
+This is 3 %. At -t.1 the discrepancy is about 1% or slightly less.
+
+Note that at high v/t the one way flux that these correspond to should
+be 1/2\sqrt(2) = 0.35355 times sqrt(T). 
+
+./fvinjecttest -ni1000 -v1. -t.0001 gives
+actot,qthfv(nthfvsize)  353.555237  338.884613
+which shows that actot is accurate, but the qthfv is substantially low.
+
+Increasing the number of theta or v steps did not significantly change
+this problem:
+Finished initialization on grid 100 100 100
+ actot,qthfv(nthfvsize)  353.555237  339.285217
+
+Dug around inside fvinject to try to find the cause of this discrepancy.
+Eventually found that in 
+     vzfvi=min(-vtrange,-vtrange+udrange*ud)
+      vzfva=max(vtrange,vtrange+udrange*ud)
+udrange, which was set at 5. is the culpret. Increasing to 10 I get.
+Finished initialization on grid 50 40 40
+ actot,qthfv(nthfvsize)  353.591309  351.67923
+
+Changed the mesh to be uniform, which together with increasing udrange
+removes the error to of order 0.3%, which is pretty negligible. I don't
+really know if this was a significant issue in the actual runs.
+
+31 Mar
+Try putting the Eneutral acceleration just before the collision. 
+This makes the apparent n-error positive, the opposite sign from before.
+It reduces as the -c enhancement drops. Clearly there is a significant
+effect from the timing of the Eneutral. Final value about 1.04. 
+This is all -kt5 -k1. Slight downward shift of distribution. 
+Try half of the acceleration at end. Get close to 1.00 density. 
+Still some distribution bias (looks similar). 
+Pretty good 0.98 result with -k.1. Pdiag distribution looks way better.
+
+-kt1 also seems to be better with this Eneutral location. Actually somewhat
+better with all of Eneutral at end. But at -k1. we get elevated result
+with that. With half of Eneutral at end, it is still possible to see a
+noticeable asymmetric effect on density at the last cell, with -k1. and
+-d.1. This does not disappear with Eneutral at end. 
+
+-kt5 does not have the visible edge density perturbation at -k1; with 
+Eneutral at end or half at end. This seems to show that there is a substantial
+error arising from the collisional backtracking, which leads to a deficit
+in the last cell on the downstream side (and extra upstream).
+
+-kt1 still has density deficit at -d.01, about .975. -kt5 also, but these
+may be at the noise limit. 
+
+Summary
+_______
+
+A small error (of order 1% in typical conditions) in the fvinject integrations
+was identified and fixed by increasing the velocity ranges.
+
+Moving the Eneutral acceleration to be immediately before the
+collisions has a significant effect increasing the apparent density,
+but proportional to timestep.
+
+The -kt5 scheme of not backtracking substantially reduces the asymmetric
+edge perturbation when collisionality is very strong compared with the
+-kt1 scheme which uses collisional backtracking. 
+
+All of these effects appear to be in the right direction to correct
+residual errors. 
+
+4 Apr 07
+
+Implement advancingc, which moves the collisions into the padvnc routine.
+This works fairly well. There is a hit of a few percent on speed (when 
+collisions are not on) but that is more than compensated by a different
+efficiency gain that I found. 
+
+There are puzzles when a collision takes place because of the
+acceleration step in the form of dtnow=(dt+dtprevious)/2. That
+expression is reasonable for a leap-frog scheme, since the velocity is
+to be advanced from its value half way through the previous step to
+its value half way through the present step. However, for the Eneutral
+acceleration, it is not clear this is correct.
+
+When a collision occurs, the velocity starts from the neutral
+(stationary) distribution. This is at the start of the next time step,
+not half way through it, the way I have implemented things.  It is
+therefore correct to accelerate the particle using Eneutral for the
+entire time from that collision to the next collision when considering
+the distribution function. However that is not really consistent with
+the staggered time view of the leapfrog scheme.
+
+5 Apr 07
+Further debugging of advancingc seems to get reasonable distribution with
+either Eneutral implementation. Use the accel+Eneutral for now. 
+Also corrected the errors in the icycle implementation. 
+
+Runs give very similar results to the prior kt1: force error of -27.
+Slightly low apparent density as before. Overall things are astonishingly
+similar to the old collision approach. We don't have an explanation for
+the asymmetry and density deficit.
+
+Try putting dtprec to dtin after reinject. Earlier it was left as dt, which
+might well be shorter, which might have an influence. Actually this is not
+really correct. It probably should be made equal to the twice the 
+equivalent step used in reinject to place the particle inside the domain. 
+That would then be a proper treatment for regarding the particle as having
+the velocity drawn from the analytic distribution at exactly the boundary,
+and that point as being half way through the previous spatial step. On 
+average, twice the step equivalent will equal dtin. 
+
+10 April.
+Found bug in through-probe code. Corrected but it seems far too small to be
+the cause of what I am currently doing. Correction does not change deficit.
+Rechecked fvinit.
+
+Consider the follow reinject inaccuracy: A reinjected particle is moved
+by a random fraction of dt*v, before being positioned. Similarly it is
+accelerated before being placed. This ignores the possibility of a collision
+in the fractional step that is being modelled before placement. This is
+an inaccuracy. It means that the particle ends up further inside the 
+domain than it should: a position error. Eneutral acceleration is being
+applied in the reinjection only if icolntype is >4. That is supposed to
+compensate for collisional effects on velocity, but it does not fix
+the position error.
+
+Trouble is that the density deficit is caused by there being MORE
+reinjections than expected: rhoinf is 2% too high. This is verified by
+doing a simple calculation of npart/volume. It seems off hand as if
+reinjection placement further inside the volume than reality will reduce
+the nrein. Well, let's think about that. If we thought we had just a drifting 
+distribution, it would mean that the particles would start nearer to their
+exit on the other side of the domain. That might shorten the time they 
+spend in the domain which would mean an increase of nrein. 
+
+Increasing velocity to 2 from .5 does not substantially change the 
+deficit. (-k.05)
+
+Trying removing the icycle approach by setting to 1. This seems to reduce the
+rhoinf error by about 1% to about 1% instead of 2%. Also makes a big
+difference to the external force error. Increasing the denominator of 
+icycle calculation to 50 from 20 also reduces error nearly as much.
+
+Halving the step size to -d.05 does not significantly change the rhoinf.
+
+Summary
+_______
+
+There is a bias being introduced by the icycle process, which accounts for
+about 1% of the error. Using icycle=1 avoids that and gets a rhoinf that
+is within 1% of correct. (Getting 64.0 vs npart/vol=63.66). See notebook.
+
+No dt-dependence has been discovered with icycle=1.
+
+
+11 Apr 07
+
+Change the handling of reinjection in advancingc so that we simply use
+the rest of the cycle for the reinjected particle. We start it a tiny
+bit inside the boundary and then just process it for the remdt time.
+Have to set remdt randomly for now, because the amount of time taken
+in the previous step is not currently calculated at the outer boundary.
+Find that we have a remaining deficit of about 0.5%, rhoinf=64.0 cf 63.7.
+This is substantially larger than the integration error in the finjinit,
+which is of order 0.1%
+
+Create a tag in the sceptic repository old-advancing, which marks the
+prior version of advancing, and reinject, prior to the changes described
+here.
+
+The 63.66 value of npart/volume is artificially low, because the presence
+of the sphere causes an inner volume to be substantially free of 
+particles. If that volume were only the sphere, then for -x30 it is only
+1/30^3 which is about 4e-5 of the domain. However, with substantial drift,
+the deficit will extend a long way down stream, so that the effective
+volume is noticeably larger. In point of fact, if the ions are mostly 
+moving in one direction, as they are with v=2, t=.1, then it is a
+good approximation that the volume is a tube that extends one domain
+radius from the sphere. I.e. the equivalent volume deficit is 
+\pi r_p^2 r_d out of 4\pi/3 r_d^3, which gives a fraction
+
+	f_v = 3/4 r_p^2/r_d^2
+
+For -x30 this is approximately 1/(30^2) = 1/1000 which is smaller than 
+the 0.5% I am looking for, but not totally negligible. 
+
+The finnerave correction for rhoinf (which increases it) is also
+quantitatively about 1/1000. So there's 0.2%. 
+
+Running a scaled -x300 case, I get phiinf=-2.752 => rhoinf=.06359. This
+eliminates the discrepancy, which is highly suggestive. 
+
+Case with low collisionality 5e-4 gives actually a higher rhoinf: 65.0
+but shows signs (at 1000 steps) of non-convergence. Perhaps not surprising
+since there's so little damping.
+
+20 Apr 07
+
+Trying some quasineutral cases. I get a big perturbation at the edge.
+This appears to be caused by incompatibility of the advancingc code with
+the older injection schemes. On reflection: of course! Advancingc does
+its own adjustment of the reinjected particles. All the old versions have
+it in the reinjection code. It has to be removed from all of that.
+Done:
+oreinject
+ogenreinject
+maxreinject
+
+Also, since this changes many files, make the advancingc.f the advancing.f 
+and the old one advancingo.f and adjust makefile. 
+
+Now the transition to the new advancing scheme is hopefully complete. It 
+is not completely tested however.

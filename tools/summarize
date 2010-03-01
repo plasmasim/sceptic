@@ -1,0 +1,4 @@
+#!/bin/bash
+rm -f summary
+for file in T*; do /home/hutch/src/sceptic/postproc -p $file >>summary; done
+
