@@ -721,8 +721,9 @@ c Draw some final diagnostic figures, if flag set.
          endif
       endif
       if(myid.eq.0)then
-c Write the output file.
+c Write the output files.
          call output(dt,damplen,i-1,fave,icolntype,colnwt)
+         call outputhdf(dt,i-1,fave,icolntype,colnwt)
          if (norbits.ge.1) call orbitoutput()
       endif
 
