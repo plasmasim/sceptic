@@ -311,7 +311,7 @@ c We left. If we haven't exhausted complement, restart particle i.
                if(nrein.lt.ninjcomp) then
                   call reinject(i,dtin,icolntype,bcr)
 c Diagnostics
-                  call diaginject(xp(1,i))
+c                  call diaginject(xp(1,i))
 
                   dtprec(i)=dtin
                   ipf(i)=1
@@ -414,7 +414,7 @@ c            write(*,*)'Reinjecting empty slot',i
 
             call reinject(i,dtin,icolntype,bcr)
 c Diagnostics
-                  call diaginject(xp(1,i))
+c                  call diaginject(xp(1,i))
 
             dtprec(i)=dtin
             ipf(i)=1
