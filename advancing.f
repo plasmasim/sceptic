@@ -310,6 +310,16 @@ c     Did not leave the grid. Jump to subcycle end.
 c We left. If we haven't exhausted complement, restart particle i.
                if(nrein.lt.ninjcomp) then
                   call reinject(i,dtin,icolntype,bcr)
+c              Keep record of injected particles for testing
+               if (mcrninjd.lt.npartmax) then
+                  mcrninjd = mcrninjd + 1
+                  mcrxpinjd(1,mcrninjd) = xp(1,i)
+                  mcrxpinjd(2,mcrninjd) = xp(2,i)
+                  mcrxpinjd(3,mcrninjd) = xp(3,i)
+                  mcrxpinjd(4,mcrninjd) = xp(4,i)
+                  mcrxpinjd(5,mcrninjd) = xp(5,i)
+                  mcrxpinjd(6,mcrninjd) = xp(6,i)
+               endif
 c Diagnostics
 c                  call diaginject(xp(1,i))
 

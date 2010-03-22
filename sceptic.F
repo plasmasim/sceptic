@@ -104,6 +104,10 @@ c     bcr : BC on reinjection
 c Signal that fvcom is not initialized. After initialization it is .ne.0
       qthfv(nthfvsize)=0.
 
+c Number injected particles recorded
+      mcrninjd = 0
+
+
 c Deal with arguments
       if(iargc().eq.0) goto 51
       do 1 i=1,iargc()

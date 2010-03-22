@@ -31,10 +31,18 @@ echo
 
 
 echo  command to EXE:
+PROGRAM="./scepticmpi -s5 -nr50 -nt10 -f -g -kt1 -k0.01 --bz1. -v2."
+echo mpirun -l -np $NPROCS $PROGRAM
+echo
+mpirun -l -np $NPROCS $PROGRAM
+
+
+echo  command to EXE:
 PROGRAM="./scepticmpi -s5 -nr50 -nt10 -f -g -kt1 -k0.01 --bz1. -v2. -vn2."
 echo mpirun -l -np $NPROCS $PROGRAM
 echo
 mpirun -l -np $NPROCS $PROGRAM
+
 
 
 sleep 1

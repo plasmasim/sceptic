@@ -1,5 +1,7 @@
 c*********************************************************************
 c Writes the hdf output file
+c Note that this version was hacked from the sceptic3D version, so it
+c   is not necessarily correct nor complete
       subroutine outputhdf(dt,k,fave,icolntype,colnwt)
 c Load the hdf5 module
       use hdf5
@@ -65,7 +67,7 @@ c     Turn on these when testing convergence with changing grid size
 cc      call nameappendint(filename,'Nr',nrused,3)
 cc      call nameappendint(filename,'Nt',nthused,3)
 
-      idf=nbcat(filename,'.h5')
+      idf=nbcat(filename,'2D.h5')
 
 
 
@@ -833,6 +835,36 @@ c Close the group.
 
 
 c Create a group in the file.
+      groupname = 'mcr'
+      CALL h5gcreate_f(file_id, groupname, group_id, error)
+
+c Write the data in this group
+
+c     Single value variables
+      rank = 1
+      data_dims(1) = 1
+      storage_dims(1) = 1
+
+      dsetname = 'mcrninjd'
+      call writehdfintmat(group_id,dsetname,
+     $ mcrninjd,storage_dims,data_dims,rank)
+
+c     Variable arrays
+
+      dsetname = 'mcrxpinjd'
+      rank = 2
+      data_dims(1) = ndim
+      data_dims(2) = mcrninjd
+      storage_dims(1) = ndim
+      storage_dims(2) = npartmax
+      call writehdfrealmat(group_id,dsetname,
+     $ mcrxpinjd,storage_dims,data_dims,rank)
+
+c Close the group.
+      CALL h5gclose_f(group_id, error)
+
+
+c Create a group in the file.
       groupname = 'colncom'
       CALL h5gcreate_f(file_id, groupname, group_id, error)
 
@@ -858,6 +890,37 @@ c     Single value variables
       dsetname = 'NCneutral'
       call writehdfintmat(group_id,dsetname,
      $ NCneutral,storage_dims,data_dims,rank)
+
+c Close the group.
+      CALL h5gclose_f(group_id, error)
+
+
+c Create a group in the file.
+      groupname = 'noncommonblock'
+      CALL h5gcreate_f(file_id, groupname, group_id, error)
+
+c Write the data in this group
+
+c     Single value variables
+      rank = 1
+      data_dims(1) = 1
+      storage_dims(1) = 1
+
+      dsetname = 'dt'
+      call writehdfrealmat(group_id,dsetname,
+     $ dt,storage_dims,data_dims,rank)
+
+      dsetname = 'fave'
+      call writehdfrealmat(group_id,dsetname,
+     $ fave,storage_dims,data_dims,rank)
+
+      dsetname = 'colnwt'
+      call writehdfrealmat(group_id,dsetname,
+     $ colnwt,storage_dims,data_dims,rank)
+
+      dsetname = 'icolntype'
+      call writehdfintmat(group_id,dsetname,
+     $ icolntype,storage_dims,data_dims,rank)
 
 c Close the group.
  999  CALL h5gclose_f(group_id, error)
