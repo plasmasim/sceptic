@@ -66,7 +66,7 @@ c Legacy usage for summarize:
          if(string(1:2) .eq. '-u') lunlabel=.true.
          if(string(1:2) .eq. '-e') ledge=.true.
          if(string(1:2) .eq. '-b') langle=.true.
-         if(string(1:3) .eq. '-o') lnlog=.true.
+         if(string(1:2) .eq. '-o') lnlog=.true.
          if(string(1:2) .eq. '-j') read(string(3:),*)jstepth
          if(string(1:2) .eq. '-?') goto 51
          else
@@ -357,16 +357,16 @@ c     fix up as double on boundary.
 
       call exit
  51   write(*,*)"Usage: postproc [-f -x ... ] filename"
-      write(*,*)"-f plot angle-averaged phi and phi contours.",
-     $     "-n contour n.      -t contour T.     -l contour lines.",
-     $     "-c CIC output. -j<n> theta plot step.",
-     $     "-r print diagnostics on file reading.",
-     $     "-i recalculate rho-infinity, -v do not write v_f value",
-     $     "-a put velocity arrows on T plots. -s separate T plots",
-     $     "-u plot unlabelled full sphere.  -x do no line graphs.",
-     $     "-e use density contours spaced closer to 1, for edge.",
-     $     "-b plot angle distributions.",
-     $     "-o plot log(n) versus log(r), angle averaged."
+      write(*,'(a)')" -f plot angle-averaged phi and phi contours.",
+     $     " -n contour n.      -t contour T.     -l contour lines.",
+     $     " -c CIC output. -j<n> theta plot step.",
+     $     " -r print diagnostics on file reading.",
+     $     " -i recalculate rho-infinity, -v do not write v_f value",
+     $     " -a put velocity arrows on T plots. -s separate T plots",
+     $     " -u plot unlabelled full sphere.  -x do no line graphs.",
+     $     " -e use density contours spaced closer to 1, for edge.",
+     $     " -b plot angle distributions.",
+     $     " -o plot log(n) versus log(r), angle averaged & print."
       
       call exit
       end

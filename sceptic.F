@@ -1,4 +1,3 @@
-
 c Main program for pic code
       program sceptic
 
@@ -282,7 +281,7 @@ c Orbit tracking setting. This is when we want to follow orbits of particles
 c having a thermal speed directed in the z direction, but different impact
 c parameters
       trackinit=maxsteps/2
-      
+      write(*,*)'trackinit=',trackinit
       if(myid.eq.0)then
 c         write(*,*)'Command line and defaults:'
          write(*,505)nr,nth,npart,Bz
@@ -403,7 +402,8 @@ c Save the permanent plot switch.
       maccel=maxsteps/3
       nsamax=min(39,maxsteps/10)+1
       if(success)nstepsave=nsamax
-
+c      nsamax=2
+      write(*,*)'maccel,nsamax,nstepsave',maccel,nsamax,nstepsave
 c     Timing
 #ifdef MPI
       sortime=MPI_WTIME()
@@ -665,6 +665,7 @@ c Small mesh written diagnostics.
          time=time+dt
  503     format(10f8.1)
  504     format(10f8.3) 
+         call flush()
       enddo
 c End of particle stepping section.
 
@@ -1078,8 +1079,9 @@ c     normalize to rhoinf and the probe area to give normalized flux density
      $        ,2)
          write(*,*)'Charge       E-field        Electrons',
      $        '       Ions     Coll     Total'
-         write(*,*)(zmom(nstepmax,j,1),j=1,5),total1
-         write(*,*)(zmom(nstepmax,j,2),j=1,5),total2
+         write(*,505)(zmom(nstepmax,j,1),j=1,5),total1
+         write(*,505)(zmom(nstepmax,j,2),j=1,5),total2
+ 505     format(6f12.5)
 
          phiout=0
 
