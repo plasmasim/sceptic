@@ -99,8 +99,8 @@ orbitint : orbitint.f coulflux.o $(OBJECTS) ./accis/libaccisX.a makefile
 coulflux.o : tools/coulflux.f
 	$(G77) -c $(COMPILE-SWITCHES) tools/coulflux.f
 
-fvinjecttest : fvinjecttest.F makefile fvinject.o reinject.o initiate.o advancing.o chargefield.o randf.o fvcom.f
-	$(G77)  -o fvinjecttest $(COMPILE-SWITCHES) fvinjecttest.F fvinject.o reinject.o initiate.o advancing.o chargefield.o randf.o  $(LIBRARIES)
+fvinjecttest : fvinjecttest.F makefile fvinject.o reinject.o initiate.o advancing.o chargefield.o randf.o reindiag.o fvcom.f
+	$(G77)  -o fvinjecttest $(COMPILE-SWITCHES) fvinjecttest.F fvinject.o reinject.o initiate.o advancing.o chargefield.o randf.o reindiag.o $(LIBRARIES)
 
 fvinject.o : fvinject.f fvcom.f piccom.f
 	$(G77) -c $(COMPILE-SWITCHES) fvinject.f

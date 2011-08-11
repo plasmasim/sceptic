@@ -359,3 +359,34 @@ and the old one advancingo.f and adjust makefile.
 
 Now the transition to the new advancing scheme is hopefully complete. It 
 is not completely tested however.
+
+1 June 11
+
+Reminding myself about convergence. Actually convergence criterion is a 
+bit too strict, which is why often with the original steps it takes
+them all, which was 2.5*NR. In comparison with the 3D code. That takes
+about 60 steps of the CG relaxation. 
+However,
+	sor steps are half-steps.
+	sor steps maybe faster by maybe a factor of 2. 
+	At least coptic's steps are substantially faster than sceptic3D. 
+	Result is that there's definitely less than a factor of 2 benefit.
+	And in some cases no benefit with CG.
+
+11 Aug 11
+
+There's an error in reinjection with collisions when vneutral!=0. 
+The distribution used does not account properly for it. Instead,
+all that happens is that fv() uses 
+      common /distfunc/ud
+      fv=fvcx(vz,ud)*exp(-vx**2)/1.77245385
+with ud being just the drift velocity normalized to sqrt(Ti).
+
+If vneutral is non-zero, then the fvcx distribution applies in the 
+frame of reference of the neutrals. (In which the neutrals are not drifting.) 
+So if uneutral is the equivalent neutral velocity we ought to use
+   fv=fvcx(vz-uneutral,ud-uneutral)*exp(-vx**2)/1.77245385
+
+Did all that. Had also to hack around in fvinjecttest because that was
+then comparing some non-applicable analytic expressions with the actual
+data. 

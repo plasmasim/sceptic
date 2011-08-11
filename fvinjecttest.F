@@ -10,7 +10,11 @@ c Grabbed initially from sceptic.F
 c Common storage:
       include 'piccom.f'
       include 'fvcom.f'
+      include 'colncom.f'
+
+      common /distfunc/ud,uneutral
       real ftest(nxfvi:nxfva,nzfvi:nzfva)
+      external fv
 
 c diagnostics
       real vydist(nxfvi:nxfva),fmaxwell(nxfvi:nxfva),vzdist(nxfvi:nxfva)
@@ -112,7 +116,8 @@ c restore defaults on read error.
          if(string(1:2) .eq. '-b') read(string(3:),*)bdyfc
          if(string(1:2) .eq. '-t') read(string(3:),*)Ti
          if(string(1:2) .eq. '-x') read(string(3:),*)rmax
-         if(string(1:2) .eq. '-v') read(string(3:),*)vd
+         if(string(1:3) .eq. '-vd') read(string(4:),*)vd
+         if(string(1:3) .eq. '-vn') read(string(4:),*)vneutral
          if(string(1:3) .eq. '-pf') then
             lfloat=.true.
          elseif(string(1:3) .eq. '-pi') then
@@ -159,8 +164,9 @@ c Set Array sizes, allowed variable.
 
       r(nr)=rmax
       Eneutral=colnwt*(vd-vneutral)
-      write(*,*)'vd,icolntype,colnwt,Eneutral',
-     $     vd,icolntype,colnwt,Eneutral
+      uneutral=vneutral/sqrt(2.*Ti)
+      write(*,*)'vd,vneutral,icolntype,colnwt,Eneutral',
+     $     vd,vneutral,icolntype,colnwt,Eneutral,uneutral
 c********************
 c Real init testing section.
 c
@@ -208,6 +214,7 @@ c         write(*,*)'ztrfv(ix,ith)='
 c         write(*,string)((qxfv(i,j),j=1,nthfvsize),i=nxfvi,nxfva)
 
 c Test the function evaluation
+      write(*,*)'ud,uneutral',ud,uneutral
       do i=nxfvi,nxfva
          do j=nzfvi,nzfva
             ftest(i,j)=fv(vxfv(i),vzfv(j))
@@ -331,26 +338,28 @@ c Integrate:
 c This then seems to give excellent agreement with analytic form.
 c And provided dt is small enough, so does the reinjection.
 
-      call autoplot(cosangle,acint,ncdist)
+      call autoplot(fvthtest,qthfv,nthfvsize)
       call axlabels('cos(!Aq!@)','Cumulative angle distribution')
       call color(4)
       call dashset(1)
-      call polyline(fvthtest,qthfv,nthfvsize)
+      if(uneutral.eq.0.)call polyline(cosangle,acint,ncdist)
       call pltend()
 
       write(*,'(2f10.5)')(cdangle(j),acdist(j),j=1,ncdist)
 
       call automark(cdangle(2),cosdist(2),ncdist-1,1)
       call axlabels('cos(!Aq!@)','Injection angle distribution')
-      call polyline(cdangle(2),acdist(2),ncdist-1)
+      if(uneutral.eq.0.)call polyline(cdangle(2),acdist(2),ncdist-1)
       call color(4)
       call dashset(1)
       call polyline(fvthtest,qthtest,nthfvsize)
       call pltend()
 
-      call automark(cosangle,ratc,ncdist,3)
-      call axlabels('cos(!Aq!@)','Distribution ratio')
-      call pltend()
+      if(uneutral.eq.0.)then
+         call automark(cosangle,ratc,ncdist,3)
+         call axlabels('cos(!Aq!@)','Distribution ratio')
+         call pltend()
+      endif
 
 c      call automark(pindex,phiangle,npart,10)
 c      call axlabels('index','phiangle')
@@ -388,7 +397,8 @@ c
       call minmax(vzdist,nxfva-nxfvi+1,vzmin,vzmax)
       do j=nxfvi,nxfva
          v=vzfv(j)
-         fmaxwell(j)=fvcx(v,vd/sqrt(2.*Ti))*npart*(vzfv(2)-vzfv(1))
+         fmaxwell(j)=fvcx(v-vneutral/sqrt(2.*Ti)
+     $        ,(vd-vneutral)/sqrt(2.*Ti))*npart*(vzfv(2)-vzfv(1))
       enddo
       call dashset(1)
       call polyline(vzfv,fmaxwell,nxfva-nxfvi+1)
@@ -399,8 +409,10 @@ c
       call pltend()
 
       call exit(0)
- 51   write(*,*) 'Usage: fvinjecttest -vfff.ff [other options]'
-      write(*,*) ' Test the fvinjection routine specifying drift vd'
+ 51   write(*,*) 'Usage: fvinjecttest -vdfff.ff [other options]'
+      write(*,*) ' Test the fvinjection routine specifying total'
+     $     ,' drift -vd, of which'
+      write(*,*) ' -vnfff.ff is neutral drift.'
       write(*,*) ' -pf plot f(vx,vz). -pi plot integrated f (qxfv).'
       write(*,*) ' -nrii -ntii set r- and theta- array size ii.'
       write(*,*) ' -aii set plotfile ii. -mii set myid (seed)'

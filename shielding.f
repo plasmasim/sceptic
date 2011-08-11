@@ -14,18 +14,20 @@ c Correct the type of temporary variable (IHH). Better use initial letter.
 
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
 
-      rjac=1.-4./max(10,NRUSED)**2
-      omega=1.
-      maxits=2.5*NRUSED
-      dconverge=1.e-5
+      rjac=1.-2./max(10,NRUSED)**2
+c      write(*,*)rjac
+      omega=1.8
+c      maxits=2.5*NRUSED
+      maxits=5*NRUSED
+      dconverge=1.5e-5
       imin=1
-      relax=0.5
+c      relax=0.5
 
 
 c     Start SOR iteration
       do k=1,maxits
 c     Use over-relaxation if debyelen is large, or straight newton otherwise.
-         relax=(omega*debyelen**2+1.)/(debyelen**2+1.)
+         relax=(omega*debyelen**2+.3)/(debyelen**2+.3)
          deltamax=0.
 c     Changed to chessboard calculation. Twice as fast
          c=mod(k,2)
@@ -61,18 +63,23 @@ c     Implement edge-potential-control if set.
          enddo
             
          if(abs(deltamax).lt.dconverge.and.k.ge.2) goto 11
-         if(k.eq.1)then
-            omega=1./(1.-0.5*rjac**2)
-         else
-            omega=1./(1.-0.25*rjac**2*omega)
-         endif
+c         if(mod(k,2).eq.0)then
+            if(k.le.1)then
+               omega=1./(1.-0.5*rjac**2)
+            else
+               omega=1./(1.-0.25*rjac**2*omega)
+            endif
+c         endif
+c      write(*,201)k,deltamax,relax,rjac
       enddo
+c         write(*,'(''deltamax='',g10.3)')deltamax
  11   continue
       
 
       write(*,'('':'',i3,$)')k
-c     write(*,201)k,deltamax,relax
- 201  format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4)
+c      write(*,201)k,deltamax,relax,rjac
+ 201  format(' SOR iteration',I4,' delta:',f10.6,' relax=',f8.4,
+     $     ' rjac=',f10.6)
 c     Inner Boundary values
       do j=1,NTHUSED
          phi(0,j)=2.*phi(imin,j)-phi(imin+1,j)

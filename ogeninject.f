@@ -215,7 +215,7 @@ c Initialize the distributions describing reinjected particles
 c Common data:
       include 'piccom.f'
 c Passing the drift velocity to fv.
-      common /distfunc/ud
+      common /distfunc/ud,uneutral
 c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)

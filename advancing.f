@@ -569,6 +569,7 @@ c Common data:
       include 'piccom.f'
       real relax
       real phislopeconst(nth),phislopefac(nth)
+
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
       rjac=1.-4./max(10,NRUSED)**2
       omega=1.

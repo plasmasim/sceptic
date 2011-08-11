@@ -415,13 +415,15 @@ c***********************************************************************
 c Initialize the needed data arrays.
       include 'piccom.f'
       include 'fvcom.f'
+      include 'colncom.f'
 c Passing the drift velocity to fv.
-      common /distfunc/ud
+      common /distfunc/ud,uneutral
       parameter (vtrange=4.,udrange=8.)
 
 c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)
+      uneutral=vneutral/sqrt(2.*Ti)
 
 c Decide what the positive and negative velocity ranges are and fit them
 c to the mesh.
@@ -655,8 +657,9 @@ c At present this is a drift distribution corresponding to constant
 c collision frequency charge-exchange, which has just one parameter,
 c ud the normalized drift velocity.
 c The perpendicular distribution is exp(-vx^2)/pi a Maxwellian.
-      common /distfunc/ud
-      fv=fvcx(vz,ud)*exp(-vx**2)/1.77245385
+      common /distfunc/ud,uneutral
+      fv=fvcx(vz-uneutral,ud-uneutral)*exp(-vx**2)/1.77245385
+c      fv=fvcx(vz,ud)*exp(-vx**2)/1.77245385
       end
 c***************************************************************
 c The distribution function, normalized so that integral over 
@@ -669,8 +672,8 @@ c At present this is a drift distribution corresponding to constant
 c collision frequency charge-exchange, which has just one parameter,
 c ud the normalized drift velocity.
 c The perpendicular distribution is exp(-vx^2)/pi a Maxwellian.
-      common /distfunc/ud
-      fvgyro=fvcx(vz,ud)*exp(-vx**2)/3.1415926
+      common /distfunc/ud,uneutral
+      fvgyro=fvcx(vz-uneutral,ud-uneutral)*exp(-vx**2)/3.1415926
       end
 c****************************************************************
 c FVCX function for 1-d drifting CX distribution.
