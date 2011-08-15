@@ -404,8 +404,12 @@ c
       call polyline(vzfv,fmaxwell,nxfva-nxfvi+1)
       call dashset(0)
       call jdrwstr(.02,.02,
-     $'Comparing injection flux to f(vz) distrib. Should not agree',
-     $     1.)
+     $     'Comparing injection flux _ to f(vz)- - distrib.'
+     $     //' Should not agree', 1.)
+      write(*,*)'Injection flux as fn of vz'
+      do k=nxfvi,nxfva
+         write(*,'(i3,f6.2,f10.1)')k,vzfv(k),vzdist(k)
+      enddo
       call pltend()
 
       call exit(0)

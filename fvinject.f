@@ -424,13 +424,14 @@ c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)
       uneutral=vneutral/sqrt(2.*Ti)
+      udiff=ud-uneutral
 
 c Decide what the positive and negative velocity ranges are and fit them
 c to the mesh.
       vxfvi=-vtrange
       vxfva=vtrange
-      vzfvi=min(-vtrange,-vtrange+udrange*ud)
-      vzfva=max(vtrange,vtrange+udrange*ud)
+      vzfvi=min(-vtrange+uneutral,-vtrange+udrange*udiff+uneutral)
+      vzfva=max(vtrange+uneutral,vtrange+udrange*udiff+uneutral)
 c      write(*,*)'vzfvi,vzfva=',vzfvi,vzfva
       do i=0,nxfva
          vxfv(i)=vxfva*i/float(nxfva)
@@ -638,7 +639,9 @@ c we need would be three-dimensional.
                fqvxvz(k,j)=fqvxvz(k,j)/fqvxvz(nxfva,j)
             enddo
          else
-            write(*,*)'calcfqx: Warning, zero-integral inaccuracy!'
+            write(*,'(a,i3,f8.3,i3,f8.3)')
+     $           'calcfqx: Warning, zero-integral inaccuracy!'
+     $           ,j,vzfv(j),nxfva,vxfv(nxfva)
 c hack a straight line
             do k=nxfvi,nxfva
                fqvxvz(k,j)=(k-nxfvi)/float(nxfva-nxfvi)

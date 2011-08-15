@@ -38,7 +38,7 @@ c fix any rounding errors at top and bottom of range:
          dpsi=2.*(1.+eps)*pi/ndpsi
          lfirst=.false.
 c Velocity
-         vrange=5.
+         vrange=10.
          dvf=2.*vrange/ndth
          do i=1,ndth
             vfv(i)=(-vrange+((i-1)+.5)*dvf)

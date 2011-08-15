@@ -390,3 +390,8 @@ So if uneutral is the equivalent neutral velocity we ought to use
 Did all that. Had also to hack around in fvinjecttest because that was
 then comparing some non-applicable analytic expressions with the actual
 data. 
+
+15 Aug 11
+
+Adjusted the velocity range choice in finjinit to account for the neutral
+as well as the vd velocity and avoid the zero-integral errors.
