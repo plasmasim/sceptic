@@ -10,12 +10,12 @@ c********************************************************************
       include 'piccompost.f'
 c      include 'cic/piccompost.f'
 
-      real rholocal(0:NRFULL,0:NTHFULL)
+      real rholocal(0:NRFULL,0:NTHFULL),diagtrap(0:NRFULL,0:NTHFULL)
 c      real thanglocal(0:NTHFULL)
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
 
-      real phipic(1000),rhopic(1000)
+      real phipic(1000),rhopic(1000),rhotrap(1000)
       real rpic(1000),rpicleft(1000),phicos(1000)
       real phiyukawa(1000)
       integer nti0
@@ -87,8 +87,8 @@ c Legacy usage for summarize:
 
 c Read the outputfile
       call readoutput(lreaddiag,lpcic,ledge,
-     $     filename,rholocal,nrhere,nthhere,nphere,
-     $     phipic,rhopic,rpic,rpicleft,phicos,
+     $     filename,rholocal,diagtrap,nrhere,nthhere,nphere,
+     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
      $     dt,rmax,fave,debyelen,vprobe,
@@ -150,6 +150,10 @@ c         call lautoplot(rpic,rhopic,nrhere,.true.,.true.)
          call polyline(rpic,rhopic,nrhere)
          call axis()
          call axlabels('r','angle averaged density')
+         call color(11)
+c         write(*,*)(rhotrap(k),k=1,nrhere)
+         call polyline(rpic,rhotrap,nrhere)
+         call color(15)
          call pltend()
          open(15,status='unknown',file='rhopic.dat')
          write(15,*)'dt,      vd,      Ti,      rmax,',
@@ -454,7 +458,7 @@ c     $              rhomax,fac10,first,delta
      $           nthhere+2,zclv,icl,zrho,xrho,ntype)
             write(*,'(a,30f5.2)')'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
-            tstring=' contour spacing: '//cstring
+            tstring=' contour spacing: '//cstring(1:10)
 c            call legendline(-.1,-.22,258,tstring)
          endif
 c      endif
@@ -960,7 +964,7 @@ c     $              rhomax,fac10,first,delta
      $           zclv,icl,zrho,xrho,ntype)
             write(*,*)'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
-            tstring=' contour spacing: '//cstring
+            tstring=' contour spacing: '//cstring(1:10)
 c            call legendline(-.1,-.22,258,tstring)
          endif
 c      endif
@@ -1220,7 +1224,7 @@ c     $              rhomax,fac10,first,delta
      $           zclv,icl,zrho,xrho,ntype)
             write(*,*)'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
-            tstring=' contour spacing: '//cstring
+            tstring=' contour spacing: '//cstring(1:10)
 c            call legendline(-.1,-.22,258,tstring)
          endif
 c      endif
@@ -1267,8 +1271,8 @@ c     call pltend()
 c***************************************************************************
 c Data reading subroutine
       subroutine readoutput(lreaddiag,lpcic,ledge,
-     $     filename,rholocal,nrhere,nthhere,nphere,
-     $     phipic,rhopic,rpic,rpicleft,phicos,
+     $     filename,rholocal,diagtrap,nrhere,nthhere,nphere,
+     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
      $     dt,rmax,fave,debyelen,vprobe,
@@ -1276,10 +1280,10 @@ c Data reading subroutine
      $     ierr)
       logical lreaddiag,lpcic,ledge
       character*100 string,filename
-      real phipic(1000),rhopic(1000)
+      real phipic(1000),rhopic(1000),rhotrap(1000)
       real rpic(1000),rpicleft(1000),phicos(1000)
       include 'piccompost.f'
-      real rholocal(0:NRFULL,0:NTHFULL)
+      real rholocal(0:NRFULL,0:NTHFULL),diagtrap(0:NRFULL,0:NTHFULL)
       character*256 charin
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
@@ -1407,9 +1411,22 @@ c Read in  summed results.
       read(10,*,err=402,end=402)string
       read(10,*,err=402,end=402)
      $     icolntype,colwt,Eneutral,vneutral,Tneutral
+      read(10,*,err=402,end=402)string
+      read(10,*,err=402,end=402)string
+      read(10,*,err=402,end=402)pinfty
+      read(10,*,err=402,end=402)string
+      read(10,*,err=402,end=402)efprobe
+      read(10,*,err=402,end=402)string
+      read(10,*,err=402,end=402)((diagtrap(k1,k2),k1=1,nrhere),k2=1
+     $     ,nthhere)
+
+      write(*,*)((diagtrap(k1,k2),k1=1,nrhere),k2=1
+     $     ,nthhere)
+
  402  close(10)
       write(*,*)'nrhere,nthhere,icolntype,colwt'
-      write(*,*)nrhere,nthhere,icolntype,colwt
+      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
+      write(*,*)string
       if(lreaddiag)then
          write(*,*)'Finished reading'
          write(*,*)'vrsum(1)'
@@ -1508,18 +1525,22 @@ c fix angle ends of rho and phi
       if(lreaddiag)write(*,*)'jmin,jmax',jmin,jmax
       do i=1,nrhere
          rhopic(i)=0.
+         rhotrap(i)=0.
          phicos(i)=0.
 c         write(*,*)'th   tcc   phi'
          do j=jmin,jmax
             rhopic(i)=rhopic(i)+rholocal(i,j)
+            rhotrap(i)=rhotrap(i)+diagtrap(i,j)
+c            if(diagtrap(i,j).eq.0)write(*,*)i,j
 c     rhopic(i)=rhopic(i)+rho(i,j)
 c \int cos(\theta) \phi(\theta) d\cos(\theta)
             phicos(i)=phicos(i)+th(j)*tcc(j)*phi(i,j)
 c            write(*,'(4f10.4)')th(j),tcc(j),phi(i,j),phicos(i)
          enddo
          rhopic(i)=rhopic(i)/float(jmax-jmin+1)
+         rhotrap(i)=rhotrap(i)/float(jmax-jmin+1)+0.01
+c         write(*,*)diagtrap(i,3),rhotrap(i)
       enddo
-
 c     rescale rho; but usually this is the identity transformation.
       do i=1,nrhere
          rpicleft(i)=-rpic(i)

@@ -106,14 +106,16 @@ c Particle units nTr^2, Electric nT lambda_D^2.
      $     '      Ions     Coll     Total'
       write(10,*)(zmom(nstepmax,j,1),j=1,5),total1
       write(10,*)(zmom(nstepmax,j,2),j=1,5),total2
-      if(rmtoz.ne.1.) write(10,'(''rmtoz='',f10.4)')rmtoz
       write(10,*)'Collisions: Type,Weight,Eneutral,vneutral,Tneutral'
-      if(icolntype.ne.0) write(10,701) icolntype,colnwt,Eneutral
-     $     ,vneutral,Tneutral
+      write(10,701) icolntype,colnwt,Eneutral ,vneutral,Tneutral
+      write(10,'(''rmtoz='',f10.4)')rmtoz
       write(10,*) 'Ion momentum collection at infinity'
       write(10,*) collmomtot(nstepmax)
       write(10,*) 'Energy flux to the probe'
       write(10,*) enertot(nstepmax)
+c Trapped array.
+      write(10,'(a,i4,i4)')'Trapped density. Grid',NRUSED,NTHUSED
+      write(10,'(10f8.4)')((diagtrap(j,k),j=1,NRUSED),k=1,NTHUSED)
       
  701  format(10x,i3,4f10.5)
 c     701  format('Collisions: type=',i4,' weight=',f8.4,' Eneutral=',

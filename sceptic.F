@@ -498,6 +498,8 @@ c Document charge accumulated; calculate diagrho, finthave.
             call chargediag(dt,i,icolntype)
 c Calculate rhoinf
             call rhoinfcalc(dt,icolntype,colnwt)
+c Accumulate trapped density            
+            call diagtrapcalc()
          endif
 
  
@@ -658,8 +660,9 @@ c
 c Small mesh written diagnostics.   
     
          if(nr.eq.10) then
-            write(*,*)'Rho,phi'
+            write(*,*)'Rho,diagtrap,phi'
             write(*,504)((rho(iw,jw),iw=1,nr),jw=0,NTHFULL)
+            write(*,504)((diagtrap(iw,jw),iw=1,nr),jw=0,NTHFULL)
             write(*,504)((phi(iw,jw),iw=1,nr),jw=0,NTHFULL)
          endif
          time=time+dt
@@ -805,7 +808,7 @@ c If lsmooth, then symmetrize the density, by averaging.
 
 c Common data:
       include 'piccom.f'
- 501  format(10f8.1)
+c 501  format(10f8.1)
 c Now we have added up fractional charges assigned to each mesh point. 
 c We need to divide by the volume corresponding to each.
       if(.not.rhoinf.gt.1.e-4) then
@@ -833,6 +836,8 @@ c               write(*,*)'Rhocalc fixup: zero particles in cell',ir,ith
 c Fix the theta boundaries. The extra small quantity prevents zeros, I hope.
             rho(ir,1)=2.*rho(ir,1)+1.e-4
             rho(ir,nth)=2.*rho(ir,nth)+1.e-4
+            diagtrap(ir,1)=2.*diagtrap(ir,1)
+            diagtrap(ir,nth)=2.*diagtrap(ir,nth)
          endif
 
       
@@ -882,6 +887,7 @@ c The particle number total
       real vr2tot(0:nrsize,0:nthsize),v2tot(0:nrsize,0:nthsize)
       real vtp2tot(0:nrsize,0:nthsize)
       real vztot(0:nrsize,0:nthsize)
+      real pttot(0:nrsize,0:nthsize)
       call MPI_REDUCE(psum,ptot,(nrsize+1)*(nthsize+1),
      $     MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_REDUCE(vrsum,vrtot,(nrsize+1)*(nthsize+1),
@@ -890,6 +896,8 @@ c The particle number total
      $     MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_REDUCE(vzsum,vztot,(nrsize+1)*(nthsize+1),
      $        MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+      call MPI_REDUCE(ptsum,pttot,(nrsize+1)*(nthsize+1),
+     $     MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       if(diags)then
          call MPI_REDUCE(vtsum,vttot,(nrsize+1)*(nthsize+1),
      $        MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
@@ -905,6 +913,7 @@ c The particle number total
                vrsum(i1,i2)=vrtot(i1,i2)
                vr2sum(i1,i2)=vr2tot(i1,i2)
                vzsum(i1,i2)=vztot(i1,i2)
+               ptsum(i1,i2)=pttot(i1,i2)
                if(diags)then
                   vtsum(i1,i2)=vttot(i1,i2)
                   v2sum(i1,i2)=v2tot(i1,i2)

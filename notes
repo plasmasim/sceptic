@@ -395,3 +395,44 @@ data.
 
 Adjusted the velocity range choice in finjinit to account for the neutral
 as well as the vd velocity and avoid the zero-integral errors.
+
+23 Sep 11
+
+Idea to track the _trapped_ density as well as the total density.
+Inside chargetomesh test if particle is trapped, (which should not 
+need to call ptomesh again). If it is, then distribute it to a new
+sum ptsum that is the trapped particle sum. This ought to be of negligible
+cost.
+
+First we need a version of istrapped that does not call
+ptomesh. Created.  Found that the costs of calling this for each
+particle each timestep are about a 6% hit. Implemented a separate
+chargetrapped routine for accumulating this into a new array
+ptsum. Added reduce calls to collect from mpi. 
+
+Need to do a stepsave average for the trapped particles, because their
+numbers are much less generally than the total particles, so the results
+will be garbage unless decently averaged. Added array diagtrap for this
+purpose. It needs to be treated in such a way as to convert from psum to
+density. This is: rho()=psum(ir,ith)*volinv(ir)*(nth-1.)*np/rhoinf
+i.e. we need to do 
+diagtrap(ir,ith)= (diagtrap(ir,ith)*(nstepsave-1.)
+ +ptsum(ir,ith)*volinv(ir)*(nth-1.)*np/rhoinf) /nstepsave
+This is done for the other quantities in chargediag.
+But I'm inclined to add a call just after rhoinfcalc, which is
+done just after chargediag. Did that.
+
+Trying now printing out on small meshes, but diagtrap is not correct.
+Overflows and zeros. Need to figure out what's happening. There are in
+fact many trapped particles.
+
+One problem was that I had not added the diagtrap to the common block.
+Did that. Adding ptsum also gives a more sensible looking result. 
+The ends of the array are zero. Like rho. I guess they are BC locations.
+
+Corrected a few things in the makefile and MFConfigure to suppress
+spurious warnings.
+
+Now we need more sensible output. Probably ought to write out the array
+just as we do rho, at the end. Find we need to double the theta-edge
+values as before for rho. 

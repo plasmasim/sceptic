@@ -20,7 +20,7 @@ float rand_()
   i = rand(); 
   x = ((double) i)*xfac ;
   if(x >= 1. || x < 0.) {
-    printf("RAND Error: x=%f, i=%d, il=%d\n",x,i,il);
+    printf("RAND Error: x=%f, i=%ld, il=%ld\n",x,i,il);
   }
   return x;
 }

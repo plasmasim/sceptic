@@ -474,14 +474,13 @@ c      enddo
 c      read(*,*)iin
       end
 c***********************************************************************
-      logical function istrapped(i)
-
+      logical function istrapped0(i)
+c This is the whole thing calling ptomesh in one function.
 c     Return as logical whether the particle i is trapped or not.  It is
 c     considered trapped if the energy available for radial velocity at
 c     the outer boundary and at the probe, conserving angular momentum
 c     and energy is negative. The assumption of angular momentum
 c     conservation is false for non-symmetric situations.
-
       include 'piccom.f'
 
       ih=0
@@ -515,9 +514,9 @@ c following vphi as minimum on the probe
 
       if( (vte2 .gt. v2 + 2.*(phin-phie) ) .and.
      $    (vtp2 .gt. v2 + 2.*(phin-phip) ) ) then
-         istrapped=.true.
+         istrapped0=.true.
       else
-         istrapped=.false.
+         istrapped0=.false.
       endif
 c      write(*,*)'phin=',phin,'  phie=',phie,'  phip=',phip
 c      write(*,*)'vte=',vte,' vtp=',vtp
@@ -525,14 +524,53 @@ c      write(*,*)'vte=',vte,' vtp=',vtp
       end
 
 c***********************************************************************
-      logical function istrapped2(i)
+c Version of istrapped that does not call ptomesh, but rather passes
+c the result of a prior call. It has exactly the arguments of the
+c ptomesh call.
+      logical function istrapped2(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
+     $     ,zetap,ih,hf)
+      include 'piccom.f'
 
+c This seems to be unnecessary, because rp is already what I want.
+c      rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+      rn=rp
+c The interpolation here might not be correct for both schemes.
+      phin=(phi(il,ith)*(1.-tf)+phi(il,ith+1)*tf)*(1.-rf) +
+     $     (phi(il+1,ith)*(1.-tf)+phi(il+1,ith+1)*tf)*rf
+c Definition as being that the particle does not leave the domain
+c      phie= phi(NRUSED,ith)
+c Definition that the particle does not reach infinity.
+      phie=0.
+      phip= vprobe
+      vr2=(xp(4,i)*xp(1,i)+xp(5,i)*xp(2,i)+xp(6,i)*xp(3,i))**2
+     $     /rn
+      v2=xp(4,i)**2+xp(5,i)**2+xp(6,i)**2
+      vt2=v2-vr2
+
+c Domain definition.
+c      vte2=(vt2*(rn/rcc(NRUSED))**2)
+      vte2=0.
+c conservation of angular momentum imposes the particule to have the
+c following vphi as minimum on the probe
+      vtp2=vt2*rn**2
+      if( (vte2 .gt. v2 + 2.*(phin-phie) ) .and.
+     $    (vtp2 .gt. v2 + 2.*(phin-phip) ) ) then
+         istrapped2=.true.
+      else
+         istrapped2=.false.
+      endif
+
+      end
+c********************************************************************
+c***********************************************************************
+      logical function istrapped(i)
+c Version split into two. 
 c     Return as logical whether the particle i is trapped or not.  It is
 c     considered trapped if the energy available for radial velocity at
 c     the outer boundary and at the probe, conserving angular momentum
 c     and energy is negative. The assumption of angular momentum
 c     conservation is false for non-symmetric situations.
-
+      logical istrapped2
       include 'piccom.f'
 
       ih=0
@@ -540,22 +578,11 @@ c     conservation is false for non-symmetric situations.
       call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
      $     ,zetap,ih,hf)
 
-      phihere=(phi(il,ith)*(1.-tf)+phi(il,ith+1)*tf)*(1.-rf) +
-     $     (phi(il+1,ith)*(1.-tf)+phi(il+1,ith+1)*tf)*rf
-
-      vv=xp(4,i)**2+xp(5,i)**2+xp(6,i)**2
-      vz2=xp(6,i)**2
-      if (vz2.le.-2*phihere) then
-         istrapped2=.true.
-      else
-         istrapped2=.false.
-      endif
-c      write(*,*)'phin=',phin,'  phie=',phie,'  phip=',phip
-c      write(*,*)'vte=',vte,' vtp=',vtp
+      istrapped=istrapped2(i,il,rf,ith,tf,ipl,pf,st,ct,sp,cp,rp
+     $     ,zetap,ih,hf)
 
       end
-c********************************************************************
-
+c***********************************************************************
 
 
 

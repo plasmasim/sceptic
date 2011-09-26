@@ -24,6 +24,8 @@ c Flag of particle slot status (e.g. in use or not)
       integer ipf(npartmax)
 c The particle number
       real psum(0:nrsize,0:nthsize)
+c The trapped particle number
+      real ptsum(0:nrsize,0:nthsize)
 c The sum of particle radial velocities
       real vrsum(0:nrsize,0:nthsize)
 c Sum of theta velocities
@@ -54,7 +56,7 @@ c Highest occupied particle slot.
       logical lfixedn
       integer myid,numprocs
       real rmtoz
-      common /piccom/xp,npart,vzinit,psum,dtprec,
+      common /piccom/xp,npart,vzinit,psum,dtprec,ptsum,
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
@@ -113,7 +115,7 @@ c diagnostic data
       real diagrho(nrsize),diagphi(nrsize)
 cIHH      real diagchi(nthsize)
       real diagchi(0:nthsize)
-      real diagvr(nrsize,nthsize)
+      real diagvr(nrsize,nthsize),diagtrap(nrsize,nthsize)
       integer collision,partz,fieldz,epressz,enccharge
       parameter(enccharge=1,fieldz=2,epressz=3,partz=4,collision=5)
 c Total particle flux to probe
@@ -157,7 +159,7 @@ c Cell in which to accumulate distribution functions
      $     rhoinf,diagvr,vrdiagin,vtdiagin,
      $     spotrein,averein,fluxrein,ntrapre,adeficit,
      $     ircell,itcell,zmout,zmomprobe,collmom,finthave,zmom,
-     $     collmomtot,enerprobe,enertot
+     $     collmomtot,enerprobe,enertot,diagtrap
 c*********************************************************************
 c Poisson coefficients for iterative solution, etc.
 

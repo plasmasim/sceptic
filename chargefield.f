@@ -4,6 +4,7 @@ c***********************************************************************
 c Common data:
       include 'piccom.f'
 
+      logical istrapped,istrapped2
 c      ninner=0
       
       do j=0,nth+1
@@ -35,6 +36,19 @@ c Use fast ptomesh, half-quantities not needed.
             else
                call chargeassign(i,irl,rf,ithl,thf,
      $              ipl,pf,st,ct,sp,cp,rp)
+c This extra trapped particle test/call on its own drives time from 
+c 4.5s to 5.7s. I.e. increases costs 25%. It is completely the 
+c istrapped function that costs.
+c                  if(istrapped(i))then
+c By comparison this call is about 4.8s. I.e. the call is 1/4 of the cost
+c of istrapped, and is a ~6% extra cost.
+c               if(.false..and.
+               if(
+     $              istrapped2(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
+     $              ,zetap,ih,hf))then
+                  call chargetrapped(i,irl,rf,ithl,thf,
+     $                 ipl,pf,st,ct,sp,cp,rp)
+               endif
             endif
          endif
       enddo
@@ -61,6 +75,7 @@ c Charge summation.
       vzsum(irl+1,ithl+1)=vzsum(irl+1,ithl+1) + rf*thf*vz
 
       if(diags .or. irl.le.2) then
+c These extra accumulations increase time by about 10%.
       vxy=xp(4,i)*cp + xp(5,i)*sp
       vr=vxy*st + xp(6,i)*ct
       vrsum(irl,ithl)=vrsum(irl,ithl) + (1.-rf)*(1.-thf)*vr
@@ -99,6 +114,19 @@ c Charge summation.
       vtp2sum(irl+1,ithl+1)=vtp2sum(irl+1,ithl+1) + rf*thf*vtp2
      
       endif
+      end
+c***********************************************************************
+c Accumulate trapped particle charge into mesh.
+      subroutine chargetrapped(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp)
+c      implicit none
+      integer i
+c Common data:
+      include 'piccom.f'
+c Charge summation.
+      ptsum(irl,ithl)=ptsum(irl,ithl) + (1.-rf)*(1.-thf)
+      ptsum(irl+1,ithl)=ptsum(irl+1,ithl) + rf*(1.-thf)
+      ptsum(irl,ithl+1)=ptsum(irl,ithl+1) + (1.-rf)*thf
+      ptsum(irl+1,ithl+1)=ptsum(irl+1,ithl+1) + rf*thf
       end
 c***********************************************************************
 c Calculate potential phi from rho.

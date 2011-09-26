@@ -76,6 +76,7 @@ c Zero the sums.
             vr2sum(i,j)=0.
             vtp2sum(i,j)=0.
             vzsum(i,j)=0.
+            ptsum(i,j)=0.
          enddo
       enddo
 
@@ -864,7 +865,7 @@ c     If rshield is not an integer, problem with the MPI routines
       integer rshield
       real phislopeconst(0:nth+1),phislopefac(0:nth+1)
 c Correct the type of temporary variable (IHH). Better use initial letter.
-      integer c
+c      integer c
 
 
 c bpc=0 -> Use the spherical symmetry approximation (Hutch paper2)

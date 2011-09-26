@@ -139,8 +139,6 @@ c Common data:
       character*30 char1
       save
 
-c      call pltinit(0.,1.,0.,1.)
-c      return
 
       do i=1,NRUSED
           vrplot(i)=0.
@@ -513,3 +511,16 @@ c Overplot orbits on existing plot.
       enddo
       call winset(.false.)
       end
+
+c*********************************************************************
+      subroutine diagtrapcalc()
+      include 'piccom.f'
+c Accumulate the trapped particle density average.
+      do j=1,nth
+         do i=1,nr
+            diagtrap(i,j)= (diagtrap(i,j)*(nstepsave-1.)
+     $           +ptsum(i,j)*volinv(i)*(nth-1.)*np/rhoinf) /nstepsave
+         enddo
+      enddo
+
+      end 

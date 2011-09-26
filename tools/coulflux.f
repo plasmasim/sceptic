@@ -218,7 +218,7 @@ c jmax=12 is enough to get six decimal places of agreement.
           HP=XA(I+M)-X
           W=C(I+1)-D(I)
           DEN=HO-HP
-          IF(DEN.EQ.0.)PAUSE
+          IF(DEN.EQ.0.)stop
           DEN=W/DEN
           D(I)=HP*DEN
           C(I)=HO*DEN
@@ -256,7 +256,7 @@ c jmax=12 is enough to get six decimal places of agreement.
           HP=XA(I+M)-X
           W=C(I+1)-D(I)
           DEN=HO-HP
-          IF(DEN.EQ.0.)PAUSE
+          IF(DEN.EQ.0.)stop
           DEN=W/DEN
           D(I)=HP*DEN
           C(I)=HO*DEN
