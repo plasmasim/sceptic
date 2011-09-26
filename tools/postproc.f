@@ -1420,13 +1420,13 @@ c Read in  summed results.
       read(10,*,err=402,end=402)((diagtrap(k1,k2),k1=1,nrhere),k2=1
      $     ,nthhere)
 
-      write(*,*)((diagtrap(k1,k2),k1=1,nrhere),k2=1
-     $     ,nthhere)
+c      write(*,*)((diagtrap(k1,k2),k1=1,nrhere),k2=1
+c     $     ,nthhere)
 
  402  close(10)
       write(*,*)'nrhere,nthhere,icolntype,colwt'
-      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
-      write(*,*)string
+      write(*,*)nrhere,nthhere,icolntype,colwt
+c      write(*,*)string
       if(lreaddiag)then
          write(*,*)'Finished reading'
          write(*,*)'vrsum(1)'
