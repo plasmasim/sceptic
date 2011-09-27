@@ -436,3 +436,8 @@ spurious warnings.
 Now we need more sensible output. Probably ought to write out the array
 just as we do rho, at the end. Find we need to double the theta-edge
 values as before for rho. 
+
+26 Sep 11
+
+Done all that and seem to have it working together with an updated
+postproc that puts the line on to the -o logarithmic plots.

@@ -516,11 +516,16 @@ c*********************************************************************
       subroutine diagtrapcalc()
       include 'piccom.f'
 c Accumulate the trapped particle density average.
-      do j=1,nth
+      do j=2,nth-1
          do i=1,nr
             diagtrap(i,j)= (diagtrap(i,j)*(nstepsave-1.)
      $           +ptsum(i,j)*volinv(i)*(nth-1.)*np/rhoinf) /nstepsave
          enddo
       enddo
-
+      do j=1,nth,nth-1
+         do i=1,nr
+            diagtrap(i,j)= (diagtrap(i,j)*(nstepsave-1.)
+     $           +2.*ptsum(i,j)*volinv(i)*(nth-1.)*np/rhoinf)/nstepsave
+         enddo
+      enddo
       end 

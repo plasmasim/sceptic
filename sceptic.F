@@ -836,8 +836,6 @@ c               write(*,*)'Rhocalc fixup: zero particles in cell',ir,ith
 c Fix the theta boundaries. The extra small quantity prevents zeros, I hope.
             rho(ir,1)=2.*rho(ir,1)+1.e-4
             rho(ir,nth)=2.*rho(ir,nth)+1.e-4
-            diagtrap(ir,1)=2.*diagtrap(ir,1)
-            diagtrap(ir,nth)=2.*diagtrap(ir,nth)
          endif
 
       
