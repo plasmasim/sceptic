@@ -1406,8 +1406,8 @@ c Read in  summed results.
       read(10,*)string
       read(10,*)(tcc(k2),k2=1,nthhere)      
       read(10,*,err=402,end=402)string
-      read(10,*)charge1,ffield1,felec1,fion1,ftot1
-      read(10,*)charge2,ffield2,felec2,fion2,ftot2
+      read(10,*)charge1,ffield1,felec1,fion1,fcol1,ftot1
+      read(10,*)charge2,ffield2,felec2,fion2,fcol2,ftot2
       read(10,*,err=402,end=402)string
       read(10,*,err=402,end=402)
      $     icolntype,colwt,Eneutral,vneutral,Tneutral
@@ -1425,8 +1425,8 @@ c     $     ,nthhere)
 
  402  close(10)
       write(*,*)'nrhere,nthhere,icolntype,colwt'
-      write(*,*)nrhere,nthhere,icolntype,colwt
-c      write(*,*)string
+      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
+      write(*,*)'Final read string=',string(1:60)
       if(lreaddiag)then
          write(*,*)'Finished reading'
          write(*,*)'vrsum(1)'
