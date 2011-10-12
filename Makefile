@@ -59,7 +59,6 @@ COMPILE-SWITCHES =-Wall -Wno-unused-variable  $(NOWARN) -O2  -I.
 # For profiling
 #COMPILE-SWITCHES = -Wall -O2 -pg
 
-<<<<<<< HEAD
 REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o reindiag.o
 
 MPICOMPILE-SWITCHES = -DMPI $(COMPILE-SWITCHES)
